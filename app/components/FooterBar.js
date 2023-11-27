@@ -2,6 +2,7 @@ import styles from './components.module.css'
 
 export default function FooterBar({children}) {
   const cur_year = new Date().getFullYear();
+  const prev_year = cur_year <= 2023 ? "" : "2023-";
 
   return (
     <footer className={styles.footerbar} role="group">
@@ -16,7 +17,7 @@ export default function FooterBar({children}) {
           <div className={styles.footer_sub_item}>School of Natural Resources and the Environment <span className={styles.outside_link}>&#x2197;</span></div>
         </div>
       </div>
-      <div className={styles.footer_copyright}>Copyright &copy; {cur_year}</div>
+      <div className={styles.footer_copyright}>Copyright &copy; {prev_year}{cur_year}</div>
       <div className={styles.footer_wrapper} style={{justifyContent: 'center'}}>
         <div className={styles.footer_sub_title} aria_describedby="footer_credits">Credits&nbsp;
           <span className={styles.footer_more_info}>&#x00BB;</span>

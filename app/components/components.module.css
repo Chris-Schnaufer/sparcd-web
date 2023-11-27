@@ -15,6 +15,7 @@
     align-items: center;
     border-bottom: 1px solid black;
     box-shadow: 2px 3px 3px #bbbbbb;
+    background-color: white;
 }
 
 .titlebar_title {
@@ -34,7 +35,7 @@
     align-items: center;
     padding: 5px 5px 5px 5px;
     border-top: 1px solid gray;
-    z-index: 1;
+    background-color: white;
 }
 
 .footer_wrapper {
