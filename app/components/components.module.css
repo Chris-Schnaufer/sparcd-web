@@ -1,0 +1,120 @@
+
+.outside_link {
+    font-size: xx-small;
+    font-weight: bold;
+    border: 1px solid black;
+    border-radius: 3px;
+}
+
+.titlebar {
+    width: 100vw;
+    padding: 10px 10px 10px 10px;
+    display: flex;
+    flex-direction: row;
+    justify-content: left;
+    align-items: center;
+    border-bottom: 1px solid black;
+    box-shadow: 2px 3px 3px #bbbbbb;
+}
+
+.titlebar_title {
+    font-size: xx-large;
+}
+
+.titlebar img {
+    padding-left: 5px;
+    width: 50px;
+}
+
+.footerbar {
+    width: 100vw;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 5px 5px 5px;
+    border-top: 1px solid gray;
+    z-index: 1;
+}
+
+.footer_wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    min-width: 33%;
+    white-space: nowrap;
+}
+
+.footer_sub_title {
+    font-weight: bold;
+    font-size: x-small;
+    transform: rotate(180deg);
+    flex-basis: 0;
+    writing-mode: vertical-lr;
+    padding-left: 10px;
+}
+
+.footer_sub_item {
+    font-weight: normal;
+    font-size: x-small;
+}
+
+.footer_details_wrapper {
+}
+
+.footer_details_right {
+}
+
+.footer_details_left {
+}
+
+.footer_more_info {
+    display: none;
+    font-size: x-small;
+    color: slategray;
+    background-color: lightgray;
+    border: 1px solid darkgray;
+    border-radius: 15px;
+    padding: 1px;
+}
+
+.footer_copyright {
+    font-weight: normal;
+    font-size: x-small;
+    align-self: end;
+    white-space: nowrap;
+    max-width: 33%;
+}
+
+@media (max-width: 600px) or (max-height: 670px) {
+    .footer_sub_title {
+        writing-mode: horizontal-tb;
+        transform: unset;
+    }
+    .footer_details_wrapper {
+        display: none;
+    }
+    .footer_more_info {
+        display: revert;
+    }
+    .footer_details_right {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        border-bottom-right-radius: 0 !important;
+    }
+    .footer_details_left {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        border-bottom-left-radius: 0 !important;
+    }
+    .footer_sub_title:hover ~ .footer_details_wrapper {
+        display: revert;
+        background-color: lemonchiffon;
+        border: 1px solid grey;
+        border-radius: 5px 5px 5px 5px;
+        padding: 5px 7px 5px 7px;
+    }
+}
