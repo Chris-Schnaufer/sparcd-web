@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 const getNarrowScreen = () => {console.log("GETNARROW");window.inner_width <= 600;}
 
-export default function isWindowNarrow() {
+export default function IsWindowNarrow() {
     const [isNarrow, setIsNarrrow] = useState(getNarrowScreen());
 
     useEffect(() => {

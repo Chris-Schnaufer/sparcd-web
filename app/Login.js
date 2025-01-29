@@ -1,8 +1,51 @@
 import Image from 'next/image'
 import styles from './page.module.css'
-import wildcatResearch from '../public/wildcatResearch.png'
+import { useContext, useState } from 'react';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Checkbox from '@mui/material/Checkbox';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import LoginIcon from '@mui/icons-material/Login';
+import TextField from '@mui/material/TextField';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
-export default function Login() {
+import wildcatResearch from '../public/wildcatResearch.png'
+import {urlValid, userValid, passwordValid} from './checkLogin'
+import { LoginValidContext } from './checkLogin'
+
+export default function Login({prev_url, prev_user, prev_remember, login_func}) {
+  const validFields = useContext(LoginValidContext);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
+  };
+
+  const handleMouseUpPassword = (event) => {
+    event.preventDefault();
+  };
+
+  function call_login_func() {
+    let ctrl = document.getElementById('url_entry');
+    const url = ctrl.value;
+    ctrl = document.getElementById('username_entry');
+    const user = ctrl.value;
+    ctrl = document.getElementById('password_entry');
+    const password = ctrl.value;
+    ctrl = document.getElementById('remember_login_fields');
+    const remember = ctrl.checked;
+
+    login_func(url, user, password, remember);
+  }
+
+  let inputErrorClass = styles.login_dialog_items_error;
+
   return (
     <div className={styles.login_background}>
     <div className={styles.login_wrapper}>
@@ -10,35 +53,78 @@ export default function Login() {
         <div className={styles.login_dialog}>
           <Image height='60' alt="Wildcats Research" src={wildcatResearch} placeholder="blur" />
           <div className={styles.login_dialog_items}>
-            <label htmlFor="url_entry" className={styles.login_dialog_label_item}>URL: </label>
-            <input type="url" id="url_entry" autoComplete="url" 
-                   aria-describedby="url_entry_hint"
-                   placeholder="enter URL"
-                   className={styles.login_dialog_url_item} />
-            <span id="url_entry_hint" className={styles.login_dialog_entry_hint}>Example: the URL to the SPARC'd database</span>
-            <label htmlFor="username_entry" className={styles.login_dialog_label_item}>Username: </label>
-            <input type="text" id="username_entry" autoComplete="username"
-                   aria-describedby="username_entry_hint"
-                   placeholder="enter username"
-                   className={styles.login_dialog_account_item} />
-            <span id="username_entry_hint" className={styles.login_dialog_entry_hint}>Example: Your SPARC'd login name</span>
-            <label htmlFor="password_entry" className={styles.login_dialog_label_item}>Password: </label>
-            <input type="password" id="password_entry" autoComplete="current-password"
-                   aria-describedby="password_entry_hint"
-                   placeholder="enter password"
-                   className={styles.password_dialog_account_item} />
-            <span id="password_entry_hint" className={styles.login_dialog_entry_hint}>Example: Your SPARC'd password</span>
-            <div className={styles.input_dialog_checkbox_wrapper}>
-              <input type="checkbox" id="remember_login_fields"
-                     name="remember_login_fields"
-                     aria-describedby="remember_fields_hint" 
-                     className={styles.login_dialog_remember_field} />
-              <label htmlFor="remember_login_fields" className={styles.login_dialog_label_checkbox}>Remember URL and username</label>
-            </div>
-            <span id="remember_fields_hint" className={styles.login_dialog_entry_hint}>Remember fields when you log in next time</span>
+            <Box
+              component="form"
+              sx={{ '& > :not(style)': { m: 1, width: '37ch' } }}
+              noValidate
+              autoComplete="off"
+            >
+              <TextField required 
+                    id="url_entry"
+                    label="Database URL"
+                    size="small"
+                    sx={{m:5}}
+                    inputProps={{style: {fontSize: 12}}}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                    }}
+                    />
+              <TextField required 
+                    id="username_entry"
+                    label="Username"
+                    size="small"
+                    sx={{m:5}}
+                    inputProps={{style: {fontSize: 12}}}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                    }}
+                    />
+              <TextField required 
+                    id="password_entry"
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    size="small"
+                    sx={{m:5}}
+                    inputProps={{style: {fontSize: 12}}}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                      input: {
+                        endAdornment: 
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label={
+                                showPassword ? 'hide the password' : 'display the password'
+                              }
+                              onClick={handleClickShowPassword}
+                              onMouseDown={handleMouseDownPassword}
+                              onMouseUp={handleMouseUpPassword}
+                              edge="end"
+                            >
+                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>,
+                      },
+                    }}
+                    />
+                    <FormGroup>
+                      <FormControlLabel 
+                        required 
+                        size="small"
+                        control={<Checkbox />}
+                        label={<span style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.6)" }}>Remember URL and username</span>}
+                        />
+                    </FormGroup>
+
             <div className={styles.login_dialog_login_button_wrap}>
-              <input id="login_dialog_login_button" type="button" className={styles.login_dialog_login_button} value="Login" />
+              <Button size="small" color="login_button" sx={{bgcolor: 'background.default'}} endIcon={<LoginIcon />} onClick={call_login_func}>Login</Button>
             </div>
+            </Box>
           </div>
         </div>
       </div>

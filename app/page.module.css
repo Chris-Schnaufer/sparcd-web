@@ -27,13 +27,13 @@
 
 .login_dialog_wrapper {
   align-self: center;
-  max-height: 260px;
+  max-height: 360px;
   grid-column: 2;
   grid-row: 2;
   width: 338px;
   border: 2px solid white;
   border-radius: 20px;
-  background-color: rgba(0, 0, 0, 0.50);
+  background-color: rgba(200, 200, 200, 0.50);
 }
 
 .login_dialog {
@@ -45,63 +45,9 @@
   font-size: smaller;
 }
 
-.login_dialog_items label {
-  margin-top: 8px;
-  padding-right: 5px;
-  text-align: right;
-}
-
-.login_dialog_items input {
-  margin-top: 8px;
-  margin-right: 20px;
-}
-
-.login_dialog_items input::placeholder {
-  color: lightgray;
-}
-
-.login_dialog_label_item {
-  color: lightgrey;
-}
-
-.login_dialog_url_item {
-}
-
-.login_dialog_account_item {
-}
-
-.password_dialog_account_item {
-}
-
-.login_dialog_entry_hint {
-  text-align: left;
-  font-size: xx-small;
-  color: #b4b4b4;
-  grid-column: 2;
-}
-
-.input_dialog_checkbox_wrapper {
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: small;
-  color: lightgray;
-  grid-column:1 / 3;
-}
-
-.login_dialog_remember_field {
-}
-
-.login_dialog_items .login_dialog_remember_field {
-  margin-right: 5px;
-}
-
-.login_dialog_label_checkbox {
-}
-
 .login_dialog_login_button_wrap {
-  grid-column:2;
+  margin-right: 10px;
+  grid-column: 2;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;

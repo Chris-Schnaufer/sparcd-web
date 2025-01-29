@@ -1,6 +1,7 @@
 
 .outside_link {
-    font-size: xx-small;
+    color: blue;
+    font-size: 6pt;
     font-weight: bold;
     border: 1px solid black;
     border-radius: 3px;

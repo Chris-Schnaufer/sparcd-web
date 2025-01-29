@@ -6,7 +6,7 @@ export default function TitleBar({children}) {
     <header className={styles.titlebar} role="banner">
       <div
         aria-description="Scientific Photo Analysis for Research & Conservation database"
-        className={styles.titlebar_title}>SPARC'd
+        className={styles.titlebar_title}>SPARC&apos;d
       </div>
       <img src="/sparcd.png"
            alt="SPARC'd Logo"
