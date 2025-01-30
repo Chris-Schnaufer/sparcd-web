@@ -15,11 +15,12 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
 import wildcatResearch from '../public/wildcatResearch.png'
 import {urlValid, userValid, passwordValid} from './checkLogin'
-import { LoginValidContext } from './checkLogin'
+import {LoginValidContext} from './checkLogin'
 
 export default function Login({prev_url, prev_user, prev_remember, login_func}) {
-  const validFields = useContext(LoginValidContext);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberChecked, setRememberChecked] = useState(!!prev_remember);
+  const valuesValid = useContext(LoginValidContext);
 
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
@@ -30,6 +31,10 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
   const handleMouseUpPassword = (event) => {
     event.preventDefault();
   };
+
+  const rememberChanged = (event) => {
+    setRememberChecked(event.target.checked);
+  }
 
   function call_login_func() {
     let ctrl = document.getElementById('url_entry');
@@ -62,7 +67,9 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
               <TextField required 
                     id="url_entry"
                     label="Database URL"
+                    defaultValue={prev_url}
                     size="small"
+                    error={!valuesValid.url}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
                     slotProps={{
@@ -74,7 +81,9 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
               <TextField required 
                     id="username_entry"
                     label="Username"
+                    defaultValue={prev_user}
                     size="small"
+                    error={!valuesValid.user}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
                     slotProps={{
@@ -88,6 +97,7 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
                     size="small"
+                    error={!valuesValid.password}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
                     slotProps={{
@@ -116,7 +126,7 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
                       <FormControlLabel 
                         required 
                         size="small"
-                        control={<Checkbox />}
+                        control={<Checkbox id="remember_login_fields" checked={rememberChecked} onChange={rememberChanged} />}
                         label={<span style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.6)" }}>Remember URL and username</span>}
                         />
                     </FormGroup>
