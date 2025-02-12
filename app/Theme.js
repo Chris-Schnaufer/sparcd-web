@@ -17,6 +17,15 @@ const theme = createTheme({
       light: '#FFFFFF',
       dark: '#E0E0E0',
       contrastText: '#000000'
+    },
+    landing_card: {
+      background: 'lightgrey',
+      minHeight: '20vh',
+      maxWidth: '40vw',
+      uploadImage: "https://arizona.box.com/shared/static/dcxcm0y8u6cnwcz6tftovo68ixkcd2c0.jpg",
+      collectionsImage: '../public/CollectionsImage.jpg',
+      searchImage: '../public/SearchImage.jpg',
+      mapsImage: '../public/MapsImage.jpg',
     }
   }
 });

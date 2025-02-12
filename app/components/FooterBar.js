@@ -5,7 +5,7 @@ export default function FooterBar({children}) {
   const prev_year = cur_year <= 2023 ? "" : "2023-";
 
   return (
-    <footer className={styles.footerbar} role="group">
+    <footer id='sparcd-footer' className={styles.footerbar} role="group">
       <div className={styles.footer_wrapper} id="footer_details_wrapper">
         <div className={styles.footer_sub_title} aria_describedby="footer_contibutors">Contributors&nbsp;
           <span className={styles.footer_more_info}>&#x00BB;</span>

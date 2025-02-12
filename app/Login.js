@@ -51,6 +51,7 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
 
   let inputErrorClass = styles.login_dialog_items_error;
 
+  // TODO: Login button hover style change (change bg & font color)
   return (
     <div className={styles.login_background}>
     <div className={styles.login_wrapper}>
