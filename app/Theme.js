@@ -26,6 +26,10 @@ const theme = createTheme({
       collectionsImage: '../public/CollectionsImage.jpg',
       searchImage: '../public/SearchImage.jpg',
       mapsImage: '../public/MapsImage.jpg',
+    },
+    folder_upload: {
+      background: 'white',
+      padding: '1em 2em 1em 2em'
     }
   }
 });

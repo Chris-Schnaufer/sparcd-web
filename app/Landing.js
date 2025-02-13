@@ -7,6 +7,7 @@ import Grid from '@mui/material/Grid2';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
+import FolderUpload from './components/FolderUpload'
 import LandingCard from './components/LandingCard'
 import LandingUpload from './LandingUpload'
 import UserActions from './components/userActions'
@@ -46,7 +47,7 @@ export default function Landing({onUserAction}) {
           sx={{ minHeight: '100vh' }}
         >
           <Grid item="true" xs={3}>
-            <input type="file" name="file" webkitdirectory="true" directory="true"></input>
+            <FolderUpload cancel_func={() => setHaveNewUpload(false)}/>
           </Grid>
         </Grid>
       </Box>
