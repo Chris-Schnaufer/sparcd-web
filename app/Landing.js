@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 
 import FolderUpload from './components/FolderUpload'
 import LandingCard from './components/LandingCard'
+import LandingCollections from './LandingCollections'
 import LandingUpload from './LandingUpload'
 import UserActions from './components/userActions'
 import { MobileDeviceContext } from './serverInfo'
@@ -16,11 +17,12 @@ import { MobileDeviceContext } from './serverInfo'
 export default function Landing({onUserAction}) {
   const theme = useTheme();
   const [numSandboxUploads, setNumSandboxUploads] = React.useState(0);
+  const [numCollections, setNumCollections] = React.useState(0);
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
   const mobileDevice = React.useContext(MobileDeviceContext);
 
-  function updateSandboxUploads(newUploads) {
-    setNumSandboxUploads(newUploads);
+  function updateSandboxCount(uploadCount) {
+    setNumSandboxUploads(uploadCount);
   }
 
   function newUpload() {
@@ -31,13 +33,17 @@ export default function Landing({onUserAction}) {
     setHaveNewUpload(false);
   }
 
+  function updateCollectionCount(uploadCount) {
+    setNumCollections(uploadCount);
+  }
+
   function manageSandbox(collection, upload) {
 
   }
 
   function renderUploadOverlay() {
     return (
-      <Box sx={{'position': 'absolute', 'left': 0, 'top': 0, 'width': '100vw', 'height': '100vh', 'backgroundColor': 'rgba(128, 128, 128, 0.50)'}} >
+      <Box sx={{ ...theme.palette.screen_disable }} >
         <Grid
           container
           spacing={0}
@@ -61,18 +67,22 @@ export default function Landing({onUserAction}) {
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
                          action={[!mobileDevice ? {'title':'New Upload', 'cb':() => newUpload() } : null,
-                                  numSandboxUploads ? {'title':'Manage', 'cb':() => {console.log('Manage Sandbox');} } : null
+                                  {'title':'Manage', 
+                                   'cb':() => {console.log('Manage Sandbox');},
+                                   'disabled': numSandboxUploads ? false : true
+                                  }
                                  ]}
             >
-              <Typography variant="h5" component="div">
-                <LandingUpload uploadCount_func={updateSandboxUploads} />
-              </Typography>
+              <LandingUpload uploadCount_func={updateSandboxCount} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Collections"
-                         action={{'title':'Manage', 'cb':() => {console.log('Collections');onUserAction(UserActions.Collection);} }}
+                         action={{'title':'Manage', 
+                                  'cb':() => {console.log('Collections');onUserAction(UserActions.Collection);},
+                                  'disabled': numCollections ? false : true}}
             >
+              <LandingCollections collectionCount_func={updateCollectionCount} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>

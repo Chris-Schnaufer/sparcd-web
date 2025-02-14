@@ -27,9 +27,39 @@ const theme = createTheme({
       searchImage: '../public/SearchImage.jpg',
       mapsImage: '../public/MapsImage.jpg',
     },
+    landing_upload: {
+      border: '1px solid black',
+      maxHeight: '24vh',
+      overflow: 'scroll',
+      padding: '0em 1em 0em 1em'
+    },
+    landing_upload_refresh: {
+      color: 'text.secondary',
+      fontSize: 'x-small', 
+      textAlign: 'center'
+    },
+    landing_collections: {
+      border: '1px solid black',
+      maxHeight: '24vh',
+      overflow: 'scroll',
+      padding: '0em 1em 0em 1em'
+    },
+    landing_collections_refresh: {
+      color: 'text.secondary',
+      fontSize: 'x-small', 
+      textAlign: 'center'
+    },
     folder_upload: {
       background: 'white',
       padding: '1em 2em 1em 2em'
+    },
+    screen_disable: {
+      'position': 'absolute',
+      'left': 0,
+      'top': 0,
+      'width': '100vw',
+      'height': '100vh',
+      'backgroundColor': 'rgba(128, 128, 128, 0.50)'
     }
   }
 });

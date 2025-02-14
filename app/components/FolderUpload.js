@@ -1,3 +1,4 @@
+'use client'
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -6,10 +7,11 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+
+import ProgressWithLabel from './ProgressWithLabel'
 import { BaseURLContext, TokenContext } from '../serverInfo'
 
 export default function FolderUpload({cancel_func}) {
@@ -19,34 +21,6 @@ export default function FolderUpload({cancel_func}) {
   const [inputSize, setInputSize] = React.useState({'width':252,'height':21});
   const uploadToken = React.useContext(TokenContext);
   const uploadUrl = React.useContext(BaseURLContext) + '/upload&' + uploadToken + '&check';
-
-function CircularProgressWithLabel(props) {
-  return (
-    <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-      <CircularProgress variant="determinate" {...props} />
-      <Box
-        sx={{
-          top: 0,
-          left: 0,
-          bottom: 0,
-          right: 0,
-          position: 'absolute',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography
-          variant="caption"
-          component="div"
-          sx={{ color: 'text.secondary' }}
-        >
-          {`${Math.round(props.value)}%`}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
 
   function havePreviousUpload(path, files) {
     const formData = new FormData();
@@ -137,30 +111,30 @@ function CircularProgressWithLabel(props) {
     if (el) {
       const parentEl = el.parentNode;
       const elSize = el.getBoundingClientRect();
-      console.log(elSize);
+
       if (inputSize.width != elSize.width || inputSize.height != elSize.height) {
         setInputSize({'width':elSize.width,'height':elSize.height});
         curWidth = elSize.width;
         curHeight = elSize.height;
       }
     }
-    console.log(inputSize.width, inputSize.height);
     if (uploadingFiles) {
       // TODO: adjust upload percent to include already uploaded images
       return (
         <Grid id="grid" container justifyContent="center" sx={{'minWidth': `${curWidth}px`, 'minHeight':`${curHeight}px`}}>
-          <CircularProgressWithLabel value='10'/>
+          <ProgressWithLabel value='10'/>
         </Grid>
       );
     } else {
       return (
-        <input id="folder_select" type="file" name="file" webkitdirectory="true" directory="true" onChange={selectionChanged}></input>
+        <input id="folder_select" type="file" name="file" webkitdirectory="true" 
+               directory="true" onChange={selectionChanged}></input>
       );
     }
   }
 
   return (
-    <Card variant="outlined" sx={{'backgroundColor': `${theme.palette.folder_upload.background}`, 'padding': `${theme.palette.folder_upload.padding}`}} >
+    <Card variant="outlined" sx={{ ...theme.palette.folder_upload }} >
       <React.Fragment>
         <CardHeader sx={{ textAlign: 'center' }} title={
             <Typography gutterBottom variant="h6" component="h4">
@@ -173,7 +147,8 @@ function CircularProgressWithLabel(props) {
           {renderInputControls()}
         </CardContent>
         <CardActions>
-          <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles} disabled={filesSelected > 0 ? false : true}>Upload</Button>
+          <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
+                  disabled={filesSelected > 0 ? false : true}>Upload</Button>
           <Button id="folder_cancel" sx={{'flex':'1'}} size="small" onClick={cancelUpload}>Cancel</Button>
         </CardActions>
       </React.Fragment>

@@ -7,11 +7,15 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import { BaseURLContext, MobileDeviceContext, TokenContext } from './serverInfo'
 
 export default function LandingUpload({uploadCount_func}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
+  const [selectedUpload, setSelectedUpload] = React.useState(null);
+  const [refreshingUploads, setRefreshingUploads] = React.useState(true);
+  const [sandboxUploads, setSandboxUploads] = React.useState(null);
 
   function getSandbox() {
     const sandboxToken = React.useContext(TokenContext);
@@ -24,8 +28,13 @@ export default function LandingUpload({uploadCount_func}) {
     console.log(resp);
     */
 
+    // TODO: Remove refresh
     return [{'name': 'foo'}, {'name': 'bar'}, {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
     //return [];
+  }
+
+  function handleChange(ev) {
+    setSelectedUpload(ev.target.value);
   }
 
   // TODO: cache these
@@ -41,21 +50,31 @@ export default function LandingUpload({uploadCount_func}) {
   return (
     <React.Fragment>
       { firstItem ? (
-        <Box sx={{ border: '1px solid black', maxHeight: '30vh', overflow: 'scroll', padding: '0em 1em 0em 1em'}} >
-          <FormControl>
-            <RadioGroup
-              defaultValue={firstItem.name}
-              name='sandbox-items'
-            >
-                {
-                  sandboxItems.map(function(obj, idx) {
-                    return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name} />
-                  })
-                }
-            </RadioGroup>
-          </FormControl>
-        </Box>
-        ) : mobileDevice ? <Box>Nothing to do</Box>: null
+        <React.Fragment>
+          <Typography gutterBottom sx={{ ...theme.palette.landing_upload_refresh,
+                      visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+            Refreshing...
+          </Typography>
+          <Box sx={{ ...theme.palette.landing_upload }} >
+            <FormControl>
+              <RadioGroup
+                name='sandbox-items'
+                value={selectedUpload}
+                onChange={handleChange}              
+              >
+                  {
+                    sandboxItems.map(function(obj, idx) {
+                      return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name} />
+                    })
+                  }
+              </RadioGroup>
+            </FormControl>
+          </Box>
+        </React.Fragment>
+        ) : mobileDevice ? <Box>Nothing to do</Box>
+            : <Typography gutterBottom sx={{ color: 'text.secondary', fontSize: 14, textAlign: 'center',  }} >
+                No sandbox uploads
+              </Typography>
       }
     </React.Fragment>
   );
