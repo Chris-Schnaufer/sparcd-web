@@ -39,9 +39,9 @@ export default function LoginCard({title, action, children}) {
       <CardActions>
         { actionsIsArray ? 
           curAction.map(function(obj, idx) {
-            return <Button size="small" onClick={obj.cb} key={obj.title} sx={{'flex':'1'}}  disabled={obj.disabled}>{obj.title}</Button>;
+            return <Button size="small" onClick={obj.onClick} key={obj.title} sx={{'flex':'1'}}  disabled={obj.disabled}>{obj.title}</Button>;
           })
-          : <Button size="small" onClick={curAction.cb} disabled={curAction.disabled}>{curAction.title}</Button>
+          : <Button size="small" onClick={curAction.onClick} disabled={curAction.disabled}>{curAction.title}</Button>
         }
       </CardActions>
     </Card>

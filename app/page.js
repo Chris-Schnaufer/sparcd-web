@@ -9,10 +9,11 @@ import theme from './Theme'
 import Landing from './Landing'
 import FooterBar from './components/FooterBar'
 import Login from './Login'
+import ManageUpload from './ManageUpload'
 import TitleBar from './components/TitleBar'
 import UserActions from './components/userActions'
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
-import { BaseURLContext, MobileDeviceContext, TokenContext } from './serverInfo'
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
 import * as utils from './utils'
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -89,17 +90,34 @@ export default function Home() {
   const [loginValid, setLoginValid] = useState(DefaultLoginValid);
   const [serverURL, setServerURL] = useState(utils.getServer());
   const [curAction, setCurAction] = useState(UserActions.None);
+  const [curActionData, setCurActionData] = useState(null);
   const [mobileDeviceChecked, setMobileDeviceChecked] = useState(false);
   const [mobileDevice, setMobileDevice] = useState(null);
+  const [sandboxInfo, setSandboxInfo] = useState(null);
+  const [collectionInfo, setCollectionInfo] = useState(null);
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
 
-  function setCurrentAction(action) {
+  function setCurrentAction(action, actionData) {
     if (Object.values(UserActions).indexOf(action) > -1) {
+      if (!actionData) {
+        actionData = null;
+      }
+      // TODO: save state and data (and auto-restore)
       setCurAction(action);
+      setCurActionData(actionData);
     } else {
+      // TODO: Put up informational message about not valid command
       console.log('Invalid current action specified', action);
     }
+  }
+
+  function updateSandboxInfo(sandboxInfo) {
+    setSandboxInfo(sandboxInfo);
+  }
+
+  function updateCollectionInfo(collectionInfo) {
+    setCollectionInfo(collectionInfo);
   }
 
   function commonLoginUser(formData) {
@@ -195,19 +213,34 @@ export default function Home() {
   }
 
   function renderAction(action) {
+    // TODO: Store lastToken fetched (and be sure to update it)
+    const lastToken = loginStore.loadLoginToken();
     switch(action) {
       case UserActions.None:
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
-               <Landing onUserAction={setCurrentAction} />
+              <CollectionsInfoContext.Provider value={collectionInfo}>
+                <SandboxInfoContext.Provider value={sandboxInfo}>
+                  <Landing onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
+                </SandboxInfoContext.Provider>
+              </CollectionsInfoContext.Provider>
+             </TokenContext.Provider>
+           </BaseURLContext.Provider>
+        );
+      case UserActions.Upload:
+        return (
+           <BaseURLContext.Provider value={serverURL}>
+             <TokenContext.Provider value={lastToken}>
+              <SandboxInfoContext.Provider value={sandboxInfo}>
+                <ManageUpload selectedUpload={curActionData} />
+              </SandboxInfoContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>
         );
     }
   }
 
-  const lastToken = loginStore.loadLoginToken();
   return (
     <main className={styles.main}>
       <ThemeProvider theme={theme}>

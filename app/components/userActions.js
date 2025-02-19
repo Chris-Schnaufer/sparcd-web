@@ -1,9 +1,10 @@
 
 export const UserActions = {
   'None': 0,
-  'Collection': 3,
-  'Query': 4,
-  'Maps': 5
+  'Upload': 10,
+  'Collection': 30,
+  'Query': 40,
+  'Maps': 50
 };
 
 export default UserActions;

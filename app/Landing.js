@@ -12,18 +12,29 @@ import LandingCard from './components/LandingCard'
 import LandingCollections from './LandingCollections'
 import LandingUpload from './LandingUpload'
 import UserActions from './components/userActions'
-import { MobileDeviceContext } from './serverInfo'
+import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from './serverInfo'
 
-export default function Landing({onUserAction}) {
+export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpdate}) {
   const theme = useTheme();
-  const [numSandboxUploads, setNumSandboxUploads] = React.useState(0);
-  const [numCollections, setNumCollections] = React.useState(0);
+//  const [sandboxInfo, setSandboxInfo] = React.useState(null);
+//  const [collectionsInfo, setCollectionsInfo] = React.useState(null);
+//  const [updatedSandboxInfo, setUpdatedSandboxInfo] = React.useState(false);
+//  const [updatedCollectionInfo, setUpdatedCollectionInfo] = React.useState(false);
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
+  const [selUploadInfo, setSelUploadInfo] = React.useState(null);
+  const [selCollectionInfo, setSelCollectionInfo] = React.useState(null);
+  const curCollectionInfo = React.useContext(CollectionsInfoContext);
+  const curSandboxInfo = React.useContext(SandboxInfoContext);
   const mobileDevice = React.useContext(MobileDeviceContext);
 
-  function updateSandboxCount(uploadCount) {
-    setNumSandboxUploads(uploadCount);
-  }
+//  if (collectionsInfo == null && !updatedCollectionInfo) {
+//    setCollectionsInfo(curCollectionInfo);
+//    setUpdatedCollectionInfo(true);
+//  }
+//  if (sandboxInfo == null && !updatedSandboxInfo) {
+//    setSandboxInfo(curSandboxInfo);
+//    setUpdatedSandboxInfo(true);
+//  }
 
   function newUpload() {
     setHaveNewUpload(true);
@@ -33,8 +44,22 @@ export default function Landing({onUserAction}) {
     setHaveNewUpload(false);
   }
 
-  function updateCollectionCount(uploadCount) {
-    setNumCollections(uploadCount);
+  function updateSandboxInfo(sandboxInfo) {
+//    setSandboxInfo(sandboxInfo);
+    onSandboxUpdate(sandboxInfo);
+  }
+
+  function updateCollectionInfo(collectionInfo) {
+//    setCollectionsInfo(collectionInfo);
+    onCollectionUpdate(collectionInfo);
+  }
+
+  function setUploadSelection(uploadInfo) {
+    setSelUploadInfo(uploadInfo);
+  }
+
+  function setCollectionSelection(collectionInfo) {
+    setSelCollectionInfo(collectionInfo);
   }
 
   function manageSandbox(collection, upload) {
@@ -62,38 +87,38 @@ export default function Landing({onUserAction}) {
 
   return (
     <React.Fragment>
-      <Box id='landing-page' sx={{ flexGrow: 1 }} sx={{ 'width': '100vw' }} >
+      <Box id='landing-page' sx={{ flexGrow: 1, 'width': '100vw' }} >
         <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}} sx={{ 'margin': '4vw' }} >
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
-                         action={[!mobileDevice ? {'title':'New Upload', 'cb':() => newUpload() } : null,
+                         action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload() } : null,
                                   {'title':'Manage', 
-                                   'cb':() => {console.log('Manage Sandbox');},
-                                   'disabled': numSandboxUploads ? false : true
+                                   'onClick':() => {onUserAction(UserActions.Upload, selUploadInfo);},
+                                   'disabled': curSandboxInfo ? false : true
                                   }
                                  ]}
             >
-              <LandingUpload uploadCount_func={updateSandboxCount} />
+              <LandingUpload uploadInfo_func={updateSandboxInfo} onChange_func={setUploadSelection} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Collections"
                          action={{'title':'Manage', 
-                                  'cb':() => {console.log('Collections');onUserAction(UserActions.Collection);},
-                                  'disabled': numCollections ? false : true}}
+                                  'onClick':() => {console.log('Collections');onUserAction(UserActions.Collection, selCollectionInfo);},
+                                  'disabled': curCollectionInfo ? false : true}}
             >
-              <LandingCollections collectionCount_func={updateCollectionCount} />
+              <LandingCollections collectionInfo_func={updateCollectionInfo} onChange_func={setCollectionSelection} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Search Images" 
-                         action={{'title':'Query', 'cb':() => {console.log('Query');onUserAction(UserActions.Query);} }}
+                         action={{'title':'Query', 'onClick':() => {console.log('Query');onUserAction(UserActions.Query);} }}
             >
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Maps"
-                         action={{'title':'Maps', 'cb':() => {console.log('Maps');onUserAction(UserActions.Maps);} }}
+                         action={{'title':'Maps', 'onClick':() => {console.log('Maps');onUserAction(UserActions.Maps);} }}
             >
             </LandingCard>
           </Grid>

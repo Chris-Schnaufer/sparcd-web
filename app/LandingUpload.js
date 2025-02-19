@@ -8,18 +8,19 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { BaseURLContext, MobileDeviceContext, TokenContext } from './serverInfo'
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
 
-export default function LandingUpload({uploadCount_func}) {
+export default function LandingUpload({uploadInfo_func, onChange_func}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
   const [selectedUpload, setSelectedUpload] = React.useState(null);
   const [refreshingUploads, setRefreshingUploads] = React.useState(true);
   const [sandboxUploads, setSandboxUploads] = React.useState(null);
+  const curSandboxInfo = React.useContext(SandboxInfoContext);
+  const sandboxToken = React.useContext(TokenContext);
+  const sandboxUrl = React.useContext(BaseURLContext) + '/sandbox&' + sandboxToken;
 
   function getSandbox() {
-    const sandboxToken = React.useContext(TokenContext);
-    const sandboxUrl = React.useContext(BaseURLContext) + '/sandbox&' + sandboxToken;
     /* TODO: make call and wait for respone & return correct result
              need to handle null, 'invalid', and sandbox items
     const resp = await fetch(sandboxUrl, {
@@ -35,16 +36,17 @@ export default function LandingUpload({uploadCount_func}) {
 
   function handleChange(ev) {
     setSelectedUpload(ev.target.value);
+    onChange_func(ev.target.value);
   }
 
   // TODO: cache these
-  const sandboxItems = getSandbox();
+  const sandboxItems = curSandboxInfo || getSandbox();
   const firstItem = sandboxItems.length > 0 ? sandboxItems[0] : null;
 
-  // Set the upload count for the parent
+  // Set the upload info for the parent
   React.useEffect(() => {
-      function setUploadCount() {uploadCount_func(sandboxItems.length);};
-      setUploadCount();
+      function setUploadInfo() {uploadInfo_func(sandboxItems);};
+      setUploadInfo();
     },[]);
 
   return (

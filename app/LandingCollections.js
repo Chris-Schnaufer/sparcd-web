@@ -8,18 +8,19 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { BaseURLContext, MobileDeviceContext, TokenContext } from './serverInfo'
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, TokenContext } from './serverInfo'
 
-export default function LandingCollections({collectionCount_func}) {
+export default function LandingCollections({collectionInfo_func, onChange_func}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
   const [selectedCollection, setSelectedCollection] = React.useState(null);
   const [refreshingUploads, setRefreshingUploads] = React.useState(true);
   const [collectionsList, setCollectionsList] = React.useState(null);
+  const curCollectionsInfo = React.useContext(CollectionsInfoContext);
+  const collectionToken = React.useContext(TokenContext);
+  const collectionUrl = React.useContext(BaseURLContext) + '/collections&' + collectionToken;
 
   function getCollections() {
-    const collectionToken = React.useContext(TokenContext);
-    const collectionUrl = React.useContext(BaseURLContext) + '/collection&' + collectionToken;
     /* TODO: make call and wait for respone & return correct result
              need to handle null, 'invalid', and sandbox items
     const resp = await fetch(sandboxUrl, {
@@ -34,16 +35,17 @@ export default function LandingCollections({collectionCount_func}) {
 
   function handleChange(ev) {
     setSelectedCollection(ev.target.value);
+    onChange_func(ev.target.value);
   }
 
   // TODO: cache these
-  const collectionItems = getCollections();
+  const collectionItems = curCollectionsInfo || getCollections();
   const firstItem = collectionItems.length > 0 ? collectionItems[0] : null;
 
-  // Set the upload count for the parent
+  // Set the upload info for the parent
   React.useEffect(() => {
-      function setCollectionCount() {collectionCount_func(collectionItems.length);};
-      setCollectionCount();
+      function setCollectionInfo() {collectionInfo_func(collectionItems);};
+      setCollectionInfo();
     },[]);
 
   return (

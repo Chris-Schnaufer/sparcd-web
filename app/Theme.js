@@ -53,6 +53,20 @@ const theme = createTheme({
       background: 'white',
       padding: '1em 2em 1em 2em'
     },
+    left_sidebar: {
+      height: '100%',
+      width: '15vw',
+      maxWidth: '15vw',
+      minWidth: '150px',
+      background: 'white',
+      borderRight: '1px solid black',
+    },
+    left_sidebar_item: {
+      margin: '10px 10px 10px 10px'
+    },
+    left_sidebar_item_selected: {
+      background: 'lightpink'
+    },
     screen_disable: {
       'position': 'absolute',
       'left': 0,
