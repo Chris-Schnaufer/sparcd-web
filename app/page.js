@@ -9,8 +9,8 @@ import theme from './Theme'
 import Landing from './Landing'
 import FooterBar from './components/FooterBar'
 import Login from './Login'
-import ManageUpload from './ManageUpload'
 import TitleBar from './components/TitleBar'
+import UploadManage from './UploadManage'
 import UserActions from './components/userActions'
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
@@ -91,6 +91,7 @@ export default function Home() {
   const [serverURL, setServerURL] = useState(utils.getServer());
   const [curAction, setCurAction] = useState(UserActions.None);
   const [curActionData, setCurActionData] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [mobileDeviceChecked, setMobileDeviceChecked] = useState(false);
   const [mobileDevice, setMobileDevice] = useState(null);
   const [sandboxInfo, setSandboxInfo] = useState(null);
@@ -212,7 +213,7 @@ export default function Home() {
     setMobileDeviceChecked(true);
   }
 
-  function renderAction(action) {
+  function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
     const lastToken = loginStore.loadLoginToken();
     switch(action) {
@@ -233,7 +234,7 @@ export default function Home() {
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
               <SandboxInfoContext.Provider value={sandboxInfo}>
-                <ManageUpload selectedUpload={curActionData} />
+                <UploadManage selectedUpload={curActionData} />
               </SandboxInfoContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>
@@ -251,7 +252,7 @@ export default function Home() {
               <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} login_func={handleLogin} />
              </LoginValidContext.Provider>
             :
-            renderAction(curAction)
+            renderAction(curAction, editing)
           }
           <FooterBar/>
         </MobileDeviceContext.Provider>
