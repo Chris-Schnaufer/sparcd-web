@@ -17,6 +17,7 @@
     border-bottom: 1px solid black;
     box-shadow: 2px 3px 3px #bbbbbb;
     background-color: white;
+    z-index: 9999999;
 }
 
 .titlebar_title {

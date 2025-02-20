@@ -60,17 +60,22 @@ const theme = createTheme({
       minWidth: '150px',
       background: 'white',
       borderRight: '1px solid black',
+      margin: '0px 0px 0px 0px'
     },
     left_sidebar_item: {
-      margin: '10px 10px 10px 10px'
+      padding: '10px 10px 10px 10px',
+      borderTop: '1px solid white',
+      borderBottom: '1px solid white'
     },
     left_sidebar_item_selected: {
-      background: 'lightpink'
+      fontWeight: 'bold',
+      borderTop: '1px solid grey',
+      borderBottom: '1px solid grey'
     },
     screen_disable: {
       'position': 'absolute',
-      'left': 0,
-      'top': 0,
+      'left': '0px',
+      'top': '0px',
       'width': '100vw',
       'height': '100vh',
       'backgroundColor': 'rgba(128, 128, 128, 0.50)'
