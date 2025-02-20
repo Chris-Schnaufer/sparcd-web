@@ -10,6 +10,7 @@ import Landing from './Landing'
 import FooterBar from './components/FooterBar'
 import Login from './Login'
 import TitleBar from './components/TitleBar'
+import UploadEdit from './UploadEdit'
 import UploadManage from './UploadManage'
 import UserActions from './components/userActions'
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
@@ -184,6 +185,12 @@ export default function Home() {
     }
   }
 
+  function editUpload(uploadInfo) {
+    setEditing(true);
+    console.log('NOW',curActionData,uploadInfo);
+    setCurActionData(uploadInfo);
+  }
+
   // Load saved token and see if session is still valid
   if (!savedTokenFetched && !curLoggedIn) {
     const lastLoginToken = loginStore.loadLoginToken();
@@ -234,7 +241,10 @@ export default function Home() {
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
               <SandboxInfoContext.Provider value={sandboxInfo}>
-                <UploadManage selectedUpload={curActionData} />
+                { editing == false ? 
+                  <UploadManage selectedUpload={curActionData} onEdit_func={editUpload} />
+                  : <UploadEdit selectedUpload={curActionData} />
+                }
               </SandboxInfoContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>

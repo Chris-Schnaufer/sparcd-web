@@ -30,7 +30,14 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
     */
 
     // TODO: Remove refresh
-    return [{'name': 'foo'}, {'name': 'bar'}, {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
+    return [{'name': 'foo'},
+            {'name': 'bar',
+             'location':'NOWHERE', 
+             'images': [{'name':'image1', 'url': '../public/sanimalBackground.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
+                        {'name':'image2', 'url': '../public/sanimalBackground.JPG', 'species': [{'name':'dog','count':'1'}]},
+                        {'name':'image3', 'url': '../public/sanimalBackground.JPG', 'species': null} ]
+            }, 
+            {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
     //return [];
   }
 

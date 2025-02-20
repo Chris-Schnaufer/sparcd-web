@@ -14,25 +14,28 @@ import { useTheme } from '@mui/material/styles';
 import { SandboxInfoContext } from './serverInfo'
 import UploadSidebarItem from './components/UploadSidebarItem'
 
-export default function ManageUploads({selectedUpload}) {
+export default function UploadManage({selectedUpload, onEdit_func}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
+//  const [resizeDrawForce, setResizeDrawForce] = React.useReducer(o => !o); // Forcing redraw on resize (most element dimensions don't change)
+  const [sidebarWidth, setSidebarWidth] = React.useState(150);
   const [totalHeight, setTotalHeight] = React.useState(null);
   const [workingTop, setWorkingTop] = React.useState(null);
-  const [sidebarWidth, setSidebarWidth] = React.useState(150);
-  const [resizeDrawForce, setResizeDrawForce] = React.useReducer(o => !o); // Forcing redraw on resize (most element dimensions don't change)
+  const [workspaceWidth, setWorkspaceWidth] = React.useState(window.innerWidth - 150); // The subtracted value is initial sidebar width
   const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name == selectedUpload));
-  const [editing, setEditing] = React.useState(false);
 
   React.useLayoutEffect(() => {
       function onResize () {
-          calcTotalHeight();
-          if (sidebarRef.current) {
-            setSidebarWidth(sidebarRef.current.offsetWidth);
-          }
+        const oldWorkspaceWidth = workspaceWidth;
 
-          setResizeDrawForce();
+        calcTotalHeight();
+        if (sidebarRef.current) {
+          setSidebarWidth(sidebarRef.current.offsetWidth);
+        }
+
+        const newWorkspaceWidth = window.innerWidth - sidebarRef.current.offsetWidth;
+        setWorkspaceWidth(newWorkspaceWidth);
       }
 
       window.addEventListener("resize", onResize);
@@ -47,14 +50,14 @@ export default function ManageUploads({selectedUpload}) {
     setSelectionIndex(sandboxItems.findIndex((item) => item.name == name));
   }
 
-  function onCancelEditUpload(ev, selection) {
+  function onCancelEditUpload(ev) {
     ev.preventDefault();
     setSelectionIndex(-1);
   }
 
-  function onEditUpload(ev, selection) {
+  function onEditUpload(ev) {
     ev.preventDefault();
-    setEditing(true);
+    onEdit_func(sandboxItems[selectionIndex].name);
   }
 
   function calcTotalHeight() {
@@ -77,12 +80,12 @@ export default function ManageUploads({selectedUpload}) {
 
   if (totalHeight == null) {
     calcTotalHeight();
+    setWorkspaceWidth(window.innerWidth - sidebarWidth);
   }
 
   const curHeight = totalHeight;
   const curStart = workingTop + 'px';
   const workplaceStartX = sidebarWidth;
-  const workplaceWidth = window.innerWidth - sidebarWidth;
   const curSelectionIndex = selectionIndex;
   return (
     <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
@@ -94,7 +97,7 @@ export default function ManageUploads({selectedUpload}) {
       </Grid>
       <Grid id='upload-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"
             style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 'left':workplaceStartX,
-                     'minWidth':workplaceWidth, 'maxWidth':workplaceWidth, 'width':workplaceWidth, 'position':'absolute' }}>
+                     'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 'position':'absolute' }}>
         { curSelectionIndex <= -1 ?
             <Grid item size={{ xs: 12, sm: 12, md:12 }}>
               <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
@@ -108,7 +111,7 @@ export default function ManageUploads({selectedUpload}) {
               <Card variant='outlined' sx={{backgroundColor: 'action.selected', maxWidth:'50vw'}}>
                 <CardContent>
                   <Typography variant="body" sx={{ color: 'text.secondary' }}>
-                    Do you want to edit upload <span style={{fontWeight:'bold'}}>{sandboxItems[curSelectionIndex].name}</span>?
+                    Do you want to edit <span style={{fontWeight:'bold'}}>{sandboxItems[curSelectionIndex].name}</span>?
                   </Typography>
                 </CardContent>
                 <CardActions>

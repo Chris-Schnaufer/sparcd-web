@@ -1,7 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 import { grey } from '@mui/material/colors';
 
-const theme = createTheme({
+let theme = createTheme({
   typography: {
     button: {
       textTransform: 'none'
@@ -72,6 +72,16 @@ const theme = createTheme({
       borderTop: '1px solid grey',
       borderBottom: '1px solid grey'
     },
+    species_sidebar_item: {
+      background: '#E0F0E0',
+      border: '1px solid black',
+
+    },
+    species_sidebar_item_media: {
+      minHeight: '120px',
+      maxHeight: '120px',
+      width: '150px'
+    },
     screen_disable: {
       'position': 'absolute',
       'left': '0px',
@@ -82,5 +92,11 @@ const theme = createTheme({
     }
   }
 });
+
+theme.typography['body3'] = {
+  ...theme.typography.body2,
+  fontSize: '0.71rem',
+  lineHeight: '1.22'
+};
 
 export default theme;
