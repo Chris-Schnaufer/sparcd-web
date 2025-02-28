@@ -22,8 +22,14 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
   const [sidebarWidth, setSidebarWidth] = React.useState(150);
   const [totalHeight, setTotalHeight] = React.useState(null);
   const [workingTop, setWorkingTop] = React.useState(null);
-  const [workspaceWidth, setWorkspaceWidth] = React.useState(window.innerWidth - 150); // The subtracted value is initial sidebar width
+  const [workspaceWidth, setWorkspaceWidth] = React.useState(getWindowWidth()); // The subtracted value is initial sidebar width
   const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name == selectedUpload));
+
+  function getWindowWidth() {
+    if (typeof window !== "undefined") {
+      return window.innerWidth - 150;
+    }
+  }
 
   React.useLayoutEffect(() => {
       function onResize () {
@@ -66,7 +72,10 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
     const elHeaderSize = elHeader.getBoundingClientRect();
     const elFooterSize = elFooter.getBoundingClientRect();
 
-    let maxHeight = (window.innerHeight - elHeaderSize.height - elFooterSize.height) + 'px';
+    let maxHeight = 100 + 'px';
+    if (typeof window !== "undefined") {
+      maxHeight = (window.innerHeight - elHeaderSize.height - elFooterSize.height) + 'px';
+    }
 
     setTotalHeight(maxHeight);
     setWorkingTop(elHeaderSize.height);
@@ -80,7 +89,9 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
 
   if (totalHeight == null) {
     calcTotalHeight();
-    setWorkspaceWidth(window.innerWidth - sidebarWidth);
+    if (typeof window !== "undefined") {
+      setWorkspaceWidth(window.innerWidth - sidebarWidth);
+    }
   }
 
   const curHeight = totalHeight;

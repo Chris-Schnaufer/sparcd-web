@@ -55,11 +55,20 @@ let theme = createTheme({
     },
     left_sidebar: {
       height: '100%',
-      width: '15vw',
-      maxWidth: '15vw',
+      width: '150px',
+      maxWidth: '150px',
       minWidth: '150px',
       background: 'white',
       borderRight: '1px solid black',
+      margin: '0px 0px 0px 0px'
+    },
+    right_sidebar: {
+      height: '100%',
+      width: '150px',
+      maxWidth: '150px',
+      minWidth: '150px',
+      background: 'white',
+      borderLeft: '1px solid black',
       margin: '0px 0px 0px 0px'
     },
     left_sidebar_item: {
@@ -72,10 +81,18 @@ let theme = createTheme({
       borderTop: '1px solid grey',
       borderBottom: '1px solid grey'
     },
+    species_left_sidebar: {
+      height: '100%',
+      width: '150px',
+      maxWidth: '150px',
+      minWidth: '150px',
+      background: 'white',
+      borderRight: '1px solid black',
+      margin: '0px 0px 0px 0px'
+    },
     species_sidebar_item: {
       background: '#E0F0E0',
       border: '1px solid black',
-
     },
     species_sidebar_item_media: {
       minHeight: '120px',

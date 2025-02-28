@@ -14,7 +14,7 @@ export default function SpeciesSidebarItem({species, onClick_func}) {
   const theme = useTheme();
 
   return (
-    <Grid display='flex' justifyContent='left' size='grow' spacing='1' onClick={onClick_func} >
+    <Grid id={'card-' + species.name} display='flex' justifyContent='left' size='grow' spacing='1' onClick={onClick_func} sx={{'maxWidth':'150px'}}>
       <Card sx={{ ...theme.palette.species_sidebar_item }} >
         <CardMedia
           sx={{ ...theme.palette.species_sidebar_item_media }}

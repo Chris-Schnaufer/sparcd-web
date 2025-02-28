@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react';
-import { useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import styles from './page.module.css'
 import { ThemeProvider } from "@mui/material/styles";
 
@@ -10,8 +9,8 @@ import Landing from './Landing'
 import FooterBar from './components/FooterBar'
 import Login from './Login'
 import TitleBar from './components/TitleBar'
-import UploadEdit from './UploadEdit'
 import UploadManage from './UploadManage'
+import UploadEdit from './UploadEdit'
 import UserActions from './components/userActions'
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
@@ -21,27 +20,39 @@ import * as utils from './utils'
 const loginStore = {
 
   loadURL() {
-    return window.localStorage.getItem('login.url')
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem('login.url')
+    }
   },
 
   loadUsername() {
-    return window.localStorage.getItem('login.user');
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem('login.user');
+    }
   },
 
   loadRemember() {
-    return window.localStorage.getItem('login.remember');
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem('login.remember');
+    }
   },
 
   saveURL(url) {
-    window.localStorage.setItem('login.url', "" + url)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem('login.url', "" + url);
+    }
   },
 
   saveUsername(username) {
-    window.localStorage.setItem('login.user', "" + username)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem('login.user', "" + username);
+    }
   },
 
   saveRemember(remember) {
-    window.localStorage.setItem('login.remember', !!remember)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem('login.remember', !!remember);
+    }
   },
 
   loadLoginInfo() {
@@ -69,15 +80,21 @@ const loginStore = {
   },
 
   loadLoginToken() {
-    return window.localStorage.getItem('login.token');
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem('login.token');
+    }
   },
 
   saveLoginToken(token) {
-    window.localStorage.setItem('login.token', "" + token)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem('login.token', "" + token);
+    }
   },
 
   clearLoginToken(token) {
-    window.localStorage.setItem('login.token', null)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem('login.token', null);
+    }
   }
 };
 
@@ -243,7 +260,7 @@ export default function Home() {
               <SandboxInfoContext.Provider value={sandboxInfo}>
                 { editing == false ? 
                   <UploadManage selectedUpload={curActionData} onEdit_func={editUpload} />
-                  : <UploadEdit selectedUpload={curActionData} />
+                  : <UploadEdit selectedUpload={curActionData} onCancel_func={() => setEditing(false)} />
                 }
               </SandboxInfoContext.Provider>
              </TokenContext.Provider>

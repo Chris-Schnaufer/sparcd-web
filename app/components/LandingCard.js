@@ -10,8 +10,30 @@ import Grid from '@mui/material/Grid2';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-import IsWindowNarrow from './isWindowNarrow'
+//import IsWindowNarrow from './isWindowNarrow'
+const getNarrowScreen = () => {
+  if (typeof window !== "undefined") {
+    window.inner_width <= 600;
+  }
+}
 
+function IsWindowNarrow() {
+    const [isNarrow, setIsNarrow] = React.useState(getNarrowScreen());
+
+    React.useEffect(() => {
+        function onResize () {
+            setIsNarrow(getNarrowScreen());
+        }
+
+        window.addEventListener("resize", onResize);
+    
+        return () => {
+            window.removeEventListener("resize", onResize);
+        }
+    }, []);
+    
+    return isNarrow;
+}
 export default function LoginCard({title, action, children}) {
   const theme = useTheme();
   const narrowWindow = IsWindowNarrow();
