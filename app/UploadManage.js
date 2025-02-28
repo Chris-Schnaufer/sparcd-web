@@ -18,29 +18,33 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
-//  const [resizeDrawForce, setResizeDrawForce] = React.useReducer(o => !o); // Forcing redraw on resize (most element dimensions don't change)
   const [sidebarWidth, setSidebarWidth] = React.useState(150);
   const [totalHeight, setTotalHeight] = React.useState(null);
   const [workingTop, setWorkingTop] = React.useState(null);
-  const [workspaceWidth, setWorkspaceWidth] = React.useState(getWindowWidth()); // The subtracted value is initial sidebar width
+  const [workspaceWidth, setWorkspaceWidth] = React.useState(640);
   const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name == selectedUpload));
+  const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});
 
-  function getWindowWidth() {
-    if (typeof window !== "undefined") {
-      return window.innerWidth - 150;
-    }
-  }
+  React.useLayoutEffect(() => {
+    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setWorkspaceWidth(newSize.width - 150);
+    setWindowSize(newSize);
+    calcTotalHeight(newSize);
+  }, []);
 
   React.useLayoutEffect(() => {
       function onResize () {
         const oldWorkspaceWidth = workspaceWidth;
+        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
 
-        calcTotalHeight();
+        setWindowSize(newSize);
+
+        calcTotalHeight(newSize);
         if (sidebarRef.current) {
           setSidebarWidth(sidebarRef.current.offsetWidth);
         }
 
-        const newWorkspaceWidth = window.innerWidth - sidebarRef.current.offsetWidth;
+        const newWorkspaceWidth = newSize.width - sidebarRef.current.offsetWidth;
         setWorkspaceWidth(newWorkspaceWidth);
       }
 
@@ -66,17 +70,14 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
     onEdit_func(sandboxItems[selectionIndex].name);
   }
 
-  function calcTotalHeight() {
+  function calcTotalHeight(curSize) {
     const elHeader = document.getElementById('sparcd-header');
     const elFooter = document.getElementById('sparcd-footer');
     const elHeaderSize = elHeader.getBoundingClientRect();
     const elFooterSize = elFooter.getBoundingClientRect();
 
-    let maxHeight = 100 + 'px';
-    if (typeof window !== "undefined") {
-      maxHeight = (window.innerHeight - elHeaderSize.height - elFooterSize.height) + 'px';
-    }
-
+    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height) + 'px';
+  
     setTotalHeight(maxHeight);
     setWorkingTop(elHeaderSize.height);
 
@@ -87,15 +88,13 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
     }
   }
 
-  if (totalHeight == null) {
-    calcTotalHeight();
-    if (typeof window !== "undefined") {
-      setWorkspaceWidth(window.innerWidth - sidebarWidth);
-    }
+  if (!totalHeight) {
+    calcTotalHeight(windowSize);
+    setWorkspaceWidth(windowSize.width - sidebarWidth);
   }
 
-  const curHeight = totalHeight;
-  const curStart = workingTop + 'px';
+  const curHeight = totalHeight || 480;
+  const curStart = (workingTop || 25) + 'px';
   const workplaceStartX = sidebarWidth;
   const curSelectionIndex = selectionIndex;
   return (

@@ -34,16 +34,24 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
   const [workingTop, setWorkingTop] = React.useState(null);
   const [workspaceWidth, setWorkspaceWidth] = React.useState(150); // The subtracted value is initial sidebar width
   const [totalHeight, setTotalHeight] = React.useState(null);
+  const [windowSize, setWindowSize] = React.useState(640);
 
   React.useLayoutEffect(() => {
-    setWorkspaceWidth(window.innerWidth - 150);
-  })
+    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setWorkspaceWidth(newSize.width - 150);
+    setWindowSize(newSize);
+    calcTotalHeight(newSize);
+  }, [])
 
   React.useLayoutEffect(() => {
       function onResize () {
-        calcTotalHeight();
         let leftWidth = 0;
         let rightWidth = 0;
+        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+
+        setWindowSize(newSize);
+
+        calcTotalHeight(newSize);
 
         if (sidebarLeftRef && sidebarLeftRef.current) {
           leftWidth = sidebarLeftRef.current.offsetWidth;
@@ -54,7 +62,7 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
           setSidebarWidthRight(rightWidth);
         }
 
-        const newWorkspaceWidth = window.innerWidth - leftWidth - rightWidth;
+        const newWorkspaceWidth = newSize.width - leftWidth - rightWidth;
         console.log('NewWidth',newWorkspaceWidth);
         setWorkspaceWidth(newWorkspaceWidth);
       }
@@ -66,16 +74,14 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
       }
   }, []);
 
-  function calcTotalHeight() {
+  function calcTotalHeight(curSize) {
     const elHeader = document.getElementById('sparcd-header');
     const elFooter = document.getElementById('sparcd-footer');
     const elHeaderSize = elHeader.getBoundingClientRect();
     const elFooterSize = elFooter.getBoundingClientRect();
 
     let maxHeight = '100px';
-    if (typeof window !== "undefined") {
-      maxHeight = (window.innerHeight - elHeaderSize.height - elFooterSize.height) + 'px';
-    }
+    maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height) + 'px';
 
     setTotalHeight(maxHeight);
     setWorkingTop(elHeaderSize.height);
@@ -109,17 +115,13 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
     console.log('SPECIES CLICK:', name, oldKeybinding);
   }
 
-  if (totalHeight == null) {
-    calcTotalHeight();
+  if (!totalHeight) {
+    calcTotalHeight(windowSize);
   }
 
   const curHeight = totalHeight;
   const curStart = workingTop + 'px';
   const workplaceStartX = sidebarWidthLeft;
-  let rightSidebarLeft = '150px';
-  if (typeof window != "undefined") {
-    rightSidebarLeft = window.innerWidth - theme.palette.right_sidebar.maxWidth;
-  }
 
   return (
     <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart, width: '100vw' }} >
@@ -194,7 +196,7 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
           <Grid id='right-sidebar' ref={sidebarRightRef} container direction='row' alignItems='stretch' columns='1' 
               style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
                        'visibility':(editingImages ? 'visible':'hidden'), 'position':'absolute', 'overflow':'scroll',
-                       'left':rightSidebarLeft, ...theme.palette.right_sidebar }} >
+                       'left':windowSize.width-theme.palette.right_sidebar.maxWidth, ...theme.palette.right_sidebar }} >
             images tree
           </Grid>
         : null

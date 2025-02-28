@@ -10,33 +10,25 @@ import Grid from '@mui/material/Grid2';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-//import IsWindowNarrow from './isWindowNarrow'
-const getNarrowScreen = () => {
-  if (typeof window !== "undefined") {
-    window.inner_width <= 600;
-  }
-}
 
-function IsWindowNarrow() {
-    const [isNarrow, setIsNarrow] = React.useState(getNarrowScreen());
-
-    React.useEffect(() => {
-        function onResize () {
-            setIsNarrow(getNarrowScreen());
-        }
-
-        window.addEventListener("resize", onResize);
-    
-        return () => {
-            window.removeEventListener("resize", onResize);
-        }
-    }, []);
-    
-    return isNarrow;
-}
 export default function LoginCard({title, action, children}) {
+  const [isNarrow, setIsNarrow] = React.useState(false);
   const theme = useTheme();
-  const narrowWindow = IsWindowNarrow();
+  const narrowWindow = isNarrow;
+
+  React.useEffect(() => setIsNarrow(window.inner_width <= 600), []);
+
+  React.useEffect(() => {
+      function onResize () {
+          setIsNarrow(window.inner_width <= 600);
+      }
+
+      window.addEventListener("resize", onResize);
+  
+      return () => {
+          window.removeEventListener("resize", onResize);
+      }
+  }, []);
 
   // Handle actions as array or an object
   let curAction = action;
