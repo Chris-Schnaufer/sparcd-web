@@ -81,6 +81,20 @@ let theme = createTheme({
       borderTop: '1px solid grey',
       borderBottom: '1px solid grey'
     },
+    upload_edit_locations_card: {
+      backgroundColor:'action.selected',
+      minWidth:'50vw',
+      maxWidth:'75vw'
+    },
+    upload_edit_locations_spinner_background: {
+      position:'absolute',
+      left:'0px',
+      top:'0px',
+      width:'75px',
+      height:'57px',
+      backgroundColor:'rgba(255,255,255,0.4)',
+      borderRadius:'5px'
+   },
     species_left_sidebar: {
       height: '100%',
       width: '150px',

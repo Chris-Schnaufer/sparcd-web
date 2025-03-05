@@ -16,25 +16,12 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from 
 
 export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpdate}) {
   const theme = useTheme();
-//  const [sandboxInfo, setSandboxInfo] = React.useState(null);
-//  const [collectionsInfo, setCollectionsInfo] = React.useState(null);
-//  const [updatedSandboxInfo, setUpdatedSandboxInfo] = React.useState(false);
-//  const [updatedCollectionInfo, setUpdatedCollectionInfo] = React.useState(false);
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
   const [selUploadInfo, setSelUploadInfo] = React.useState(null);
   const [selCollectionInfo, setSelCollectionInfo] = React.useState(null);
   const curCollectionInfo = React.useContext(CollectionsInfoContext);
   const curSandboxInfo = React.useContext(SandboxInfoContext);
   const mobileDevice = React.useContext(MobileDeviceContext);
-
-//  if (collectionsInfo == null && !updatedCollectionInfo) {
-//    setCollectionsInfo(curCollectionInfo);
-//    setUpdatedCollectionInfo(true);
-//  }
-//  if (sandboxInfo == null && !updatedSandboxInfo) {
-//    setSandboxInfo(curSandboxInfo);
-//    setUpdatedSandboxInfo(true);
-//  }
 
   function newUpload() {
     setHaveNewUpload(true);
@@ -93,7 +80,7 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
             <LandingCard title="Upload Images" 
                          action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload() } : null,
                                   {'title':'Manage', 
-                                   'onClick':() => {onUserAction(UserActions.Upload, selUploadInfo);},
+                                   'onClick':() => {onUserAction(UserActions.Upload, selUploadInfo, selUploadInfo ? true : false);},
                                    'disabled': curSandboxInfo ? false : true
                                   }
                                  ]}

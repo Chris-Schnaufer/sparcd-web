@@ -1,6 +1,6 @@
 'use client'
 
-import { useContext, useEffect, useState } from 'react';
+import * as React from 'react';
 import styles from './page.module.css'
 import { ThemeProvider } from "@mui/material/styles";
 
@@ -99,25 +99,26 @@ const loginStore = {
 };
 
 export default function Home() {
-  const [savedLoginFetched, setSavedLoginFetched] = useState(false);
-  const [savedTokenFetched, setSavedTokenFetched] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(null);
-  const [dbUser, setDbUser] = useState('');
-  const [dbURL, setDbURL] = useState('');
-  const [remember, setRemember] = useState(false);
-  const [loginValid, setLoginValid] = useState(DefaultLoginValid);
-  const [serverURL, setServerURL] = useState(utils.getServer());
-  const [curAction, setCurAction] = useState(UserActions.None);
-  const [curActionData, setCurActionData] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [mobileDeviceChecked, setMobileDeviceChecked] = useState(false);
-  const [mobileDevice, setMobileDevice] = useState(null);
-  const [sandboxInfo, setSandboxInfo] = useState(null);
-  const [collectionInfo, setCollectionInfo] = useState(null);
+  const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
+  const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
+  const [loggedIn, setLoggedIn] = React.useState(null);
+  const [dbUser, setDbUser] = React.useState('');
+  const [dbURL, setDbURL] = React.useState('');
+  const [remember, setRemember] = React.useState(false);
+  const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
+  const [serverURL, setServerURL] = React.useState(utils.getServer());
+  const [curAction, setCurAction] = React.useState(UserActions.None);
+  const [curActionData, setCurActionData] = React.useState(null);
+  const [editing, setEditing] = React.useState(false);
+  const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
+  const [mobileDevice, setMobileDevice] = React.useState(null);
+  const [sandboxInfo, setSandboxInfo] = React.useState(null);
+  const [collectionInfo, setCollectionInfo] = React.useState(null);
+  const [lastToken, setLastToken ] = React.useState(null);
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
 
-  function setCurrentAction(action, actionData) {
+  function setCurrentAction(action, actionData, areEditing) {
     if (Object.values(UserActions).indexOf(action) > -1) {
       if (!actionData) {
         actionData = null;
@@ -125,6 +126,7 @@ export default function Home() {
       // TODO: save state and data (and auto-restore)
       setCurAction(action);
       setCurActionData(actionData);
+      setEditing(!!areEditing);
     } else {
       // TODO: Put up informational message about not valid command
       console.log('Invalid current action specified', action);
@@ -185,7 +187,7 @@ export default function Home() {
 
       // Try to log user in
       const login_token = loginUser(url, user, password);
-      // TODO: remove login indication
+      // TODO: remove login this indication flag
       setLoggedIn(login_token);
       if (!!login_token) {
         setLoggedIn(true);
@@ -209,37 +211,45 @@ export default function Home() {
   }
 
   // Load saved token and see if session is still valid
-  if (!savedTokenFetched && !curLoggedIn) {
-    const lastLoginToken = loginStore.loadLoginToken();
-    setSavedTokenFetched(true);
-    if (lastLoginToken) {
-      curLoggedIn = loginUserToken(lastLoginToken);
-      setLoggedIn(curLoggedIn);
+  React.useLayoutEffect(() => {
+    if (!savedTokenFetched && !curLoggedIn) {
+      const lastLoginToken = loginStore.loadLoginToken();
+      setSavedTokenFetched(true);
+      if (lastLoginToken) {
+        curLoggedIn = loginUserToken(lastLoginToken);
+        setLoggedIn(curLoggedIn);
+      }
+      if (!lastLoginToken || !curLoggedIn) {
+        loginStore.clearLoginToken();
+      }
     }
-    if (!lastLoginToken || !curLoggedIn) {
-      loginStore.clearLoginToken();
-    }
-  }
 
-  // Load saved user information: if we haven't already and we're not logged in
-  if (!savedLoginFetched && !curLoggedIn) {
-    const loInfo = loginStore.loadLoginInfo();
-    setSavedLoginFetched(true);
-    if (loInfo != null) {
-      setDbURL(loInfo.url);
-      setDbUser(loInfo.user);
-      setRemember(!!loInfo.remember);
+    // Load saved user information: if we haven't already and we're not logged in
+    if (!savedLoginFetched && !curLoggedIn) {
+      const loInfo = loginStore.loadLoginInfo();
+      setSavedLoginFetched(true);
+      if (loInfo != null) {
+        setDbURL(loInfo.url);
+        setDbUser(loInfo.user);
+        setRemember(!!loInfo.remember);
+      }
     }
-  }
+  }, []);
 
   if (mobileDevice == null && !mobileDeviceChecked) {
     setMobileDevice(navigator.userAgent.indexOf('Mobi') > -1);
     setMobileDeviceChecked(true);
   }
 
+  // Load the last token to make it available for rendering
+  React.useLayoutEffect(() => {
+    setLastToken(loginStore.loadLoginToken());
+  }, []);
+
+
   function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
-    const lastToken = loginStore.loadLoginToken();
+    //const lastToken = loginStore.loadLoginToken();
     switch(action) {
       case UserActions.None:
         return (

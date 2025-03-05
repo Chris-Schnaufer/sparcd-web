@@ -7,34 +7,49 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
+import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import Fade from '@mui/material/Fade';
 import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { LocationsInfoContext, SandboxInfoContext, SpeciesInfoContext } from './serverInfo'
 import SpeciesSidebarItem from './components/SpeciesSidebarItem'
+import * as utils from './utils'
 
 export default function UploadEdit({selectedUpload, onCancel_func}) {
   const theme = useTheme();
+  const editingStates = {'setLocation':1, 'listImages':2, 'editImage': 3};
   const sidebarLeftRef = React.useRef();
   const sidebarRightRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
-  const curUpload = sandboxItems.find((item) => item.name == selectedUpload);
-  const [editingImages, setEditingImages] = React.useState(false);
+  const [changeLocation, setChangeLocation] = React.useState(true);
+  const [curState, setCurState] = React.useState(editingStates.setLocation);
+  const [curLocationInfo, setCurLocationInfo] = React.useState(null);
+  const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [sidebarWidthLeft, setSidebarWidthLeft] = React.useState(150);
   const [sidebarWidthRight, setSidebarWidthRight] = React.useState(150);
   const [workingTop, setWorkingTop] = React.useState(null);
   const [workspaceWidth, setWorkspaceWidth] = React.useState(150); // The subtracted value is initial sidebar width
   const [totalHeight, setTotalHeight] = React.useState(null);
+  const [tooltipData, setTooltipData] = React.useState(null);
   const [windowSize, setWindowSize] = React.useState(640);
+
+  const curUploadIdx = sandboxItems.findIndex((item) => item.name == selectedUpload);
+  const curUpload = curUploadIdx >= 0 ? sandboxItems[curUploadIdx] : null;
+  const curUploadLocation = locationItems.find((item) => item.idProperty == curUpload.location);
+  const getTooltipInfoOpen = getTooltipInfo.bind(UploadEdit);
+  let curLocationFetchIdx = -1;
 
   React.useLayoutEffect(() => {
     const newSize = {'width':window.innerWidth,'height':window.innerHeight};
@@ -104,6 +119,15 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
   }
 
   function onContinue(ev) {
+    // TODO: save new location on server
+    /* TODO: make call and wait for respone & return correct result
+             need to handle null, 'invalid', and token values
+    const resp = await fetch(loginUrl, {
+      'method': 'POST',
+      'data': formData
+    });
+    console.log(resp);
+    */
     console.log('Continue:');
   }
 
@@ -112,7 +136,120 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
   }
 
   function onKeybindClick(ev, name, oldKeybinding) {
-    console.log('SPECIES CLICK:', name, oldKeybinding);
+    console.log('SPECIES KEYBIND CLICK:', name, oldKeybinding);
+  }
+
+  function getTooltipInfo(locIdx) {
+    if (curLocationFetchIdx != locIdx) {
+      curLocationFetchIdx = locIdx;
+      const loginUrl = serverURL + '/location';
+      /* TODO: make call and wait for respone & return correct result
+               need to handle null, 'invalid', and token values
+      const resp = await fetch(loginUrl, {
+        'method': 'POST',
+        'data': formData
+      });
+      console.log(resp);
+      */
+      // Save the data if we're still fetching the current location
+      setTimeout(()  => {
+        if (locIdx == curLocationFetchIdx) {
+          let locInfo = Object.assign({}, locationItems[curLocationFetchIdx], {'index':locIdx});
+          setTooltipData(locInfo);
+        }
+      }, 100);
+    }
+  }
+
+  function clearTooltipInfo(locIdx) {
+    // Only clear the information if we're the active tooltip
+    if (locIdx == curLocationFetchIdx) {
+      setCurLocationInfo(null);
+    }
+  }
+
+  function generateChangeLocation() {
+    return (
+      <Card id='change-location' variant='outlined' sx={{...theme.palette.upload_edit_locations_card}}>
+        <CardContent>
+          <Typography variant="h5" sx={{ color:'text.primary', textAlign:'center' }}>
+            {curUpload.name}
+          </Typography>
+          <FormControl fullWidth>
+            <Autocomplete
+              options={locationItems}
+              id="upload-edit-location"
+              autoHighlight
+              defaultValue={curUploadLocation}
+              getOptionLabel={(option) => option.idProperty}
+              getOptionKey={(option) => option.idProperty+option.latProperty+option.lngProperty}
+              onChange={() => console.log('CHANGE')}
+              renderOption={(props, loc) => {
+                const { key, ...optionProps } = props;
+                return (<MenuItem id={loc.idProperty+'-'+key} value={loc.idProperty} key={key} {...optionProps}>
+                          <Grid container>
+                            <Grid item sm={6} md={6} lg={6}>
+                              <Box display="flex" justifyContent="flex-start">
+                                {loc.idProperty}
+                              </Box>
+                            </Grid>
+                          <Grid item sm={6} md={6} lg={6} zeroMinWidth>
+                            <Box display="flex" justifyContent="flex-end">
+                              <Typography variant="body" sx={{ fontSize:'small', overflow:"clip"}}>
+                                {loc.nameProperty}
+                              </Typography>
+                              &nbsp;
+                              <Tooltip
+                                onOpen={() => getTooltipInfoOpen(props["data-option-index"])}
+                                onClose={() => clearTooltipInfo(props["data-option-index"])}
+                                title={
+                                  tooltipData && tooltipData.index==props["data-option-index"] ?
+                                    <React.Fragment>
+                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'small'}}>{loc.idProperty}</Typography>
+                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{loc.latProperty + ", " + loc.lngProperty}</Typography>
+                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{'Elevation: '+loc.elevationProperty}</Typography>
+                                    </React.Fragment>
+                                    : 
+                                    <React.Fragment>
+                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'small'}}>{loc.idProperty}</Typography>
+                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{"------, ------"}</Typography>
+                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{'Elevation: ----'}</Typography>
+                                      <div style={{...theme.palette.upload_edit_locations_spinner_background}}>
+                                      <CircularProgress size={40} sx={{position:'absolute', left:'17px', top:'12px'}}/>
+                                      </div>
+                                    </React.Fragment>
+                                }
+                              >
+                              <InfoOutlinedIcon color="info" fontSize="small" id="InfoOutlinedIcon"/>
+                              </Tooltip>
+                            </Box>
+                            </Grid>
+                          </Grid>
+                        </MenuItem> 
+                );
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Location"
+                  slotProps={{
+                    htmlInput: {
+                      ...params.inputProps,
+                      autoComplete: 'new-password', // disable autocomplete and autofill
+                    },
+                  }}
+                />
+              )}
+            >
+            </Autocomplete>
+          </FormControl>
+        </CardContent>
+        <CardActions>
+          <Button sx={{'flex':'1'}} size="small" onClick={onContinue} >Continue</Button>
+          <Button sx={{'flex':'1'}} size="small" onClick={onCancel} >Cancel</Button>
+        </CardActions>
+      </Card>
+    );
   }
 
   if (!totalHeight) {
@@ -123,6 +260,7 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
   const curStart = workingTop + 'px';
   const workplaceStartX = sidebarWidthLeft;
 
+  // TODO: Fetch tooltip information when needed
   return (
     <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart, width: '100vw' }} >
       <Grid id='left-sidebar' ref={sidebarLeftRef} container direction='row' alignItems='stretch' columns='1' 
@@ -135,67 +273,13 @@ export default function UploadEdit({selectedUpload, onCancel_func}) {
             style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 'left':workplaceStartX,
                      'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 'position':'absolute' }}>
         <Grid item size={{ xs: 12, sm: 12, md:12 }}>
-          <Card id='testing' variant='outlined' sx={{backgroundColor:'action.selected', minWidth:'30vw', maxWidth:'50vw'}}>
-            <CardContent>
-              <Typography variant="h5" sx={{ color:'text.primary', textAlign:'center' }}>
-                {curUpload.name}
-              </Typography>
-              <FormControl fullWidth>
-                <Autocomplete
-                  options={locationItems}
-                  id="upload-edit-location"
-                  autoHighlight
-                  getOptionLabel={(option) => option.idProperty}
-                  getOptionKey={(option) => option.idProperty+option.latProperty+option.lngProperty}
-                  onChange={() => console.log('CHANGE')}
-                  renderOption={(props, loc) => {
-                    const { key, ...optionProps } = props;
-                    { return (<MenuItem value={loc.idProperty} key={key} {...optionProps}>
-                              <Grid container>
-                              <Grid item sm={6} md={6} lg={6}>
-                              <Box display="flex" justifyContent="flex-start">
-                                {loc.idProperty }
-                              </Box>
-                              </Grid>
-                              <Grid item sm={6} md={6} lg={6}>
-                              <Box display="flex" justifyContent="flex-end">
-                              <Typography variant="body" sx={{ fontSize:'smaller'}}>
-                                {'(' + loc.latProperty + ', ' + loc.lngProperty + ')'}
-                              </Typography>
-                              </Box>
-                              </Grid>
-                              </Grid>
-                              </MenuItem> 
-                            );
-                    }
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Location"
-                      slotProps={{
-                        htmlInput: {
-                          ...params.inputProps,
-                          autoComplete: 'new-password', // disable autocomplete and autofill
-                        },
-                      }}
-                    />
-                  )}
-                >
-                </Autocomplete>
-              </FormControl>
-            </CardContent>
-            <CardActions>
-              <Button sx={{'flex':'1'}} size="small" onClick={onContinue} >Continue</Button>
-              <Button sx={{'flex':'1'}} size="small" onClick={onCancel} >Cancel</Button>
-            </CardActions>
-          </Card>
+        { changeLocation ? generateChangeLocation() : null }
         </Grid>
       </Grid>
-      { editingImages ? 
+      { curState == editingStates.editImage ? 
           <Grid id='right-sidebar' ref={sidebarRightRef} container direction='row' alignItems='stretch' columns='1' 
               style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
-                       'visibility':(editingImages ? 'visible':'hidden'), 'position':'absolute', 'overflow':'scroll',
+                       'position':'absolute', 'overflow':'scroll',
                        'left':windowSize.width-theme.palette.right_sidebar.maxWidth, ...theme.palette.right_sidebar }} >
             images tree
           </Grid>
