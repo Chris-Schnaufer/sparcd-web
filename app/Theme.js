@@ -62,13 +62,12 @@ let theme = createTheme({
       borderRight: '1px solid black',
       margin: '0px 0px 0px 0px'
     },
-    right_sidebar: {
-      height: '100%',
-      width: '150px',
-      maxWidth: '150px',
-      minWidth: '150px',
+    top_sidebar: {
+      height: '50px',
+      maxWidth: '50px',
+      minWidth: '50px',
       background: 'white',
-      borderLeft: '1px solid black',
+      borderBottom: '1px solid black',
       margin: '0px 0px 0px 0px'
     },
     left_sidebar_item: {
@@ -94,7 +93,16 @@ let theme = createTheme({
       height:'57px',
       backgroundColor:'rgba(255,255,255,0.4)',
       borderRadius:'5px'
-   },
+    },
+    image_sidebar_item: {
+      background: '#E0F0E0',
+      border: '1px solid black',
+    },
+    image_sidebar_item_media: {
+      minHeight: '120px',
+      maxHeight: '120px',
+      width: '150px'
+    },
     species_left_sidebar: {
       height: '100%',
       width: '150px',

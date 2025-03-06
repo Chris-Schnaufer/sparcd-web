@@ -33,9 +33,18 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
     return [{'name': 'foo'},
             {'name': 'bar',
              'location':'CAN06', 
-             'images': [{'name':'image1', 'url': '../public/sanimalBackground.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
-                        {'name':'image2', 'url': '../public/sanimalBackground.JPG', 'species': [{'name':'dog','count':'1'}]},
-                        {'name':'image3', 'url': '../public/sanimalBackground.JPG', 'species': null} ]
+             'images': [{'name':'image0001', 'url': '../sanimalBackground.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
+                        {'name':'image0002', 'url': '../sanimalBackground.JPG', 'species': [{'name':'dog','count':'1'}]},
+                        {'name':'image0004', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0005', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0006', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0007', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0008', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0009', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0010', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0011', 'url': '../sanimalBackground.JPG', 'species': null},
+                        {'name':'image0012', 'url': '../sanimalBackground.JPG', 'species': null}
+                      ]
             }, 
             {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
     //return [];

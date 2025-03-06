@@ -101,6 +101,7 @@ const loginStore = {
 export default function Home() {
   const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
   const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
+  const [curSearchTitle, setCurSearchTitle] = React.useState(null);
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
@@ -117,6 +118,7 @@ export default function Home() {
   const [lastToken, setLastToken ] = React.useState(null);
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
+  let curSearchHandler = null;
 
   function setCurrentAction(action, actionData, areEditing) {
     if (Object.values(UserActions).indexOf(action) > -1) {
@@ -210,6 +212,30 @@ export default function Home() {
     setCurActionData(uploadInfo);
   }
 
+  function handleSearch(searchTerm) {
+    console.log('SEARCH', searchTerm);
+    curSearchFunc(searchTerm);
+  }
+
+  function handleImageSearch(searchTerm) {
+    console.log('IMAGE SEARCH 2', searchTerm);
+  }
+
+  function clearSearch() {
+    setCurSearchTitle(null);
+    curSearchHandler(null);
+  }
+
+  function setupSearch(searchLabel, searchHandler) {
+    if (!searchHandler || typeof searchHandler != "function") {
+      console.log('Error: Invalid function passed when setting up search for \"'+searchLabel+'\"');
+      return;
+    }
+
+    setCurSearchTitle(searchLabel);
+    curSearchHandler = searchHandler;
+  }
+
   // Load saved token and see if session is still valid
   React.useLayoutEffect(() => {
     if (!savedTokenFetched && !curLoggedIn) {
@@ -246,7 +272,6 @@ export default function Home() {
     setLastToken(loginStore.loadLoginToken());
   }, []);
 
-
   function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
     //const lastToken = loginStore.loadLoginToken();
@@ -270,7 +295,8 @@ export default function Home() {
               <SandboxInfoContext.Provider value={sandboxInfo}>
                 { editing == false ? 
                   <UploadManage selectedUpload={curActionData} onEdit_func={editUpload} />
-                  : <UploadEdit selectedUpload={curActionData} onCancel_func={() => setEditing(false)} />
+                  : <UploadEdit selectedUpload={curActionData} onCancel_func={() => setEditing(false)} 
+                                searchSetup_func={setupSearch} />
                 }
               </SandboxInfoContext.Provider>
              </TokenContext.Provider>
@@ -283,7 +309,7 @@ export default function Home() {
     <main className={styles.main}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
-          <TitleBar/>
+          <TitleBar search_title={curSearchTitle} search_func={handleSearch} />
           {!curLoggedIn ? 
              <LoginValidContext.Provider value={loginValidStates}>
               <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} login_func={handleLogin} />
