@@ -6,9 +6,11 @@ import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import CardActionArea from '@mui/material/CardActionArea';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardMedia from '@mui/material/CardMedia';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Fade from '@mui/material/Fade';
@@ -26,7 +28,6 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { LocationsInfoContext, SandboxInfoContext, SpeciesInfoContext } from './serverInfo'
-import ImagesSidebarItem from './components/ImagesSidebarItem'
 import SpeciesSidebarItem from './components/SpeciesSidebarItem'
 import * as utils from './utils'
 
@@ -56,6 +57,7 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   const getTooltipInfoOpen = getTooltipInfo.bind(UploadEdit);
   const handleImageSearch = searchImages.bind(UploadEdit);
   const handleEditLocation = editLocation.bind(UploadEdit);
+  const handleEditingImage = editingImage.bind(UploadEdit);
   let curLocationFetchIdx = -1;
 
 
@@ -179,16 +181,35 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   }
 
   function searchImages(searchTerm) {
-    console.log('IMAGE SEARCH',searchTerm);
+    const lcSearchTerm = searchTerm.toLowerCase();
+    const foundImage = curUpload.images.find((item) => item.name.toLowerCase().includes(lcSearchTerm));
+    if (!foundImage) {
+      return false;
+    }
+    const foundEl = document.getElementById(foundImage.name);
+    if (!foundEl) {
+      return false;
+    }
+
+    foundEl.scrollIntoView();
+    return true;
   }
 
   function editLocation() {
     setEditingLocation(true);
   }
 
-  function generateImageSvg(color) {
-    if (color == null) {
-      color = '#B5B5B5'
+  function editingImage(item, index) {
+    console.log('EDIT',item,index);
+    setCurEditState(editingStates.editImage);
+  }
+
+  function generateImageSvg(bgColor, fgColor) {
+    if (bgColor == null) {
+      bgColor = 'lightgrey';
+    }
+    if (fgColor == null) {
+      fgColor = '#B5B5B5';
     }
     return (
       <svg
@@ -198,20 +219,20 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
           fill="grey"
           height="50px"
           width="50px">
-        <circle cx='40%' cy='15%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
-        <rect x='10%' y='10%' width='80%' height='80%' fill='lightgrey' opacity='0.75' stroke='transparent' strokeWidth='0px'/>
-        <line x1='15%' y1='15%' x2='40%' y2='15%' stroke={color} strokeWidth={5}/>
-        <circle cx='15%' cy='15%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
-        <line x1='15%' y1='15%' x2='15%' y2='85%' stroke={color} strokeWidth={5}/>
-        <circle cx='15%' cy='85%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
-        <line x1='15%' y1='85%' x2='85%' y2='85%' stroke={color} strokeWidth={5}/>
-        <circle cx='85%' cy='85%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
-        <line x1='85%' y1='15%' x2='85%' y2='85%' stroke={color} strokeWidth={5}/>
-        <circle cx='85%' cy='15%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
-        <line x1='60%' y1='15%' x2='85%' y2='15%' stroke={color} strokeWidth={5}/>
-        <circle cx='60%' cy='15%' r='2' fill={color} stroke='transparent' strokeWidth='0px' />
+        <circle cx='40%' cy='15%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
+        <rect x='10%' y='10%' width='80%' height='80%' fill={bgColor} opacity='0.75' stroke='transparent' strokeWidth='0px'/>
+        <line x1='15%' y1='15%' x2='40%' y2='15%' stroke={fgColor} strokeWidth={5}/>
+        <circle cx='15%' cy='15%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
+        <line x1='15%' y1='15%' x2='15%' y2='85%' stroke={fgColor} strokeWidth={5}/>
+        <circle cx='15%' cy='85%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
+        <line x1='15%' y1='85%' x2='85%' y2='85%' stroke={fgColor} strokeWidth={5}/>
+        <circle cx='85%' cy='85%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
+        <line x1='85%' y1='15%' x2='85%' y2='85%' stroke={fgColor} strokeWidth={5}/>
+        <circle cx='85%' cy='15%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
+        <line x1='60%' y1='15%' x2='85%' y2='15%' stroke={fgColor} strokeWidth={5}/>
+        <circle cx='60%' cy='15%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
         <path d="M 90 60 L 60 60 L 53 65 L 53 75 L 59 75 L 65 70 L 67 76 L 66 87 L 63 87 L 63 89 L 69 89 L 77 75 L 80 77 L 82 78 L 83 88 L 79 88 L 86 88 L 86 80 L 92 81 L 95 88 L 92 88 L 92 89 L 100 89 L 100 69 L 90 60"
-              fill={color} stroke={color} strokeWidth='3px' />
+              fill={fgColor} stroke={fgColor} strokeWidth='3px' />
       </svg>
     );
   }
@@ -308,22 +329,51 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     );
   }
 
-  /*
-      { curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 
-          <Grid id='right-sidebar' ref={sidebarRightRef} container direction='row' alignItems='stretch' columns='1' 
-              style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
-                       'position':'absolute', 'overflow':'scroll',
-                       'left':windowSize.width-sidebarWidthRight, ...theme.palette.right_sidebar }} >
-            { curUpload ? curUpload.images.map((item, idx) => <ImagesSidebarItem key={item.name} imageInfo={item} onClick_func={()=>console.log('IMAGE CLICK')}/>
-              )
-              : <div>ERROR</div>
-            }
+  function generateImageTiles(clickHandler) {
+    return (
+      <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
+      { curUpload.images.map((item, idx) => {
+        let imageSpecies = item.species && item.species.length > 0;
+        return (
+          <Grid item size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
+            <Card id={item.name} onClick={() => clickHandler(item, idx)} variant={imageSpecies?"soft":"outlined"}
+                  sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+              <CardActionArea data-active={imageSpecies ? '' : undefined}
+                sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
+              >
+                <CardContent>
+                  <Grid container spacing={1}>
+                    <Grid item>
+                      {generateImageSvg(imageSpecies ? 'grey':null, imageSpecies ? '#A8EBA8':null)}
+                    </Grid>
+                    <Grid item>
+                      <Box>
+                        <Typography variant="body" sx={{textTransform:'uppercase'}}>
+                          {item.name}
+                          {imageSpecies ? <CheckCircleOutlinedIcon size="small" sx={{color:"olivedrab"}}/> : null}
+                        </Typography>
+                      </Box>
+                        { imageSpecies ?
+                          item.species.map((curSpecies,idxSpecies) => 
+                                <Box key={item.name+curSpecies.name+idxSpecies} >
+                                  <Typography variant="body3" sx={{textTransform:'capitalize'}}>
+                                    {curSpecies.name + ': ' + curSpecies.count}
+                                  </Typography>
+                                </Box>
+                          )
+                          : null
+                        }
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </CardActionArea>
+            </Card>
           </Grid>
-        : null
-      }
-
-                            <img src={item.url} alt={item.name} style={{height:'50px'}} />
-  */
+        )}
+      )}
+      </Grid>
+    );
+  }
 
   // TODO: Make species bar on top when narrow
   const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
@@ -361,41 +411,20 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
           <Grid item size={{ xs: 12, sm: 12, md:12 }}>
-            <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
-            { curUpload.images.map((item, idx) => {
-              let imageLabeled = item.species && item.species.length > 0;
-              return (
-                <Grid item size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
-                  <Card variant={imageLabeled?"soft":"outlined"} sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
-                    <CardContent>
-                      <Grid container spacing={1}>
-                        <Grid item>
-                          {generateImageSvg(imageLabeled ? '#A8EBA8':null)}
-                        </Grid>
-                        <Grid item>
-                          <Box>
-                            <Typography variant="body" sx={{textTransform:'uppercase'}}>
-                              {item.name}
-                            </Typography>
-                          </Box>
-                            { imageLabeled ?
-                              item.species.map((curSpecies) => 
-                                    <Box>
-                                      <Typography variant="body3" sx={{textTransform:'capitalize'}}>
-                                        {curSpecies.name + ': ' + curSpecies.count}
-                                      </Typography>
-                                    </Box>
-                              )
-                              : null
-                            }
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-            )}
-            </Grid>
+            {generateImageTiles(handleEditingImage)}
+          </Grid>
+        </Grid>
+        : null
+      }
+      { curEditState == editingStates.editImage ?
+        <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="start"
+              style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
+                       'minHeight':(curHeight-sidebarHeightTop)+'px', 'maxHeight':(curHeight-sidebarHeightTop)+'px', 'height':(curHeight-sidebarHeightTop)+'px',
+                       'top':curStart+sidebarHeightTop+'px', 
+                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'position':'absolute', overflow:'scroll', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.5)' }}>
+          <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+            <Button onClick={() => setCurEditState(editingStates.listImages)}>Back</Button>
           </Grid>
         </Grid>
         : null

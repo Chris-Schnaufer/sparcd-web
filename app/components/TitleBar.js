@@ -14,7 +14,9 @@ export default function TitleBar({search_title, search_func}) {
   function clickHandler() {
     const searchEl = document.getElementById("search");
     if (searchEl && searchEl.value) {
-      search_func(searchEl.value);
+      if (search_func(searchEl.value)) {
+        searchEl.value = null;
+      }
     }
   }
 

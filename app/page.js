@@ -102,6 +102,7 @@ export default function Home() {
   const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
   const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
   const [curSearchTitle, setCurSearchTitle] = React.useState(null);
+  const [curSearchHandler, setCurSearchHandler] = React.useState(null);
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
@@ -118,7 +119,9 @@ export default function Home() {
   const [lastToken, setLastToken ] = React.useState(null);
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
-  let curSearchHandler = null;
+
+  handleSearch = handleSearch.bind(Home);
+  setupSearch = setupSearch.bind(Home);
 
   function setCurrentAction(action, actionData, areEditing) {
     if (Object.values(UserActions).indexOf(action) > -1) {
@@ -208,22 +211,16 @@ export default function Home() {
 
   function editUpload(uploadInfo) {
     setEditing(true);
-    console.log('NOW',curActionData,uploadInfo);
     setCurActionData(uploadInfo);
   }
 
   function handleSearch(searchTerm) {
-    console.log('SEARCH', searchTerm);
-    curSearchFunc(searchTerm);
-  }
-
-  function handleImageSearch(searchTerm) {
-    console.log('IMAGE SEARCH 2', searchTerm);
+    return curSearchHandler(searchTerm);
   }
 
   function clearSearch() {
     setCurSearchTitle(null);
-    curSearchHandler(null);
+    setCurSearchHandler(null);
   }
 
   function setupSearch(searchLabel, searchHandler) {
@@ -233,7 +230,7 @@ export default function Home() {
     }
 
     setCurSearchTitle(searchLabel);
-    curSearchHandler = searchHandler;
+    setCurSearchHandler(() => searchHandler);
   }
 
   // Load saved token and see if session is still valid
