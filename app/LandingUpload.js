@@ -1,5 +1,7 @@
 'use client'
 
+/** @module LandingUpload */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
@@ -10,6 +12,13 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
 
+/**
+ * Returns the UI for uploads on the Landing page
+ * @function
+ * @param {function} uploadInfo_func Function for receving the list of uploads from the server
+ * @param {function} onChange_func Function to call when a new upload is selected
+ * @returns The rendered UI
+ */
 export default function LandingUpload({uploadInfo_func, onChange_func}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
@@ -20,6 +29,11 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
   const sandboxToken = React.useContext(TokenContext);
   const sandboxUrl = React.useContext(BaseURLContext) + '/sandbox&' + sandboxToken;
 
+  /**
+   * Fetches the list of "sandbox" uploads from the server
+   * @function
+   * @returns The list of sandbox items
+   */
   function getSandbox() {
     /* TODO: make call and wait for respone & return correct result
              need to handle null, 'invalid', and sandbox items
@@ -68,9 +82,14 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
     //return [];
   }
 
-  function handleChange(ev) {
-    setSelectedUpload(ev.target.value);
-    onChange_func(ev.target.value);
+  /**
+   * Handles a change in selected sandbox and calls the parent's change function
+   * @function
+   * @param {object} event The event object
+   */ 
+  function handleChange(event) {
+    setSelectedUpload(event.target.value);
+    onChange_func(event.target.value);
   }
 
   // TODO: cache these
@@ -83,6 +102,7 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
       setUploadInfo();
     },[]);
 
+  // Render the UI
   return (
     <React.Fragment>
       { firstItem ? (

@@ -1,4 +1,6 @@
 
+/** @module components/TitleBar */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -9,8 +11,19 @@ import TextField from '@mui/material/TextField';
 
 import styles from './components.module.css'
 
+/**
+ * Renders the title bar
+ * @function
+ * @param {string} [search_title] The optional title of the search field
+ * @param {function} [search_func] The function to call to perform a search
+ * @returns The rendered UI
+ */
 export default function TitleBar({search_title, search_func}) {
 
+  /**
+   * Handles the clicking of the search icon
+   * @function
+   */
   function clickHandler() {
     const searchEl = document.getElementById("search");
     if (searchEl && searchEl.value) {
@@ -20,12 +33,18 @@ export default function TitleBar({search_title, search_func}) {
     }
   }
 
-  function handleSearchChange(ev) {
-    if (ev.key == 'Enter') {
+  /**
+   * Handles the Enter key to start a search
+   * @function
+   * @apram {object} event The event
+   */
+  function handleSearchChange(event) {
+    if (event.key == 'Enter') {
       clickHandler();
     }
   }
 
+  // Render the UI
   return (
     <header id='sparcd-header' className={styles.titlebar} role="banner">
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >

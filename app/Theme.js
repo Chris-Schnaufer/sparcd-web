@@ -1,6 +1,9 @@
+/** @module theme */
+
 import { createTheme } from '@mui/material/styles';
 import { grey } from '@mui/material/colors';
 
+/** The working theme */
 let theme = createTheme({
   typography: {
     button: {

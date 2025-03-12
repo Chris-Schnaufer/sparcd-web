@@ -1,5 +1,7 @@
 'use client'
 
+/** @module Landing */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,6 +16,14 @@ import LandingUpload from './LandingUpload'
 import UserActions from './components/userActions'
 import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from './serverInfo'
 
+/**
+ * Returns the UI for the Landing page
+ * @function
+ * @param {function} onUserAction Function to call when the user clicks an action element
+ * @param {function} onSandboxUpdate Function to call when the sandbox information is updated
+ * @param {function} onCollectionUpdate Function to call when the collection information is updated
+ * @returns The rendered UI
+ */
 export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpdate}) {
   const theme = useTheme();
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
@@ -23,36 +33,74 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
   const curSandboxInfo = React.useContext(SandboxInfoContext);
   const mobileDevice = React.useContext(MobileDeviceContext);
 
+  /**
+   * Set the flag indicating there's a new upload
+   * @function
+   */
   function newUpload() {
     setHaveNewUpload(true);
   }
 
+  /**
+   * Set the flag indicating the upload has been cancelled
+   * @function
+   */
   function newUploadCancel() {
     setHaveNewUpload(false);
   }
 
+  /**
+   * Updates the list of image folders uploaded to the sandbox
+   * @function
+   * @param {array} sandboxInfo The list of objects representing uploaded folders
+   */
   function updateSandboxInfo(sandboxInfo) {
 //    setSandboxInfo(sandboxInfo);
     onSandboxUpdate(sandboxInfo);
   }
 
+  /**
+   * Updates the list of collections
+   * @function
+   * @param {array} collectionInfo The list of objects representing collections
+   */
   function updateCollectionInfo(collectionInfo) {
 //    setCollectionsInfo(collectionInfo);
     onCollectionUpdate(collectionInfo);
   }
 
+  /**
+   * Sets the selected upload from the sandbox
+   * @function
+   * @param {object} uploadInfo The selected upload identifier
+   */
   function setUploadSelection(uploadInfo) {
     setSelUploadInfo(uploadInfo);
   }
 
+  /**
+   * Sets the selected collection
+   * @function
+   * @param {object} collectionInfo The selected collection identifier
+   */
   function setCollectionSelection(collectionInfo) {
     setSelCollectionInfo(collectionInfo);
   }
 
-  function manageSandbox(collection, upload) {
+  /**
+   * Called when managing the sandbox
+   * @function
+   * @param {object} collection The collection the upload belongs to
+   * @param {object} upload The upload to edit
+   */
+  function manageCollection(collection, upload) {
 
   }
 
+  /**
+   * Render the overlay for uploading images
+   * @function
+   */
   function renderUploadOverlay() {
     return (
       <Box sx={{ ...theme.palette.screen_disable }} >
@@ -72,6 +120,7 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
     );
   }
 
+  // Render the page depending upon user choices
   return (
     <React.Fragment>
       <Box id='landing-page' sx={{ flexGrow: 1, 'width': '100vw' }} >

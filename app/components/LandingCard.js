@@ -1,5 +1,7 @@
 'use client'
 
+/** @module components/LandingCard */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -10,14 +12,23 @@ import Grid from '@mui/material/Grid2';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-
+/**
+ * Returns the common card UI for actions on the Landing page
+ * @function
+ * @param {string} title The title of the card
+ * @param {array} action Array of objects with onClick handler, disabled flag, and title (aka. name) for a card
+ * @param {object} [children] The children elements of the card
+ * @returns The rendered Landing card
+ */
 export default function LoginCard({title, action, children}) {
   const [isNarrow, setIsNarrow] = React.useState(false);
   const theme = useTheme();
   const narrowWindow = isNarrow;
 
+  // Sets the narrow flag when the window is less than 600 pixels
   React.useEffect(() => setIsNarrow(window.inner_width <= 600), []);
 
+  // Adds a resize handler to the window, and automatically removes it
   React.useEffect(() => {
       function onResize () {
           setIsNarrow(window.inner_width <= 600);
@@ -40,6 +51,7 @@ export default function LoginCard({title, action, children}) {
   }
   const actionsIsArray = curAction instanceof Array;
 
+  // Render the card UI
   return (
     <Card variant="outlined" sx={{backgroundColor: `${theme.palette.landing_card.background}`, 
                                   maxWidth: narrowWindow ? `${theme.palette.landing_card.maxWidth}` : '100vw',

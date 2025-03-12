@@ -1,5 +1,7 @@
 'use client'
 
+/** @module UploadManage */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,24 +16,33 @@ import { useTheme } from '@mui/material/styles';
 import { SandboxInfoContext } from './serverInfo'
 import UploadSidebarItem from './components/UploadSidebarItem'
 
+/**
+ * Renders the UI for managing the list of uploaded folders
+ * @function
+ * @param {object} selectedUpload The currently selected upload
+ * @param {function} onEdit_func The to call when the user want's to edit the selected upload
+ * @returns The rendered UI
+ */
 export default function UploadManage({selectedUpload, onEdit_func}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
-  const [sidebarWidth, setSidebarWidth] = React.useState(150);
-  const [totalHeight, setTotalHeight] = React.useState(null);
-  const [workingTop, setWorkingTop] = React.useState(null);
-  const [workspaceWidth, setWorkspaceWidth] = React.useState(640);
+  const [sidebarWidth, setSidebarWidth] = React.useState(150);  // Default value is recalculated at display time
+  const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
+  const [workingTop, setWorkingTop] = React.useState(null);  // Default value is recalculated at display time
+  const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
   const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name == selectedUpload));
-  const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});
+  const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
 
+  // Recalcuate available space in the window
   React.useLayoutEffect(() => {
     const newSize = {'width':window.innerWidth,'height':window.innerHeight};
     setWorkspaceWidth(newSize.width - 150);
     setWindowSize(newSize);
-    calcTotalHeight(newSize);
+    calcTotalSize(newSize);
   }, []);
 
+  // Adds a handler for when the window is resized, and automatically removes the handler
   React.useLayoutEffect(() => {
       function onResize () {
         const oldWorkspaceWidth = workspaceWidth;
@@ -39,7 +50,7 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
 
         setWindowSize(newSize);
 
-        calcTotalHeight(newSize);
+        calcTotalSize(newSize);
         if (sidebarRef.current) {
           setSidebarWidth(sidebarRef.current.offsetWidth);
         }
@@ -55,22 +66,43 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
       }
   }, []);
 
-  function onSandboxChange(ev, name) {
-    ev.preventDefault();
+  /**
+   * Handler for when the user's selection changes and prevents default behavior
+   * @function
+   * @param {object} event The event
+   * @param {string} name The name of the new selected upload
+   */
+  function onSandboxChange(event, name) {
+    event.preventDefault();
     setSelectionIndex(sandboxItems.findIndex((item) => item.name == name));
   }
 
-  function onCancelEditUpload(ev) {
-    ev.preventDefault();
+  /**
+   * Handles the user not wanting to edit an upload and prevents default behavior
+   * @function
+   * @param {object} event The event
+   */
+  function onCancelEditUpload(event) {
+    event.preventDefault();
     setSelectionIndex(-1);
   }
 
-  function onEditUpload(ev) {
-    ev.preventDefault();
+  /**
+   * Handle the user wanting to edit an upload  and prevents default behavior
+   * @function
+   * @param {object} event The event
+   */
+  function onEditUpload(event) {
+    event.preventDefault();
     onEdit_func(sandboxItems[selectionIndex].name);
   }
 
-  function calcTotalHeight(curSize) {
+  /**
+   * Calculates the total UI size available for the workarea
+   * @function
+   * @param {object} curSize The total width and height of the window
+   */
+  function calcTotalSize(curSize) {
     const elHeader = document.getElementById('sparcd-header');
     const elFooter = document.getElementById('sparcd-footer');
     const elHeaderSize = elHeader.getBoundingClientRect();
@@ -88,11 +120,13 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
     }
   }
 
+  // Get the available workspace size if we don't have it already
   if (!totalHeight) {
-    calcTotalHeight(windowSize);
+    calcTotalSize(windowSize);
     setWorkspaceWidth(windowSize.width - sidebarWidth);
   }
 
+  // Render the UI
   const curHeight = totalHeight || 480;
   const curStart = (workingTop || 25) + 'px';
   const workplaceStartX = sidebarWidth;

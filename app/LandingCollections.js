@@ -1,5 +1,7 @@
 'use client'
 
+/** @module LandingCollections */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
@@ -10,9 +12,15 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, TokenContext } from './serverInfo'
 
+/** Returns the UI of the collections for the Landing page
+ * @function
+ * @param {function} collectionInfo_func The function to receive the list of collection information
+ * @param {function} onChange_func Function for when a collection selection has changed
+ * @returns {object} The rendered UI
+ */
 export default function LandingCollections({collectionInfo_func, onChange_func}) {
   const theme = useTheme();
-  const mobileDevice = React.useContext(MobileDeviceContext);
+  const mobileDevice = React.useContext(MobileDeviceContext);  // Are we on a mobile device (portrait mode)
   const [selectedCollection, setSelectedCollection] = React.useState(null);
   const [refreshingUploads, setRefreshingUploads] = React.useState(true);
   const [collectionsList, setCollectionsList] = React.useState(null);
@@ -20,6 +28,10 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
   const collectionToken = React.useContext(TokenContext);
   const collectionUrl = React.useContext(BaseURLContext) + '/collections&' + collectionToken;
 
+  /**
+   * Fetches the collections from the server
+   * @function
+   */
   function getCollections() {
     /* TODO: make call and wait for respone & return correct result
              need to handle null, 'invalid', and sandbox items
@@ -33,9 +45,14 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
     //return [];
   }
 
-  function handleChange(ev) {
-    setSelectedCollection(ev.target.value);
-    onChange_func(ev.target.value);
+  /**
+   * Handles a change in the user's selection and calls the parent's change function
+   * @function
+   * @param {object} event The event object
+   */
+  function handleChange(event) {
+    setSelectedCollection(event.target.value);
+    onChange_func(event.target.value);
   }
 
   // TODO: cache these
@@ -48,6 +65,7 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
       setCollectionInfo();
     },[]);
 
+  // Render the UI
   return (
     <React.Fragment>
       { firstItem ? (

@@ -1,5 +1,7 @@
 'use client'
 
+/** @module components/FolderUpload */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,14 +16,28 @@ import Typography from '@mui/material/Typography';
 import ProgressWithLabel from './ProgressWithLabel'
 import { BaseURLContext, TokenContext } from '../serverInfo'
 
+/**
+ * Renders the UI for uploading a folder of images
+ * @function
+ * @param {function} cancel_func The function to call when the user cancels the upload
+ * @returns The rendered UI
+ */
 export default function FolderUpload({cancel_func}) {
   const theme = useTheme();
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
   const [filesSelected, setFilesSelected] = React.useState(0);
-  const [inputSize, setInputSize] = React.useState({'width':252,'height':21});
+  const [inputSize, setInputSize] = React.useState({'width':252,'height':21}); // Updated when UI rendered
   const uploadToken = React.useContext(TokenContext);
   const uploadUrl = React.useContext(BaseURLContext) + '/upload&' + uploadToken + '&check';
 
+  /**
+   * Returns whether or not this is a new upload or a continuation of a previous one
+   * @function
+   * @param {string} path The path of the upload
+   * @param {array} files The list of files to upload
+   * @returns An array of files that have not been uploaded (if a continuation) or a false truthiness value 
+   *          for a new upload
+   */
   function havePreviousUpload(path, files) {
     const formData = new FormData();
     // TODO: Add in a bunch of files and check - loop through all files to see what's not been uploaded
@@ -37,6 +53,10 @@ export default function FolderUpload({cancel_func}) {
     return null;
   }
 
+  /**
+   * Handles uploading a folder of files
+   * @function
+   */
   function uploadFolder() {
     const formData = new FormData();
     // TODO: Add in a bunch of files and upload - loop through all files
@@ -64,7 +84,12 @@ export default function FolderUpload({cancel_func}) {
     setUploadingFiles(true);
   }
 
-  function uploadFiles(ev) {
+  /**
+   * Handles the user wanting to upload files
+   * @function
+   * @param {object} event The event
+   */
+  function uploadFiles(event) {
     const el = document.getElementById('folder_select');
 
     // Return if there's nothing to do
@@ -90,8 +115,13 @@ export default function FolderUpload({cancel_func}) {
     uploadFolder(relativePath, allFiles);
   }
 
-  function selectionChanged(ev) {
-    const el = ev.target;
+  /**
+   * Handles the user changing the selected folder to upload
+   * @function
+   * @param {object} event The event
+   */
+  function selectionChanged(event) {
+    const el = event.target;
 
     if (el.files && el.files.length != null) {
       setFilesSelected(el.files.length);
@@ -100,10 +130,19 @@ export default function FolderUpload({cancel_func}) {
     }
   }
 
-  function cancelUpload(ev) {
+  /**
+   * Calls the cancelation function when the user clicks cancel
+   * @function
+   * @param {object} event The event
+   */
+  function cancelUpload(event) {
     cancel_func();
   }
 
+  /**
+   * Renders the UI based upon how many images have been uploaded
+   * @function
+   */
   function renderInputControls() {
     const el = document.getElementById('folder_select');
     let curWidth = inputSize.width;
@@ -125,14 +164,15 @@ export default function FolderUpload({cancel_func}) {
           <ProgressWithLabel value='10'/>
         </Grid>
       );
-    } else {
-      return (
-        <input id="folder_select" type="file" name="file" webkitdirectory="true" 
-               directory="true" onChange={selectionChanged}></input>
-      );
     }
+
+    return (
+      <input id="folder_select" type="file" name="file" webkitdirectory="true" 
+             directory="true" onChange={selectionChanged}></input>
+    );
   }
 
+  // Render the UI
   return (
     <Card variant="outlined" sx={{ ...theme.palette.folder_upload }} >
       <React.Fragment>

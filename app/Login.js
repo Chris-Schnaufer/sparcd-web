@@ -1,3 +1,5 @@
+/** @module Login */
+
 import Image from 'next/image'
 import styles from './page.module.css'
 import { useContext, useState } from 'react';
@@ -17,26 +19,57 @@ import wildcatResearch from '../public/wildcatResearch.png'
 import {urlValid, userValid, passwordValid} from './checkLogin'
 import {LoginValidContext} from './checkLogin'
 
+/** Returns the Login dialog
+  * @function
+  * @param {string} [prev_url] URL that was previously used to log in
+  * @param {string} [prev_user] Username that was previously used to log in
+  * @param {boolean} [prev_remember] Flag indicating the remember-me flag was set
+  * @param {function} login_func The login function to call when the user clicks the login button
+  * @returns {object} The rendered UI
+  */
 export default function Login({prev_url, prev_user, prev_remember, login_func}) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberChecked, setRememberChecked] = useState(!!prev_remember);
   const valuesValid = useContext(LoginValidContext);
 
+  /**
+   * Handler that toggles the show password state
+   * @function
+   */
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
+  /**
+   * Supresses the default handliong of a mouse down event on the password field
+   * @function
+   * @param {object} event The event object
+   */
   const handleMouseDownPassword = (event) => {
     event.preventDefault();
   };
 
+  /**
+   * Supresses the default handliong of a mouse up event on the password field
+   * @function
+   * @param {object} event The event object
+   */
   const handleMouseUpPassword = (event) => {
     event.preventDefault();
   };
 
+  /**
+   * Sets the state of the remember flag when the UI changes
+   * @function
+   * @param {object} event The event object
+   */
   const rememberChanged = (event) => {
     setRememberChecked(event.target.checked);
   }
 
-  function call_login_func() {
+  /**
+   * Calls the login function parameter
+   * @function
+   */
+  function callLoginFunc() {
     let ctrl = document.getElementById('url_entry');
     const url = ctrl.value;
     ctrl = document.getElementById('username_entry');
@@ -48,8 +81,6 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
 
     login_func(url, user, password, remember);
   }
-
-  let inputErrorClass = styles.login_dialog_items_error;
 
   // TODO: Login button hover style change (change bg & font color)
   return (
@@ -133,7 +164,7 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
                     </FormGroup>
 
             <div className={styles.login_dialog_login_button_wrap}>
-              <Button size="small" color="login_button" sx={{bgcolor: 'background.default'}} endIcon={<LoginIcon />} onClick={call_login_func}>Login</Button>
+              <Button size="small" color="login_button" sx={{bgcolor: 'background.default'}} endIcon={<LoginIcon />} onClick={callLoginFunc}>Login</Button>
             </div>
             </Box>
           </div>
