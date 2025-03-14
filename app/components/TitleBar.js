@@ -16,7 +16,7 @@ import styles from './components.module.css'
  * @function
  * @param {string} [search_title] The optional title of the search field
  * @param {function} [search_func] The function to call to perform a search
- * @returns The rendered UI
+ * @returns {object} The rendered UI
  */
 export default function TitleBar({search_title, search_func}) {
 

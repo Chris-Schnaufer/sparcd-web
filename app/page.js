@@ -224,6 +224,10 @@ export default function Home() {
   }
 
   function setupSearch(searchLabel, searchHandler) {
+    if (searchLabel == undefined && searchHandler == undefined) {
+      clearSearch();
+      return;
+    }
     if (!searchHandler || typeof searchHandler != "function") {
       console.log('Error: Invalid function passed when setting up search for \"'+searchLabel+'\"');
       return;

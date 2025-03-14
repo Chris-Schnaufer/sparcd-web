@@ -20,7 +20,7 @@ import { BaseURLContext, TokenContext } from '../serverInfo'
  * Renders the UI for uploading a folder of images
  * @function
  * @param {function} cancel_func The function to call when the user cancels the upload
- * @returns The rendered UI
+ * @returns {object} The rendered UI
  */
 export default function FolderUpload({cancel_func}) {
   const theme = useTheme();
@@ -35,7 +35,7 @@ export default function FolderUpload({cancel_func}) {
    * @function
    * @param {string} path The path of the upload
    * @param {array} files The list of files to upload
-   * @returns An array of files that have not been uploaded (if a continuation) or a false truthiness value 
+   * @returns {array} An array of files that have not been uploaded (if a continuation) or a false truthiness value 
    *          for a new upload
    */
   function havePreviousUpload(path, files) {

@@ -28,6 +28,8 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { LocationsInfoContext, SandboxInfoContext, SpeciesInfoContext } from './serverInfo'
+import ImageEdit from './components/ImageEdit'
+import SpeciesKeybind from './components/SpeciesKeybind'
 import SpeciesSidebarItem from './components/SpeciesSidebarItem'
 import * as utils from './utils'
 
@@ -40,11 +42,15 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   const speciesItems = React.useContext(SpeciesInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
   const [curEditState, setCurEditState] = React.useState(editingStates.none);
+  const [curImageEdit, setCurImageEdit] = React.useState(null);
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);
   const [editingLocation, setEditingLocation] = React.useState(true);
+  const [navigationRedraw, setNavigationRedraw] = React.useState(null);
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [sidebarWidthLeft, setSidebarWidthLeft] = React.useState(150);
   const [sidebarHeightTop, setSidebarHeightTop] = React.useState(50);
+  const [speciesKeybindName, setSpeciesKeybindName] = React.useState(null);
+  const [speciesZoomName, setSpeciesZoomName] = React.useState(null);
   const [workingTop, setWorkingTop] = React.useState(null);
   const [workspaceWidth, setWorkspaceWidth] = React.useState(150); // The subtracted value is initial sidebar width
   const [totalHeight, setTotalHeight] = React.useState(null);
@@ -58,6 +64,9 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   const handleImageSearch = searchImages.bind(UploadEdit);
   const handleEditLocation = editLocation.bind(UploadEdit);
   const handleEditingImage = editingImage.bind(UploadEdit);
+  const handleNextImage = nextImage.bind(UploadEdit);
+  const handlePrevImage = prevImage.bind(UploadEdit);
+  const handleSpeciesChange = speciesChange.bind(UploadEdit);
   let curLocationFetchIdx = -1;
 
 
@@ -127,10 +136,11 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
 
   function onContinue(ev) {
     const locEl = document.getElementById('upload-edit-location');
+    const uploadLocationUrl = serverURL + '/uploadLocation';
     // TODO: save new location on server
     /* TODO: make call and wait for response & return correct result
              need to handle null, 'invalid', and token values
-    const resp = await fetch(loginUrl, {
+    const resp = await fetch(uploadLocationUrl, {
       'method': 'POST',
       'data': formData
     });
@@ -149,15 +159,89 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
 
   function onKeybindClick(ev, name, oldKeybinding) {
     console.log('SPECIES KEYBIND CLICK:', name, oldKeybinding);
+    setSpeciesZoomName(null);
+    if (curEditState !== editingStates.editImage) {
+      setSpeciesKeybindName(name);
+    } else {
+      setSpeciesKeybindName(null);
+    }
+  }
+
+  function keybindChange(speciesName, newKey) {
+    const newKeySpeciesIdx = speciesItems.findIndex((item) => item.name === speciesName);
+    if (newKeySpeciesIdx > -1) {
+      const keybindUrl = serverURL + '/keybind';
+      // TODO: save new keybind on server
+      /* TODO: make call and wait for response & return correct result
+               need to handle null, 'invalid', and token values
+      const resp = await fetch(keybindUrl, {
+        'method': 'POST',
+        'data': formData
+      });
+      console.log(resp);
+      */
+      speciesItems[newKeySpeciesIdx].keyBinding = newKey;
+    }
+  }
+
+  function nextImage() {
+    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
+    if (curImageIdx === -1) {
+      console.log("Error: unable to find current image before advancing to next image");
+      return;
+    }
+    if (curImageIdx < curUpload.images.length - 1) {
+      const newImage = curUpload.images[curImageIdx+1];
+      setCurImageEdit(newImage);
+      setNavigationRedraw('redraw-image-'+newImage.name);
+    }
+  }
+
+  function prevImage() {
+    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
+    if (curImageIdx === -1) {
+      console.log("Error: unable to find current image before advancing to previous image");
+      return;
+    }
+    if (curImageIdx > 0) {
+      const newImage = curUpload.images[curImageIdx-1];
+      setCurImageEdit(newImage);
+      setNavigationRedraw('redraw-image-'+newImage.name);
+    }
+  }
+
+  function speciesChange(imageName, speciesName, speciesCount) {
+    const curImageIdx = curUpload.images.findIndex((item) => item.name === imageName);
+    if (curImageIdx === -1) {
+      console.log('Warning: Unable to find image for updating species', imageName);
+      return;
+    }
+    const curSpeciesIdx = curUpload.images[curImageIdx].species.findIndex((item) => item.name === speciesName);
+    if (curSpeciesIdx === -1) {
+      console.log('Warning: Unable to find species',speciesName,'for updating count in image',imageName);
+      return;
+    }
+    curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
+
+    const speciesUrl = serverURL + '/uploadSpecies';
+    // TODO: save new species count on server
+    /* TODO: make call and wait for response & return correct result
+             need to handle null, 'invalid', and token values
+    const resp = await fetch(speciesUrl, {
+      'method': 'POST',
+      'data': formData
+    });
+    console.log(resp);
+    */
   }
 
   function getTooltipInfo(locIdx) {
     if (curLocationFetchIdx != locIdx) {
       curLocationFetchIdx = locIdx;
-      const loginUrl = serverURL + '/location';
+      const locationUrl = serverURL + '/location';
       /* TODO: make call and wait for response & return correct result
                need to handle null, 'invalid', and token values
-      const resp = await fetch(loginUrl, {
+      const resp = await fetch(locationUrl, {
         'method': 'POST',
         'data': formData
       });
@@ -199,9 +283,10 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     setEditingLocation(true);
   }
 
-  function editingImage(item, index) {
-    console.log('EDIT',item,index);
+  function editingImage(item, imageName) {
     setCurEditState(editingStates.editImage);
+    setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
+    searchSetup_func();
   }
 
   function generateImageSvg(bgColor, fgColor) {
@@ -332,11 +417,11 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   function generateImageTiles(clickHandler) {
     return (
       <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
-      { curUpload.images.map((item, idx) => {
+      { curUpload.images.map((item) => {
         let imageSpecies = item.species && item.species.length > 0;
         return (
           <Grid item size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
-            <Card id={item.name} onClick={() => clickHandler(item, idx)} variant={imageSpecies?"soft":"outlined"}
+            <Card id={item.name} onClick={() => clickHandler(item, item.name)} variant={imageSpecies?"soft":"outlined"}
                   sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
               <CardActionArea data-active={imageSpecies ? '' : undefined}
                 sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
@@ -375,7 +460,7 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     );
   }
 
-  // TODO: Make species bar on top when narrow
+  // TODO: Make species bar on top when narrow screen
   const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
   const imageVisibility = (curEditState == editingStates.editImage || curEditState == editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
   return (
@@ -384,7 +469,9 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
           style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 'top':curStart+'px', 
                    'position':'absolute', 'overflow':'scroll', ...theme.palette.species_left_sidebar }} >
         { speciesItems.map((item, idx) => <SpeciesSidebarItem species={item} key={item.name}
-                                                             onClick_func={(ev) => onKeybindClick(ev, item.name, item.keyBinding)} />) }
+                                                             keybindClick_func={(ev) => {onKeybindClick(ev, item.name, item.keyBinding);;ev.preventDefault();}}
+                                                             zoomClick_func={(ev) => {setSpeciesZoomName(item.name);setSpeciesKeybindName(null);ev.preventDefault();}}
+                                                             />) }
       </Grid>
       <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' rows='1' 
           style={{ ...theme.palette.top_sidebar, 'top':curStart+'px', 'minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px',
@@ -417,14 +504,25 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
         : null
       }
       { curEditState == editingStates.editImage ?
-        <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="start"
+        <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="center"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
-                       'minHeight':(curHeight-sidebarHeightTop)+'px', 'maxHeight':(curHeight-sidebarHeightTop)+'px', 'height':(curHeight-sidebarHeightTop)+'px',
-                       'top':curStart+sidebarHeightTop+'px', 
+                       'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
+                       'top':curStart+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
-                       'position':'absolute', overflow:'scroll', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.5)' }}>
+                       'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
           <Grid item size={{ xs: 12, sm: 12, md:12 }}>
-            <Button onClick={() => setCurEditState(editingStates.listImages)}>Back</Button>
+            <ImageEdit id={navigationRedraw}
+                       url={curImageEdit.url}
+                       name={curImageEdit.name}
+                       parentX={workplaceStartX} parentId='image-edit-workspace'
+                       maxWidth={workspaceWidth-40}
+                       maxHeight={curHeight-40} 
+                       onClose_func={() => {setCurEditState(editingStates.listImages);searchSetup_func('Image Name', handleImageSearch);}}
+                       adjustments={true}
+                       navigation={{prev_func:handlePrevImage,next_func:handleNextImage}}
+                       species={curImageEdit.species}
+                       speciesChange_func={(speciesName, speciesCount) => handleSpeciesChange(curImageEdit.name, speciesName, speciesCount)}
+            />
           </Grid>
         </Grid>
         : null
@@ -439,6 +537,41 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
             </Grid>
           </Grid>
         : null }
+      { speciesZoomName ? 
+          <Grid id='image-edit-species-image' container spacing={0} direction="column" alignItems="center" justifyContent="center"
+              style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
+                       'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
+                       'top':curStart+'px', 
+                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
+              <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+                <ImageEdit url={speciesItems.find((item)=>item.name===speciesZoomName).speciesIconURL} name={speciesZoomName}
+                           parentX={workplaceStartX} parentId='image-edit-species-image'
+                           maxWidth={workspaceWidth-40} maxHeight={curHeight-40} onClose_func={() => setSpeciesZoomName(null)}
+                           adjustments={false}
+                />
+            </Grid>
+          </Grid>
+        : null
+      }
+      { speciesKeybindName && curEditState !== editingStates.editImage ? 
+          <Grid id='image-edit-species-keybind' container spacing={0} direction="column" alignItems="center" justifyContent="center"
+              style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
+                       'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
+                       'top':curStart+'px', 
+                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
+              <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+                <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
+                                name={speciesKeybindName}
+                                parentId='image-edit-species-image'
+                                onClose_func={() => setSpeciesKeybindName(null)}
+                                onChange_func={(newKey) => keybindChange(speciesKeybindName, newKey)}
+                />
+            </Grid>
+          </Grid>
+        : null
+      }
     </Box>
   );
 }

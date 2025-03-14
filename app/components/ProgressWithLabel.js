@@ -1,10 +1,18 @@
 'use client'
 
+/** @module components/ProgressWithLabel */
+
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 
+/**
+ * Renders a progress element with a label
+ * @function
+ * @param {object} props Contains the current value to display
+ * @returns {object} The rendered progress bar with a label
+ */
 export default function ProgressWithLabel(props) {
   return (
     <Box sx={{ position: 'relative', display: 'inline-flex' }}>

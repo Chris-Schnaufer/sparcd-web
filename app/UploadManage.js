@@ -21,7 +21,7 @@ import UploadSidebarItem from './components/UploadSidebarItem'
  * @function
  * @param {object} selectedUpload The currently selected upload
  * @param {function} onEdit_func The to call when the user want's to edit the selected upload
- * @returns The rendered UI
+ * @returns {object} The rendered UI
  */
 export default function UploadManage({selectedUpload, onEdit_func}) {
   const theme = useTheme();

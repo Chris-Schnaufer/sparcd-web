@@ -18,7 +18,7 @@ import Typography from '@mui/material/Typography';
  * @param {string} title The title of the card
  * @param {array} action Array of objects with onClick handler, disabled flag, and title (aka. name) for a card
  * @param {object} [children] The children elements of the card
- * @returns The rendered Landing card
+ * @returns {object} The rendered Landing card
  */
 export default function LoginCard({title, action, children}) {
   const [isNarrow, setIsNarrow] = React.useState(false);

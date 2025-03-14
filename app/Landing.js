@@ -22,7 +22,7 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from 
  * @param {function} onUserAction Function to call when the user clicks an action element
  * @param {function} onSandboxUpdate Function to call when the sandbox information is updated
  * @param {function} onCollectionUpdate Function to call when the collection information is updated
- * @returns The rendered UI
+ * @returns {object} The rendered UI
  */
 export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpdate}) {
   const theme = useTheme();

@@ -1,6 +1,6 @@
 'use client'
 
-/** @modile components/UploadSidebarItem */
+/** @module components/UploadSidebarItem */
 
 import * as React from 'react';
 import Grid from '@mui/material/Grid';
@@ -12,7 +12,7 @@ import { useTheme } from '@mui/material/styles';
  * @param {object} uploadItem On instance of an uploaded item
  * @param {boolean} selected Set truthiness to true if this upload is selected
  * @param {function} onClick_func The parent handler when a new upload is selected
- * @returns The rendered UI
+ * @returns {object} The rendered UI
  */
 export default function UploadSidebarItem({uploadItem, selected, onClick_func}) {
   const theme = useTheme();

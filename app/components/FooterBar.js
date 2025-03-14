@@ -1,6 +1,14 @@
+
+/** @module components/FooterBar */
+
 import styles from './components.module.css'
 
-export default function FooterBar({children}) {
+/**
+ * Renders the footer bar
+ * @function
+ * @returns {object} The rendered footer
+ */
+export default function FooterBar() {
   const cur_year = new Date().getFullYear();
   const prev_year = cur_year <= 2023 ? "" : "2023-";
 
