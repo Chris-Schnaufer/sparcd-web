@@ -20,12 +20,12 @@ import { useTheme } from '@mui/material/styles';
  * @param {function} onClick_func Function to call when the species UI is clicked
  * @returns {object} The rendered UI item
  */
-export default function SpeciesSidebarItem({species, keybindClick_func, zoomClick_func}) {
+export default function SpeciesSidebarItem({id, species, keybindClick_func, zoomClick_func}) {
   const theme = useTheme();
 
   // Render the UI
   return (
-    <Grid id={'card-' + species.name} display='flex' justifyContent='left' size='grow' spacing='1' sx={{'maxWidth':'150px'}}>
+    <Grid id={id} draggable='true' display='flex' justifyContent='left' size='grow' spacing='1' sx={{'maxWidth':'150px'}}>
       <Card sx={{ ...theme.palette.species_sidebar_item }} >
         <div style={{position:'relative', display:'inline-block', cursor:'pointer'}}  onClick={(event)=>zoomClick_func(event)}>
           <CardMedia

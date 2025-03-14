@@ -13,6 +13,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { SpeciesInfoContext } from '../serverInfo'
+import ImageEditSpecies from './ImageEditSpecies'
 import InputSlider from './InputSlider'
 
 // Width of the input field
@@ -20,24 +21,27 @@ const Input = styled(MuiInput)`
   width: 42px;
 `;
 
-export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose_func, adjustments, navigation, species, speciesChange_func}) {
+export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose_func, adjustments, dropable,
+                                   navigation, species, speciesChange_func}) {
   const speciesItems = React.useContext(SpeciesInfoContext);
   const [brightness, setBrightness] = React.useState(100);
   const [contrast, setContrast] = React.useState(100);
-  const [speciesRedraw, setSpeciesRedraw] = React.useState(null);
   const [hue, setHue] = React.useState(0);    // From 360 to -360
   const [imageSize, setImageSize] = React.useState({width:40,height:40,top:0,left:0,right:40});
   const [showAdjustments, setShowAdjustments] = React.useState(false);
   const [saturation, setSaturation] = React.useState(100);
+  const [speciesRedraw, setSpeciesRedraw] = React.useState(null);
   const [imageId, setImageId] =  React.useState('image-edit-image-'+Math.random());
   const brightnessRange = {'default':100, 'min':0, 'max':200};
   const contrastRange = {'default':100, 'min':0, 'max':200};
   const hueRange = {'default':0, 'min':-720, 'max':720};
   const saturationRange = {'default':100, 'min':0, 'max':200};
 
-  let curSpecies = species;
+  let curSpecies = species != undefined ? species : [];
 
   getImageSize = getImageSize.bind(ImageEdit);
+  handleInputChange = handleInputChange.bind(ImageEdit);
+  handleBlur = handleBlur.bind(ImageEdit);
 
   React.useLayoutEffect(() => {
       function onResize () {
@@ -51,32 +55,35 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       }
   }, []);
 
-  React.useEffect(() => {
-    function onKeypress(event) {
-      if (event.key !== 'Meta') {
-        console.log('E',event);
-        const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
-        if (speciesKeyItem) {
-          const haveSpeciesIdx = curSpecies.findIndex((item) => item.name === speciesKeyItem.name);
-          console.log('CS1',curSpecies);
-          if (haveSpeciesIdx > -1) {
-            curSpecies[haveSpeciesIdx].count = parseInt(curSpecies[haveSpeciesIdx].count) + 1;
-            setSpeciesRedraw(curSpecies[haveSpeciesIdx].name+curSpecies[haveSpeciesIdx].count);
-          } else {
-            curSpecies.push({name:speciesKeyItem.name,count:1});
-            setSpeciesRedraw(speciesKeyItem.name+'1');
-          }
-          console.log('CS2',curSpecies);
-        }
-        event.preventDefault();
-      }
-    }
-    document.addEventListener("keydown", onKeypress);
+  function dragoverHandler(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "copy";
+  }
 
-    return () => {
-      document.removeEventListener("keydown", onKeypress);
+  function dropHandler(ev) {
+    ev.preventDefault();
+    // Get the id of the target and add the moved element to the target's DOM
+    const speciesScientificName = ev.dataTransfer.getData("text/plain").toUpperCase();
+    const speciesKeyItem = speciesItems.find((item) => item.scientificName.toUpperCase() === speciesScientificName);
+    if (speciesKeyItem) {
+      handleSpeciesAdd(speciesKeyItem);
     }
-  }, []);
+  }
+
+  function handleSpeciesAdd(speciesAdd) {
+    const haveSpeciesIdx = curSpecies.findIndex((item) => item.name === speciesAdd.name);
+    if (haveSpeciesIdx > -1) {
+      curSpecies[haveSpeciesIdx].count = parseInt(curSpecies[haveSpeciesIdx].count) + 1;
+      window.setTimeout(() => {
+        setSpeciesRedraw(name+curSpecies[haveSpeciesIdx].name+curSpecies[haveSpeciesIdx].count);
+      }, 100);
+    } else {
+      curSpecies.push({name:speciesAdd.name,count:1});
+      window.setTimeout(() => {
+        setSpeciesRedraw(name+speciesAdd.name+'1');
+      }, 100);
+    }
+  }
 
   function adjustBrightness(value) {
     setBrightness((brightnessRange.max-brightnessRange.min) * (value / 100.0));
@@ -151,11 +158,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     setSpeciesRedraw(removedSpecies.name+'-deleted');
   }
 
-  console.log(speciesRedraw);
   const rowHeight = imageSize.height / 3.0;
-  return (
+  const dropExtras = dropable ? {onDrop:dropHandler,onDragOver:dragoverHandler} : {};
+   return (
     <React.Fragment>
-      <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px', position:'relative'}} >
+      <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px', position:'relative'}} {...dropExtras} >
         <img id={imageId} src={url} alt={name} onLoad={() => getImageSize()}
              style={{maxWidth:maxWidth, maxHeight:maxHeight, 
                      filter:'brightness('+brightness+'%) contrast('+contrast+'%) hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)'}} 
@@ -218,65 +225,30 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
               </div>
             </Grid>
           </Grid>
-        { navigation ?
-          <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-            <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
-              <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => {console.log('PREV IMAGE');navigation.prev_func();}}
-                        sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+          { navigation ?
+            <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
+              <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
+                <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.prev_func()}
+                          sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+              </Grid>
+              <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
+                <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.next_func()}
+                          sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+              </Grid>
             </Grid>
-            <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
-              <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => {console.log('NEXT IMAGE');navigation.next_func();}}
-                        sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
-            </Grid>
-          </Grid>
-          : null
-        }
-        { curSpecies ?
+            : null
+          }
           <Grid container id="image-edit-species" direction="row" alignItems="end" justifyContent="end"
                 sx={{minHeight:rowHeight,maxHeight:rowHeight}}
           >
-            <Grid item size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
+            <Grid item size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
+                  visibility:(curSpecies ? 'visible' : 'hidden')}}>
               {curSpecies.map((curItem) =>
-                <Grid id={'image-edit-species-'+curItem.name} key={'image-edit-species-'+curItem.name} container direction="row"
-                      sx={{padding:'0px 5px 0px 5px', width:'200px', color:'#4f4f4f',
-                         backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)',color:'black'},
-                         borderRadius:'5px', minWidth:'400px'
-                      }}
-                >
-                  <Grid item size={{ xs:6, sm:6, md:6 }} sx={{flex:'6', position:'relative', marginRight:'auto'}}>
-                    <Grid container direction="row">
-                      <Grid item>
-                          <Typography id={"species-name-"+curItem.name} variant="body" sx={{textTransform:'Capitalize',color:'inherit'}}>
-                            {curItem.name}
-                          </Typography>
-                      </Grid>
-                      <Grid item sx={{marginLeft:'auto'}}>
-                          <Input
-                            value={curItem.count}
-                            size="small"
-                            onChange={(event) => handleInputChange(event, curItem.name)}
-                            onBlur={(event) => handleBlur(event, curItem.name)}
-                            inputProps={{
-                              step: 1,
-                              min: 0,
-                              max: 100,
-                              type: 'number',
-                              'aria-labelledby':"species-name-"+curItem.name,
-                            }}
-                            sx={{flex:'6', position:'relative', marginleft:'auto', color:'inherit'}}
-                          />
-                      </Grid>
-                    </Grid>
-                  </Grid>
-                  <Grid item size={{ xs:1, sm:1, md:1 }} sx={{flex:'1', position:'relative', marginLeft:'auto'}}>
-                    <HighlightOffOutlinedIcon color='inherit' onClick={() => handleSpeciesDelete(curItem.name)}/>
-                  </Grid>
-                </Grid>
+                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onClick_func={handleSpeciesDelete}
+                                  onChange_func={handleInputChange} onBlur_func={handleBlur} />
               )}
             </Grid>
           </Grid>
-          :null
-        }
         </Stack>
       </Box>
     </React.Fragment>
