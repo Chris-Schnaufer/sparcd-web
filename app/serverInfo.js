@@ -1524,8 +1524,6 @@ export const LocationsInfoContext = createContext([
   }
 ].sort((a,b) => a.idProperty.localeCompare(b.idProperty)));
 
-/** React context for running on a mobile device */
-export const MobileDeviceContext = createContext(false);
 /** React context for sandbox uploaded folders */
 export const SandboxInfoContext = createContext(null);
 /** React context for species information */
@@ -1864,3 +1862,7 @@ export const SpeciesInfoContext = createContext([
 
 /** React context for user login token */
 export const TokenContext = createContext(null);
+/** React context for running on a mobile device */
+export const MobileDeviceContext = createContext(false);
+/** React context for narrow windows */
+export const NarrowWindowContext = createContext(false);

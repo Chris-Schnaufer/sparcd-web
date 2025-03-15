@@ -12,9 +12,10 @@ import { styled } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { SpeciesInfoContext } from '../serverInfo'
-import ImageEditSpecies from './ImageEditSpecies'
-import InputSlider from './InputSlider'
+import { SpeciesInfoContext } from './serverInfo'
+import ImageAdjustments from './components/ImageAdjustments'
+import ImageEditSpecies from './components/ImageEditSpecies'
+import InputSlider from './components/InputSlider'
 
 // Width of the input field
 const Input = styled(MuiInput)`
@@ -173,42 +174,8 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
         >
           <Grid container direction="row" alignItems="start" justifyContent="start" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
             <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative'}}>
-            { adjustments ?
-              <React.Fragment>
-                <Box id="image-edit-adjust" sx={{position:'absolute',left:'0px',top:'0px',height:'20px', flex:'1', visibility:(showAdjustments ? 'hidden' : 'visible')}} 
-                        onClick={() => setShowAdjustments(!showAdjustments)}>
-                  <Typography variant="body" sx={{textTransform:'uppercase',color:'darkgrey',backgroundColor:'rgba(255,255,255,0.3)',
-                                                   padding:'1px 3px 0px 3px',borderRadius:'3px',
-                                                   '&:hover':{backgroundColor:'rgba(255,255,255,0.7)',color:'black'},
-                                                   cursor:'pointer'
-                                                 }}>
-                    &raquo;
-                  </Typography>
-                </Box>
-                <Grid id="image-edit-adjustments" container direction="column" alignItems="start" justifyContent="start"
-                      sx={{position:'absolute',left:'0px',top:'0px',
-                           visibility:(showAdjustments ? 'visible' : 'hidden')}} >
-                  <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{backgroundColor:'rgba(255,255,255,0.7)'}}>
-                    <InputSlider label="Brightness" onChange_func={adjustBrightness} />
-                    <InputSlider label="Contrast" onChange_func={adjustContrast} />
-                    <InputSlider label="Hue"  onChange_func={adjustHue} />
-                    <InputSlider label="Saturation"  onChange_func={adjustSaturation} />
-                  </Grid>
-                  <Grid item onClick={() => setShowAdjustments(!showAdjustments)}>
-                    <Typography variant="body" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.7)',
-                                                     marginTop:'0px',
-                                                     padding:'1px 1px 0px 1px',borderRadius:'3px',
-                                                     '&:hover':{backgroundColor:'rgba(255,255,255,0.7)',color:'black'},
-                                                     writingMode:'vertical-lr', transform:'rotate(-180deg)',
-                                                     cursor:'default'
-                                                   }}>
-                      &raquo;
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </React.Fragment>
-              : null
-            }
+              <ImageAdjustments isVisible={!!adjustments} onBrightnessChange={adjustBrightness} 
+                                onContrastChange={adjustContrast} onHueChange={adjustHue} onSaturationChange={adjustSaturation} />
             </Grid>
             <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
               <Typography variant="body" sx={{textTransform:'uppercase',color:'grey','&:hover':{color:'white'} }}>
@@ -244,7 +211,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
             <Grid item size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
                   visibility:(curSpecies ? 'visible' : 'hidden')}}>
               {curSpecies.map((curItem) =>
-                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onClick_func={handleSpeciesDelete}
+                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onCDelete_func={handleSpeciesDelete}
                                   onChange_func={handleInputChange} onBlur_func={handleBlur} />
               )}
             </Grid>

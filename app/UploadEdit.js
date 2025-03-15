@@ -28,7 +28,9 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { LocationsInfoContext, SandboxInfoContext, SpeciesInfoContext } from './serverInfo'
-import ImageEdit from './components/ImageEdit'
+import ImageEdit from './ImageEdit'
+import ImageTile from './components/ImageTile'
+import LocationSelection from './LocationSelection'
 import SpeciesKeybind from './components/SpeciesKeybind'
 import SpeciesSidebarItem from './components/SpeciesSidebarItem'
 import * as utils from './utils'
@@ -137,7 +139,7 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
 
   React.useEffect(() => {
     if (curUpload && curUpload.location) {
-      onContinue();
+      onLocationContinue();
     }
   }, [curUpload]);
 
@@ -189,7 +191,7 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     }
   }
 
-  function onContinue(ev) {
+  function onLocationContinue(ev) {
     const locEl = document.getElementById('upload-edit-location');
     const uploadLocationUrl = serverURL + '/uploadLocation';
     // TODO: save new location on server
@@ -201,7 +203,6 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     });
     console.log(resp);
     */
-    console.log('Continue:',locEl.value);
     curUpload.location = locEl.value;
     setCurEditState(editingStates.listImages);
     setEditingLocation(false);
@@ -359,123 +360,6 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
   const curStart = workingTop;
   const workplaceStartX = sidebarWidthLeft;
 
-  function generateImageSvg(bgColor, fgColor) {
-    if (bgColor == null) {
-      bgColor = 'lightgrey';
-    }
-    if (fgColor == null) {
-      fgColor = '#959595';
-    }
-    return (
-      <svg
-          viewBox="0 0 150 150"
-          xmlns="http://www.w3.org/2000/svg"
-          stroke="black"
-          fill="grey"
-          height="50px"
-          width="50px">
-        <circle cx='40%' cy='15%' r='2' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <rect x='10%' y='10%' width='80%' height='80%' fill={bgColor} opacity='0.75' stroke='transparent' strokeWidth='0px'/>
-        <line x1='15%' y1='15%' x2='40%' y2='15%' stroke={fgColor} strokeWidth={6}/>
-        <circle cx='15%' cy='15%' r='3' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <line x1='15%' y1='15%' x2='15%' y2='85%' stroke={fgColor} strokeWidth={6}/>
-        <circle cx='15%' cy='85%' r='3' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <line x1='15%' y1='85%' x2='85%' y2='85%' stroke={fgColor} strokeWidth={6}/>
-        <circle cx='85%' cy='85%' r='3' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <line x1='85%' y1='15%' x2='85%' y2='85%' stroke={fgColor} strokeWidth={6}/>
-        <circle cx='85%' cy='15%' r='3' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <line x1='60%' y1='15%' x2='85%' y2='15%' stroke={fgColor} strokeWidth={6}/>
-        <circle cx='60%' cy='15%' r='3' fill={fgColor} stroke='transparent' strokeWidth='0px' />
-        <path d="M 90 60 L 60 60 L 53 65 L 53 75 L 59 75 L 65 70 L 67 76 L 66 87 L 63 87 L 63 89 L 69 89 L 77 75 L 80 77 L 82 78 L 83 88 L 79 88 L 86 88 L 86 80 L 92 81 L 95 88 L 92 88 L 92 89 L 100 89 L 100 69 L 90 60"
-              fill={fgColor} stroke={fgColor} strokeWidth='3px' />
-      </svg>
-    );
-  }
-
-  function generateEditingLocation(continueFunc, cancelFunc) {
-    return (
-      <Card id='change-location' variant='outlined' sx={{...theme.palette.upload_edit_locations_card}}>
-        <CardContent>
-          <Typography variant="h5" sx={{ color:'text.primary', textAlign:'center' }}>
-            {curUpload.name}
-          </Typography>
-          <FormControl fullWidth>
-            <Autocomplete
-              options={locationItems}
-              id="upload-edit-location"
-              autoHighlight
-              defaultValue={curUploadLocation}
-              getOptionLabel={(option) => option.idProperty}
-              getOptionKey={(option) => option.idProperty+option.latProperty+option.lngProperty}
-              onChange={() => console.log('CHANGE')}
-              renderOption={(props, loc) => {
-                const { key, ...optionProps } = props;
-                return (<MenuItem id={loc.idProperty+'-'+key} value={loc.idProperty} key={key} {...optionProps}>
-                          <Grid container>
-                            <Grid item sm={6} md={6} lg={6}>
-                              <Box display="flex" justifyContent="flex-start">
-                                {loc.idProperty}
-                              </Box>
-                            </Grid>
-                          <Grid item sm={6} md={6} lg={6} zeroMinWidth>
-                            <Box display="flex" justifyContent="flex-end">
-                              <Typography variant="body" sx={{ fontSize:'small', overflow:"clip"}}>
-                                {loc.nameProperty}
-                              </Typography>
-                              &nbsp;
-                              <Tooltip
-                                onOpen={() => getTooltipInfoOpen(props["data-option-index"])}
-                                onClose={() => clearTooltipInfo(props["data-option-index"])}
-                                title={
-                                  tooltipData && tooltipData.index==props["data-option-index"] ?
-                                    <React.Fragment>
-                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'small'}}>{loc.idProperty}</Typography>
-                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{loc.latProperty + ", " + loc.lngProperty}</Typography>
-                                      <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{'Elevation: '+loc.elevationProperty}</Typography>
-                                    </React.Fragment>
-                                    : 
-                                    <React.Fragment>
-                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'small'}}>{loc.idProperty}</Typography>
-                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{"------, ------"}</Typography>
-                                      <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{'Elevation: ----'}</Typography>
-                                      <div style={{...theme.palette.upload_edit_locations_spinner_background}}>
-                                      <CircularProgress size={40} sx={{position:'absolute', left:'17px', top:'12px'}}/>
-                                      </div>
-                                    </React.Fragment>
-                                }
-                              >
-                              <InfoOutlinedIcon color="info" fontSize="small" id="InfoOutlinedIcon"/>
-                              </Tooltip>
-                            </Box>
-                            </Grid>
-                          </Grid>
-                        </MenuItem> 
-                );
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Location"
-                  slotProps={{
-                    htmlInput: {
-                      ...params.inputProps,
-                      autoComplete: 'new-password', // disable autocomplete and autofill
-                    },
-                  }}
-                />
-              )}
-            >
-            </Autocomplete>
-          </FormControl>
-        </CardContent>
-        <CardActions>
-          <Button sx={{'flex':'1'}} size="small" onClick={continueFunc} >Continue</Button>
-          <Button sx={{'flex':'1'}} size="small" onClick={cancelFunc} >Cancel</Button>
-        </CardActions>
-      </Card>
-    );
-  }
-
   function generateImageTiles(clickHandler) {
     return (
       <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
@@ -484,38 +368,7 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
           let imageSpecies = item.species && item.species.length > 0;
           return (
             <Grid item size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
-              <Card id={item.name} onClick={() => clickHandler(item, item.name)} variant={imageSpecies?"soft":"outlined"}
-                    sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
-                <CardActionArea data-active={imageSpecies ? '' : undefined}
-                  sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
-                >
-                  <CardContent>
-                    <Grid container spacing={1}>
-                      <Grid item>
-                        {generateImageSvg(imageSpecies ? 'grey':null, imageSpecies ? '#68AB68':null)}
-                      </Grid>
-                      <Grid item>
-                        <Box>
-                          <Typography variant="body" sx={{textTransform:'uppercase'}}>
-                            {item.name}
-                            {imageSpecies ? <CheckCircleOutlinedIcon size="small" sx={{color:"#68AB68"}}/> : null}
-                          </Typography>
-                        </Box>
-                          { imageSpecies ?
-                            item.species.map((curSpecies,idxSpecies) => 
-                                  <Box key={item.name+curSpecies.name+idxSpecies} >
-                                    <Typography variant="body3" sx={{textTransform:'capitalize'}}>
-                                      {curSpecies.name + ': ' + curSpecies.count}
-                                    </Typography>
-                                  </Box>
-                            )
-                            : null
-                          }
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
+              <ImageTile name={item.name} species={item.species} onClick={() => clickHandler(item, item.name)} />
             </Grid>
           )}
         )
@@ -532,19 +385,38 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
     );
   }
 
+  function generateSpeciesSidebar(species, position) {
+    if (position === 'left') {
+      return (
+        <Grid id='left-sidebar' ref={sidebarLeftRef} container direction='row' alignItems='stretch' columns='1' 
+            style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 'top':curStart+'px', 
+                     'position':'absolute', 'overflow':'scroll', ...theme.palette.species_left_sidebar }} >
+          { species.map((item, idx) => <SpeciesSidebarItem id={'card-' + item.name} species={item} key={item.name}
+                                                               keybindClick_func={(ev) => {onKeybindClick(ev, item.name, item.keyBinding);;ev.preventDefault();}}
+                                                               zoomClick_func={(ev) => {setSpeciesZoomName(item.name);setSpeciesKeybindName(null);ev.preventDefault();}}
+                                                               />) }
+        </Grid>
+      );
+    } else if (position === 'top') {
+      return (
+        <Grid id='left-sidebar' ref={sidebarLeftRef} container direction='row' alignItems='stretch' columns='1' 
+            style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 'top':curStart+'px', 
+                     'position':'absolute', 'overflow':'scroll', ...theme.palette.species_left_sidebar }} >
+          { species.map((item, idx) => <SpeciesSidebarItem id={'card-' + item.name} species={item} key={item.name}
+                                                               keybindClick_func={(ev) => {onKeybindClick(ev, item.name, item.keyBinding);;ev.preventDefault();}}
+                                                               zoomClick_func={(ev) => {setSpeciesZoomName(item.name);setSpeciesKeybindName(null);ev.preventDefault();}}
+                                                               />) }
+        </Grid>
+      );
+    }
+  }
+
   // TODO: Make species bar on top when narrow screen
   const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
   const imageVisibility = (curEditState == editingStates.editImage || curEditState == editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
   return (
     <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart+'px', width: '100vw' }} >
-      <Grid id='left-sidebar' ref={sidebarLeftRef} container direction='row' alignItems='stretch' columns='1' 
-          style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 'top':curStart+'px', 
-                   'position':'absolute', 'overflow':'scroll', ...theme.palette.species_left_sidebar }} >
-        { speciesItems.map((item, idx) => <SpeciesSidebarItem id={'card-' + item.name} species={item} key={item.name}
-                                                             keybindClick_func={(ev) => {onKeybindClick(ev, item.name, item.keyBinding);;ev.preventDefault();}}
-                                                             zoomClick_func={(ev) => {setSpeciesZoomName(item.name);setSpeciesKeybindName(null);ev.preventDefault();}}
-                                                             />) }
-      </Grid>
+      {generateSpeciesSidebar(speciesItems, 'left')}
       <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' rows='1' 
           style={{ ...theme.palette.top_sidebar, 'top':curStart+'px', 'minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px',
                    'position':'sticky', 'left':workplaceStartX, 'verticalAlignment':'middle', 'visibility':topbarVisiblity }} >
@@ -606,7 +478,11 @@ export default function UploadEdit({selectedUpload, onCancel_func, searchSetup_f
                          'left':workplaceStartX+'px','minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px', 'width':workspaceWidth+'px',
                          'position':'absolute'}}>
               <Grid item size={{ xs: 12, sm: 12, md:12 }}>
-                {generateEditingLocation(onContinue, curEditState == editingStates.none ? onCancel : () => setEditingLocation(false))}
+                <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={curUploadLocation} 
+                                   onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
+                                   dataTT={tooltipData} onContinue={onLocationContinue}
+                                   onCancel={curEditState == editingStates.none ? onCancel : () => setEditingLocation(false)}
+                />
             </Grid>
           </Grid>
         : null }

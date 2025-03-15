@@ -12,6 +12,8 @@ import Grid from '@mui/material/Grid2';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
+import { NarrowWindowContext } from '../serverInfo'
+
 /**
  * Returns the common card UI for actions on the Landing page
  * @function
@@ -21,25 +23,8 @@ import Typography from '@mui/material/Typography';
  * @returns {object} The rendered Landing card
  */
 export default function LoginCard({title, action, children}) {
-  const [isNarrow, setIsNarrow] = React.useState(false);
+  const narrowWindow = React.useContext(NarrowWindowContext);
   const theme = useTheme();
-  const narrowWindow = isNarrow;
-
-  // Sets the narrow flag when the window is less than 600 pixels
-  React.useEffect(() => setIsNarrow(window.inner_width <= 600), []);
-
-  // Adds a resize handler to the window, and automatically removes it
-  React.useEffect(() => {
-      function onResize () {
-          setIsNarrow(window.inner_width <= 600);
-      }
-
-      window.addEventListener("resize", onResize);
-  
-      return () => {
-          window.removeEventListener("resize", onResize);
-      }
-  }, []);
 
   // Handle actions as array or an object
   let curAction = action;
@@ -54,7 +39,7 @@ export default function LoginCard({title, action, children}) {
   // Render the card UI
   return (
     <Card variant="outlined" sx={{backgroundColor: `${theme.palette.landing_card.background}`, 
-                                  maxWidth: narrowWindow ? `${theme.palette.landing_card.maxWidth}` : '100vw',
+                                  maxWidth: !narrowWindow ? `${theme.palette.landing_card.maxWidth}` : '100vw',
                                   minHeight: `${theme.palette.landing_card.minHeight}` }} >
       <CardContent sx={{minHeight: `${theme.palette.landing_card.minHeight}`}}>
         <Typography gutterBottom sx={{ color: 'text.primary', fontSize: 14, textAlign: 'center' }} >

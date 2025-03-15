@@ -13,7 +13,7 @@ import UploadManage from './UploadManage'
 import UploadEdit from './UploadEdit'
 import UserActions from './components/userActions'
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
-import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
+import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, NarrowWindowContext, SandboxInfoContext, TokenContext } from './serverInfo'
 import * as utils from './utils'
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -106,6 +106,7 @@ export default function Home() {
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
+  const [isNarrow, setIsNarrow] = React.useState(null);
   const [remember, setRemember] = React.useState(false);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [serverURL, setServerURL] = React.useState(utils.getServer());
@@ -122,6 +123,23 @@ export default function Home() {
 
   handleSearch = handleSearch.bind(Home);
   setupSearch = setupSearch.bind(Home);
+
+  // TODO: change dependencies to Theme & use @media to adjust
+  // Sets the narrow flag when the window is less than 600 pixels
+  React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
+
+  // Adds a resize handler to the window, and automatically removes it
+  React.useEffect(() => {
+      function onResize () {
+          setIsNarrow(window.innerWidth <= 640);
+      }
+
+      window.addEventListener("resize", onResize);
+  
+      return () => {
+          window.removeEventListener("resize", onResize);
+      }
+  }, []);
 
   function setCurrentAction(action, actionData, areEditing) {
     if (Object.values(UserActions).indexOf(action) > -1) {
@@ -306,10 +324,12 @@ export default function Home() {
     }
   }
 
+  const narrowWindow = isNarrow;
   return (
     <main className={styles.main}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
+          <NarrowWindowContext.Provider value={narrowWindow}>
           <TitleBar search_title={curSearchTitle} search_func={handleSearch} />
           {!curLoggedIn ? 
              <LoginValidContext.Provider value={loginValidStates}>
@@ -319,6 +339,7 @@ export default function Home() {
             renderAction(curAction, editing)
           }
           <FooterBar/>
+          </NarrowWindowContext.Provider>
         </MobileDeviceContext.Provider>
       </ThemeProvider>
     </main>
