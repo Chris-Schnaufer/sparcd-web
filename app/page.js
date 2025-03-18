@@ -314,8 +314,8 @@ export default function Home() {
               <SandboxInfoContext.Provider value={sandboxInfo}>
                 { editing == false ? 
                   <UploadManage selectedUpload={curActionData} onEdit_func={editUpload} />
-                  : <UploadEdit selectedUpload={curActionData} onCancel_func={() => setEditing(false)} 
-                                searchSetup_func={setupSearch} />
+                  : <UploadEdit selectedUpload={curActionData} onCancel={() => setEditing(false)} 
+                                onSearchSetup={setupSearch} />
                 }
               </SandboxInfoContext.Provider>
              </TokenContext.Provider>

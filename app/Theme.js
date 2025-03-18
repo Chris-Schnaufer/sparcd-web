@@ -115,6 +115,15 @@ let theme = createTheme({
       borderRight: '1px solid black',
       margin: '0px 0px 0px 0px'
     },
+    species_top_sidebar: {
+      width: '100%',
+      height: '175px',
+      maxHeight: '175px',
+      minHeight: '175px',
+      background: 'white',
+      borderRight: '1px solid black',
+      margin: '0px 0px 0px 0px'
+    },
     species_sidebar_item: {
       background: '#E0F0E0',
       border: '1px solid black',
@@ -123,6 +132,11 @@ let theme = createTheme({
       minHeight: '120px',
       maxHeight: '120px',
       width: '150px'
+    },
+    species_sidebar_item_media_small: {
+      minHeight: '100px',
+      maxHeight: '100px',
+      width: '100px'
     },
     screen_disable: {
       'position': 'absolute',
