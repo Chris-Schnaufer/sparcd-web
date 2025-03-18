@@ -19,23 +19,23 @@ import SpeciesSidebarItem from './SpeciesSidebarItem'
  */
 export default function SpeciesSidebar({species, position, speciesSidebarRef, workingDim, topX, onKeybind, onZoom}) {
   const theme = useTheme();
-  let sidebarPositionalAttributes = {direction:'row', alignItems:'stretch', columns:'1'};
+  let sidebarPositionalAttributes = {direction:'row'};
   let sidebarStyleAttributes = Object.assign({},
-                                {'minHeight':workingDim, 'maxHeight':workingDim, 'height':workingDim, 'top':topX+'px'},
+                                {'minHeight':workingDim, 'maxHeight':workingDim, 'height':workingDim},
                                 theme.palette.species_left_sidebar);
   let speciesSidebarItemAttributes = {};
 
   if (position === 'top') {
-    sidebarPositionalAttributes = {direction:'column', alignItems:'stretch', columns:'1'};
+    sidebarPositionalAttributes = {direction:'column'};
     sidebarStyleAttributes = Object.assign({}, 
-                                {'minWidth':workingDim, 'maxWidth':workingDim, 'width':workingDim, 'top':topX+'px', left:'0px'},
+                                {'minWidth':workingDim, 'maxWidth':workingDim, 'width':workingDim},
                                 theme.palette.species_top_sidebar);
     speciesSidebarItemAttributes = {size:"small"};
   }
 
   return (
-    <Grid id='species-sidebar' ref={speciesSidebarRef} container {...sidebarPositionalAttributes}
-        style={{ ...sidebarStyleAttributes, 'position':'absolute', 'overflow':'scroll' }} >
+    <Grid id='species-sidebar' ref={speciesSidebarRef} container alignItems='stretch' columns='1' {...sidebarPositionalAttributes}
+        style={{ ...sidebarStyleAttributes, 'position':'absolute', 'overflow':'scroll', 'top':topX+'px' }} >
       { species.map((item) => <SpeciesSidebarItem id={'card-' + item.name}  species={item} key={item.name} {...speciesSidebarItemAttributes}
                                                   keybindClick_func={(event) => onKeybind(event, item)}
                                                   zoomClick_func={(event) => onZoom(event, item)}

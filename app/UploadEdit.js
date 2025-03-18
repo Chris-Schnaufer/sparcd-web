@@ -466,6 +466,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
    * @returns {object} The rendered UI
    */
   function generateImageTiles(clickHandler) {
+    // TODO: generate only the amount needed to display and override the scroll bar
     return (
       <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
       { curUpload.images ? 
@@ -543,7 +544,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
         <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="center"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
-                       'top':(curStart+sidebarHeightTop)+'px', 
+                       'top':(curStart)+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
           <Grid item size={{ xs: 12, sm: 12, md:12 }}>
@@ -567,7 +568,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
       { editingLocation ? 
           <Grid id='image-edit-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"
                 style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 
-                        'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px',
+                        'top':(curStart+sidebarHeightTop)+'px',
                          'left':workplaceStartX+'px','minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px', 'width':workspaceWidth+'px',
                          'position':'absolute'}}>
               <Grid item size={{ xs: 12, sm: 12, md:12 }}>
