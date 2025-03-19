@@ -20,10 +20,10 @@ import UploadSidebarItem from './components/UploadSidebarItem'
  * Renders the UI for managing the list of uploaded folders
  * @function
  * @param {object} selectedUpload The currently selected upload
- * @param {function} onEdit_func The to call when the user want's to edit the selected upload
+ * @param {function} onEdit Called when the user wants to edit the selected upload
  * @returns {object} The rendered UI
  */
-export default function UploadManage({selectedUpload, onEdit_func}) {
+export default function UploadManage({selectedUpload, onEdit}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
@@ -31,7 +31,7 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
   const [workingTop, setWorkingTop] = React.useState(null);  // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
-  const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name == selectedUpload));
+  const [selectionIndex, setSelectionIndex] = React.useState(sandboxItems.findIndex((item) => item.name === selectedUpload));
   const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
 
   // Recalcuate available space in the window
@@ -94,7 +94,7 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
    */
   function onEditUpload(event) {
     event.preventDefault();
-    onEdit_func(sandboxItems[selectionIndex].name);
+    onEdit(sandboxItems[selectionIndex].name);
   }
 
   /**
@@ -137,7 +137,7 @@ export default function UploadManage({selectedUpload, onEdit_func}) {
           style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 
                    'position':'absolute', ...theme.palette.left_sidebar }} >
         { sandboxItems.map((item, idx) => <UploadSidebarItem uploadItem={item} key={item.name} selected={idx == curSelectionIndex}
-                                                             onClick_func={(ev) => onSandboxChange(ev, item.name)} />) }
+                                                             onClick={(ev) => onSandboxChange(ev, item.name)} />) }
       </Grid>
       <Grid id='upload-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"
             style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 'left':workplaceStartX,

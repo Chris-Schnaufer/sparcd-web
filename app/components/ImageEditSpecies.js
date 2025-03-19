@@ -25,12 +25,12 @@ const Input = styled(MuiInput)`
  * @function
  * @param {string} name The species name
  * @param {number} count The number associated with the species name
- * @param {function} onDelete_func The function to handle deleting the species
- * @param {function} onChange_func Function called when species count value changes
- * @param {function} onBlur_func Function called when the input control loses focus
+ * @param {function} onDelete The function to handle deleting the species
+ * @param {function} onChange Function called when species count value changes
+ * @param {function} onBlur Function called when the input control loses focus
  * @returns {object} The UI for a spceies count
  */
-export default function ImageEditSpecies({name, count, onDelete_func, onChange_func, onBlur_func}) {
+export default function ImageEditSpecies({name, count, onDelete, onChange, onBlur}) {
 
   return (
     <Grid id={'image-edit-species-'+name} key={'image-edit-species-'+name} container direction="row"
@@ -50,8 +50,8 @@ export default function ImageEditSpecies({name, count, onDelete_func, onChange_f
               <Input
                 value={count}
                 size="small"
-                onChange={(event) => onChange_func(event, name)}
-                onBlur={(event) => onBlur_func(event, name)}
+                onChange={(event) => onChange(event, name)}
+                onBlur={(event) => onBlur(event, name)}
                 inputProps={{
                   step: 1,
                   min: 0,
@@ -65,7 +65,7 @@ export default function ImageEditSpecies({name, count, onDelete_func, onChange_f
         </Grid>
       </Grid>
       <Grid item size={{ xs:1, sm:1, md:1 }} sx={{flex:'1', position:'relative', marginLeft:'auto'}}>
-        <HighlightOffOutlinedIcon color='inherit' onClick={() => onDelete_func(name)}/>
+        <HighlightOffOutlinedIcon color='inherit' onClick={() => onDelete(name)}/>
       </Grid>
     </Grid>
   );

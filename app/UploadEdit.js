@@ -56,9 +56,9 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
   const [windowSize, setWindowSize] = React.useState({'width':640,'height':480}); // The current window size
 
   // Some local variables
-  const curUploadIdx = sandboxItems.findIndex((item) => item.name == selectedUpload);
+  const curUploadIdx = sandboxItems.findIndex((item) => item.name === selectedUpload);
   const curUpload = curUploadIdx >= 0 ? sandboxItems[curUploadIdx] : null;
-  const curUploadLocation = locationItems.find((item) => item.idProperty == curUpload.location);
+  const curUploadLocation = locationItems.find((item) => item.idProperty === curUpload.location);
 
   // Bind functions to ensure scope
   const getTooltipInfoOpen = getTooltipInfo.bind(UploadEdit);
@@ -198,8 +198,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
     const elHeaderSize = elHeader.getBoundingClientRect();
     const elFooterSize = elFooter.getBoundingClientRect();
 
-    let maxHeight = '100px';
-    maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height);
+    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height);
 
     setTotalHeight(maxHeight);
     setWorkingTop(elHeaderSize.height);
@@ -515,7 +514,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
         </Grid>
         <Grid sx={{marginLeft:'auto'}}>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.location}
+            {curUpload.location && curUpload.location.length ? curUploadLocation : '<location>'}
           </Typography>
           <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
             <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
@@ -554,12 +553,12 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
                        parentX={workplaceStartX} parentId='image-edit-workspace'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
-                       onClose_func={() => {setCurEditState(editingStates.listImages);onSearchSetup('Image Name', handleImageSearch);}}
+                       onClose={() => {setCurEditState(editingStates.listImages);onSearchSetup('Image Name', handleImageSearch);}}
                        adjustments={true}
                        dropable={true}
-                       navigation={{prev_func:handlePrevImage,next_func:handleNextImage}}
+                       navigation={{onPrev:handlePrevImage,onNext:handleNextImage}}
                        species={curImageEdit.species}
-                       speciesChange_func={(speciesName, speciesCount) => handleSpeciesChange(curImageEdit.name, speciesName, speciesCount)}
+                       onSpeciesChange={(speciesName, speciesCount) => handleSpeciesChange(curImageEdit.name, speciesName, speciesCount)}
             />
           </Grid>
         </Grid>
@@ -590,7 +589,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
               <Grid item size={{ xs: 12, sm: 12, md:12 }}>
                 <ImageEdit url={speciesItems.find((item)=>item.name===speciesZoomName).speciesIconURL} name={speciesZoomName}
                            parentX={workplaceStartX} parentId='image-edit-species-image'
-                           maxWidth={workspaceWidth-40} maxHeight={curHeight-40} onClose_func={() => setSpeciesZoomName(null)}
+                           maxWidth={workspaceWidth-40} maxHeight={curHeight-40} onClose={() => setSpeciesZoomName(null)}
                            adjustments={false}
                 />
             </Grid>
@@ -608,8 +607,8 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
                 <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
                                 name={speciesKeybindName}
                                 parentId='image-edit-species-image'
-                                onClose_func={() => setSpeciesKeybindName(null)}
-                                onChange_func={(newKey) => keybindChange(speciesKeybindName, newKey)}
+                                onClose={() => setSpeciesKeybindName(null)}
+                                onChange={(newKey) => keybindChange(speciesKeybindName, newKey)}
                 />
             </Grid>
           </Grid>

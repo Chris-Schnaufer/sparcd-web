@@ -1,3 +1,5 @@
+/** @module components/SpeciesKeybind */
+
 'use client'
 
 import * as React from 'react';
@@ -10,10 +12,21 @@ import CardMedia from '@mui/material/CardMedia';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
-export default function SpeciesKeybind({keybind, name, parentId, onClose_func, onChange_func}) {
+/**
+ * Returns the UI for setting a binding key for a species
+ * @function
+ * @param {string} keybind The current keybind
+ * @param {string} name The name of the species
+ * @param {string} parentId Used when the window is resized to assist in positioning
+ * @param {function} onClose The function to call when the user is dont with the keybinding
+ * @param {function} onChange Called when a new keybinding is set or cleared
+ * @returns {object} The UI for changing a species keybinding
+ */
+export default function SpeciesKeybind({keybind, name, parentId, onClose, onChange}) {
   const [parentX, setParentX] = React.useState(0);
   const [curKeybind, setCurKeybind] = React.useState(keybind);
 
+  // Handler for when the window is resized
   React.useLayoutEffect(() => {
       function onResize () {
         const el = document.getElementById(parentId);
@@ -29,6 +42,7 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose_func, o
       }
   }, []);
 
+  // Captures the keypresses
   React.useEffect(() => {
     function onKeypress(event) {
       if (event.key !== 'Meta') {
@@ -43,12 +57,15 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose_func, o
     }
   }, []);
 
+  // If we don't have a parent X position, try and get one
   if (parentX === 0) {
     const el = document.getElementById(parentId);
     if (el) {
       setParentX(el.getBoundingClientRect().x);
     }
   }
+
+  // Return the UI
   return (
     <Card>
       <CardContent>
@@ -66,8 +83,8 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose_func, o
         </Typography>
       </CardContent>
       <CardActions>
-        <Button sx={{flex:'1'}} onClick={() => {setCurKeybind(null);onChange_func(null);}}>Clear</Button>
-        <Button sx={{flex:'1'}} onClick={() => {onChange_func(curKeybind);onClose_func();}}>Done</Button>
+        <Button sx={{flex:'1'}} onClick={() => {setCurKeybind(null);onChange(null);}}>Clear</Button>
+        <Button sx={{flex:'1'}} onClick={() => {onChange(curKeybind);onClose();}}>Done</Button>
     </CardActions>
     </Card>
   );

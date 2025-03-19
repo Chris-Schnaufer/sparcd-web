@@ -37,8 +37,8 @@ export default function SpeciesSidebar({species, position, speciesSidebarRef, wo
     <Grid id='species-sidebar' ref={speciesSidebarRef} container alignItems='stretch' columns='1' {...sidebarPositionalAttributes}
         style={{ ...sidebarStyleAttributes, 'position':'absolute', 'overflow':'scroll', 'top':topX+'px' }} >
       { species.map((item) => <SpeciesSidebarItem id={'card-' + item.name}  species={item} key={item.name} {...speciesSidebarItemAttributes}
-                                                  keybindClick_func={(event) => onKeybind(event, item)}
-                                                  zoomClick_func={(event) => onZoom(event, item)}
+                                                  onKeybindClick={(event) => onKeybind(event, item)}
+                                                  onZoomClick={(event) => onZoom(event, item)}
                               />)
       }
     </Grid>

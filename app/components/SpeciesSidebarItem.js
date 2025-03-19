@@ -18,10 +18,11 @@ import { useTheme } from '@mui/material/styles';
  * Renders a single species item
  * @function
  * @param {object} species Contains the name, speciesIconURL, and keybinding for the species
- * @param {function} onClick_func Function to call when the species UI is clicked
+ * @param {function} onKeybindClick Function to call when the species UI is clicked
+ * @param {function} onZoomClick Handles zooming in on a species image
  * @returns {object} The rendered UI item
  */
-export default function SpeciesSidebarItem({id, species, size, keybindClick_func, zoomClick_func}) {
+export default function SpeciesSidebarItem({id, species, size, onKeybindClick, onZoomClick}) {
   const theme = useTheme();
 
   let cardSx = size === "small" ? {'maxWidth':'120px'} : {'maxWidth':'150px'}
@@ -36,7 +37,7 @@ export default function SpeciesSidebarItem({id, species, size, keybindClick_func
             <Typography variant='body3' nowrap='true' sx={{ flex:'1',color:'text.primary'}}>
               {species.name}
             </Typography>
-            <Button sx={{flex:'1'}} style={{marginTop:'0px', fontSize:"x-small"}} size="small" onClick={(event)=>keybindClick_func(event)}>
+            <Button sx={{flex:'1'}} style={{marginTop:'0px', fontSize:"x-small"}} size="small" onClick={(event)=>onKeybindClick(event)}>
               {species.keyBinding == null ? "Keybind" : (species.keyBinding == ' ' ? "<SPACE>" : "<" + species.keyBinding + ">")}
             </Button>
           </Stack>
@@ -48,29 +49,19 @@ export default function SpeciesSidebarItem({id, species, size, keybindClick_func
           <Typography variant='body3' nowrap='true' sx={{ flex:'1',color:'text.primary'}}>
             {species.name}
           </Typography>
-          <Button sx={{flex:'1'}} size="small" onClick={(event)=>keybindClick_func(event)}>
+          <Button sx={{flex:'1'}} size="small" onClick={(event)=>onKeybindClick(event)}>
             {species.keyBinding == null ? "Keybind" : (species.keyBinding == ' ' ? "<SPACE>" : "<" + species.keyBinding + ">")}
           </Button>
         </CardActions>
       );
     }
   }
-  /*
-          <CardActions>
-          <Typography variant='body3' nowrap='true' sx={{ flex:'1',color:'text.primary' }}>
-            {species.name}
-          </Typography>
-          <Button sx={{flex:'1'}} size="small" onClick={(event)=>keybindClick_func(event)}>
-            {species.keyBinding == null ? "Keybind" : (species.keyBinding == ' ' ? "<SPACE>" : "<" + species.keyBinding + ">")}
-          </Button>
-        </CardActions>
-*/
 
   // Render the UI
   return (
     <Grid id={id} draggable='true' display='flex' justifyContent='left' size='grow' spacing='1' sx={cardSx}>
       <Card sx={{ ...theme.palette.species_sidebar_item }} >
-        <div style={{position:'relative', display:'inline-block', cursor:'pointer'}}  onClick={(event)=>zoomClick_func(event)}>
+        <div style={{position:'relative', display:'inline-block', cursor:'pointer'}}  onClick={(event)=>onZoomClick(event)}>
           <CardMedia
             sx={{...mediaSx}}
             image={species.speciesIconURL}

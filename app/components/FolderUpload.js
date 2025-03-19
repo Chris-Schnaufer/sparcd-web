@@ -19,10 +19,10 @@ import { BaseURLContext, TokenContext } from '../serverInfo'
 /**
  * Renders the UI for uploading a folder of images
  * @function
- * @param {function} cancel_func The function to call when the user cancels the upload
+ * @param {function} onCancel The function to call when the user cancels the upload
  * @returns {object} The rendered UI
  */
-export default function FolderUpload({cancel_func}) {
+export default function FolderUpload({onCancel}) {
   const theme = useTheme();
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
   const [filesSelected, setFilesSelected] = React.useState(0);
@@ -136,7 +136,7 @@ export default function FolderUpload({cancel_func}) {
    * @param {object} event The event
    */
   function cancelUpload(event) {
-    cancel_func();
+    onCancel();
   }
 
   /**

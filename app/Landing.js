@@ -55,7 +55,6 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
    * @param {array} sandboxInfo The list of objects representing uploaded folders
    */
   function updateSandboxInfo(sandboxInfo) {
-//    setSandboxInfo(sandboxInfo);
     onSandboxUpdate(sandboxInfo);
   }
 
@@ -65,7 +64,6 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
    * @param {array} collectionInfo The list of objects representing collections
    */
   function updateCollectionInfo(collectionInfo) {
-//    setCollectionsInfo(collectionInfo);
     onCollectionUpdate(collectionInfo);
   }
 
@@ -88,16 +86,6 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
   }
 
   /**
-   * Called when managing the sandbox
-   * @function
-   * @param {object} collection The collection the upload belongs to
-   * @param {object} upload The upload to edit
-   */
-  function manageCollection(collection, upload) {
-
-  }
-
-  /**
    * Render the overlay for uploading images
    * @function
    */
@@ -113,7 +101,7 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
           sx={{ minHeight: '100vh' }}
         >
           <Grid item="true" xs={3}>
-            <FolderUpload cancel_func={() => setHaveNewUpload(false)}/>
+            <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
           </Grid>
         </Grid>
       </Box>
@@ -134,16 +122,16 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
                                   }
                                  ]}
             >
-              <LandingUpload uploadInfo_func={updateSandboxInfo} onChange_func={setUploadSelection} />
+              <LandingUpload setUploadInfo={updateSandboxInfo} onChange={setUploadSelection} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Collections"
                          action={{'title':'Manage', 
-                                  'onClick':() => {console.log('Collections');onUserAction(UserActions.Collection, selCollectionInfo);},
+                                  'onClick':() => {onUserAction(UserActions.Collection, selCollectionInfo);},
                                   'disabled': curCollectionInfo ? false : true}}
             >
-              <LandingCollections collectionInfo_func={updateCollectionInfo} onChange_func={setCollectionSelection} />
+              <LandingCollections onCollectionInfo={updateCollectionInfo} onChange={setCollectionSelection} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>

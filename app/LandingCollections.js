@@ -14,11 +14,11 @@ import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, TokenConte
 
 /** Returns the UI of the collections for the Landing page
  * @function
- * @param {function} collectionInfo_func The function to receive the list of collection information
- * @param {function} onChange_func Function for when a collection selection has changed
+ * @param {function} onCollectionInfo The function to receive the list of collection information
+ * @param {function} onChange Function for when a collection selection has changed
  * @returns {object} The rendered UI
  */
-export default function LandingCollections({collectionInfo_func, onChange_func}) {
+export default function LandingCollections({onCollectionInfo, onChange}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);  // Are we on a mobile device (portrait mode)
   const [selectedCollection, setSelectedCollection] = React.useState(null);
@@ -41,7 +41,94 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
     console.log(resp);
     */
 
-    return [{'name': 'foo'}, {'name': 'bar'}, {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
+    return [{'name': 'foo',
+             'organization': '! lovely collection',
+             'email': 'foo@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '11111111-4444-4444-4444-121212121212',
+             'uploads': []
+            }, 
+            {'name': 'bar',
+             'organization': 'My lovely collection',
+             'email': 'bar@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '22222222-4444-4444-4444-121212121212',
+             'uploads': [
+              {
+                'name': 'schnaufer on 2024-07-16 at 11:56',
+                'description': 'Whetstones - WHE12 - 4812 - Uploaded 03-09-2025 - Collected 03-08-2025',
+                'imagesCount': 100,
+                'imagesWithSpeciesCount': 100,
+                'edits': [{'name':'smalusa','date':'2024.10.26.09.18.19'},
+                         {'name':'smalusa','date':'2024.10.27.13.36.03'},
+                        ]
+              }, {
+                'name':'schnaufer on 2024-90-11 at 10:22',
+                'description': 'Whetstones - WHE12 - 800 - uploaded 09-12-2024 - collected 09-11-2024',
+                'imagesCount': 130,
+                'imagesWithSpeciesCount': 120,
+                'edits': [{'name':'lizt','date':'2024.09.19.16.07.17'},
+                        ]
+              }, {
+                'name':'schnaufer on 2024-10-13 at 13:04',
+                'description': 'Whetstones - WHE12 - 2100 - uploaded 10-13-2024 - collected 10-12-2024',
+                'imagesCount': 4000,
+                'imagesWithSpeciesCount': 3998,
+                'edits': [{'name':'lizt','date':'2024.05.19.15.35.07'},
+                        ]
+              }
+             ]
+            },
+            {'name': 'zar',
+             'organization': '! lovely collection',
+             'email': 'zar@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '33333333-4444-4444-4444-121212121212',
+             'uploads': []
+            },
+            {'name': 'har',
+             'organization': '! lovely collection',
+             'email': 'har@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '44444444-4444-4444-4444-121212121212',
+             'uploads': []
+            },
+            {'name': 'gar',
+             'organization': '! lovely collection',
+             'email': 'gar@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '55555555-4444-4444-4444-121212121212',
+             'uploads': []
+            },
+            {'name': 'far',
+             'organization': '! lovely collection',
+             'email': 'far@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '66666666-4444-4444-4444-121212121212',
+             'uploads': []
+            },
+            {'name': 'dar',
+             'organization': '! lovely collection',
+             'email': 'dar@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '77777777-4444-4444-4444-121212121212',
+             'uploads': []
+            },
+            {'name': 'car',
+             'organization': '! lovely collection',
+             'email': 'car@google.com',
+             'description': '88888888-4444-4444-4444-121212121212',
+             'bucket': '88888888-4444-4444-4444-121212121212',
+             'id': '88888888-4444-4444-4444-121212121212',
+             'uploads': []
+            }];
     //return [];
   }
 
@@ -52,7 +139,7 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
    */
   function handleChange(event) {
     setSelectedCollection(event.target.value);
-    onChange_func(event.target.value);
+    onChange(event.target.value);
   }
 
   // TODO: cache these
@@ -61,7 +148,7 @@ export default function LandingCollections({collectionInfo_func, onChange_func})
 
   // Set the upload info for the parent
   React.useEffect(() => {
-      function setCollectionInfo() {collectionInfo_func(collectionItems);};
+      function setCollectionInfo() {onCollectionInfo(collectionItems);};
       setCollectionInfo();
     },[]);
 

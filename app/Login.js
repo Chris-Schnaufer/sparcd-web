@@ -24,10 +24,10 @@ import {LoginValidContext} from './checkLogin'
   * @param {string} [prev_url] URL that was previously used to log in
   * @param {string} [prev_user] Username that was previously used to log in
   * @param {boolean} [prev_remember] Flag indicating the remember-me flag was set
-  * @param {function} login_func The login function to call when the user clicks the login button
+  * @param {function} onLogin The login function to call when the user clicks the login button
   * @returns {object} The rendered UI
   */
-export default function Login({prev_url, prev_user, prev_remember, login_func}) {
+export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberChecked, setRememberChecked] = useState(!!prev_remember);
   const valuesValid = useContext(LoginValidContext);
@@ -79,7 +79,7 @@ export default function Login({prev_url, prev_user, prev_remember, login_func}) 
     ctrl = document.getElementById('remember_login_fields');
     const remember = ctrl.checked;
 
-    login_func(url, user, password, remember);
+    onLogin(url, user, password, remember);
   }
 
   // TODO: Login button hover style change (change bg & font color)

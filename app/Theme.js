@@ -36,6 +36,12 @@ let theme = createTheme({
       overflow: 'scroll',
       padding: '0em 1em 0em 1em'
     },
+    landing_upload_prompt: {
+      color: 'text.secondary',
+      fontSize: 'x-small', 
+      fontWeight: 'bold',
+      textAlign: 'start'
+    },
     landing_upload_refresh: {
       color: 'text.secondary',
       fontSize: 'x-small', 

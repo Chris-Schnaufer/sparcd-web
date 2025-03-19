@@ -27,14 +27,14 @@ export default function ImageAdjustments({isVisible, onBrightnessChange, onContr
             sx={{position:'absolute',left:'0px',top:'1.3em',
                  visibility:(showAdjustments ? 'visible' : 'hidden')}} >
         <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{backgroundColor:'rgba(255,255,255,0.7)'}}>
-          <InputSlider label="Brightness" onChange_func={onBrightnessChange} />
-          <InputSlider label="Contrast" onChange_func={onContrastChange} />
-          <InputSlider label="Hue"  onChange_func={onHueChange} />
-          <InputSlider label="Saturation"  onChange_func={onSaturationChange} />
+          <InputSlider label="Brightness" onChange={onBrightnessChange} />
+          <InputSlider label="Contrast" onChange={onContrastChange} />
+          <InputSlider label="Hue"  onChange={onHueChange} />
+          <InputSlider label="Saturation"  onChange={onSaturationChange} />
         </Grid>
       </Grid>
       <Box id="image-edit-adjust" sx={{position:'absolute',left:'0px',top:'0px',height:'20px', flex:'1'}} 
-              onClick={() => {console.log('CLICK');setShowAdjustments(!showAdjustments);}}>
+              onClick={() => setShowAdjustments(!showAdjustments)}>
         <Typography variant="body" sx={{textTransform:'uppercase',color:'darkgrey',backgroundColor:'rgba(255,255,255,0.3)',
                                          padding:'1px 3px 0px 3px',borderRadius:'3px',
                                          '&:hover':{backgroundColor:'rgba(255,255,255,0.7)',color:'black'},

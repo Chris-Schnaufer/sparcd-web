@@ -6,6 +6,7 @@ import * as React from 'react';
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Grid from '@mui/material/Grid';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
@@ -15,11 +16,11 @@ import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, SandboxInf
 /**
  * Returns the UI for uploads on the Landing page
  * @function
- * @param {function} uploadInfo_func Function for receving the list of uploads from the server
- * @param {function} onChange_func Function to call when a new upload is selected
+ * @param {function} setUploadInfo Function for receving the list of uploads from the server
+ * @param {function} onChange Function to call when a new upload is selected
  * @returns {object} The rendered UI
  */
-export default function LandingUpload({uploadInfo_func, onChange_func}) {
+export default function LandingUpload({setUploadInfo, onChange}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
   const [selectedUpload, setSelectedUpload] = React.useState(null);
@@ -89,7 +90,7 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
    */ 
   function handleChange(event) {
     setSelectedUpload(event.target.value);
-    onChange_func(event.target.value);
+    onChange(event.target.value);
   }
 
   // TODO: cache these
@@ -98,8 +99,8 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
 
   // Set the upload info for the parent
   React.useEffect(() => {
-      function setUploadInfo() {uploadInfo_func(sandboxItems);};
-      setUploadInfo();
+      function handleUploadInfo() {setUploadInfo(sandboxItems);};
+      handleUploadInfo();
     },[]);
 
   // Render the UI
@@ -107,10 +108,23 @@ export default function LandingUpload({uploadInfo_func, onChange_func}) {
     <React.Fragment>
       { firstItem ? (
         <React.Fragment>
-          <Typography gutterBottom sx={{ ...theme.palette.landing_upload_refresh,
-                      visibility: `${refreshingUploads?"visible":"hidden"}` }} >
-            Refreshing...
-          </Typography>
+          <Grid container direction="row" alignItems="sflex-tart" justifyContent="flex-start">
+            <Grid item sm={4} md={4} lg={4} sx={{left:'auto'}}>
+              <Typography gutterBottom sx={{ ...theme.palette.landing_upload_prompt,
+                          visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+                Unpublished uploads
+              </Typography>
+            </Grid>
+            <Grid item sm={4} md={4} lg={4}>
+              <Typography gutterBottom sx={{ ...theme.palette.landing_upload_refresh,
+                          visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+                Refreshing...
+              </Typography>
+            </Grid>
+            <Grid item sm={4} md={4} lg={4}>
+              &nbsp;
+            </Grid>
+          </Grid>
           <Box sx={{ ...theme.palette.landing_upload }} >
             <FormControl>
               <RadioGroup

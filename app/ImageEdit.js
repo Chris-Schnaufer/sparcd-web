@@ -1,5 +1,7 @@
 'use client'
 
+/** @module ImageEdit */
+
 import * as React from 'react';
 import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined';
 import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined';
@@ -22,28 +24,48 @@ const Input = styled(MuiInput)`
   width: 42px;
 `;
 
-export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose_func, adjustments, dropable,
-                                   navigation, species, speciesChange_func}) {
-  const speciesItems = React.useContext(SpeciesInfoContext);
-  const [brightness, setBrightness] = React.useState(100);
-  const [contrast, setContrast] = React.useState(100);
+/**
+ * Returns the UI for editing an image
+ * @function
+ * @param {string} url The URL of the image top display
+ * @param {string} name The name of the image
+ * @param {string} parentId The ID of the parent element to use when positioning
+ * @param {int} maxWidth The maximum width of the editing controls
+ * @param {int} maxHeight The maximum height of the editing controls
+ * @param {function} onClose Called when the user is done editing the image
+ * @param {boolean} adjustments Set truthiness to true to allow image adjustments
+ * @param {boolean} dropable Set truthiness to true to allow species drag-drop to add to existing species
+ * @param {boolean} navigation Set truthiness to true to display the previous and next navigation elements
+ * @param {array} species Array of species already available for the image
+ * @param {function} onSpeciesChange Function to call when a species is added or a count is modified
+ * @returns {object} The UI to render
+ */
+export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
+                                   navigation, species, onSpeciesChange}) {
+  const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
+  const [brightness, setBrightness] = React.useState(100);    // Image brightness
+  const [contrast, setContrast] = React.useState(100);        // Image contrast
   const [hue, setHue] = React.useState(0);    // From 360 to -360
-  const [imageSize, setImageSize] = React.useState({width:40,height:40,top:0,left:0,right:40});
-  const [showAdjustments, setShowAdjustments] = React.useState(false);
-  const [saturation, setSaturation] = React.useState(100);
-  const [speciesRedraw, setSpeciesRedraw] = React.useState(null);
-  const [imageId, setImageId] =  React.useState('image-edit-image-'+Math.random());
+  const [imageSize, setImageSize] = React.useState({width:40,height:40,top:0,left:0,right:40}); // Adjusted when loaded
+  const [showAdjustments, setShowAdjustments] = React.useState(false);  // Show image brightness, etc
+  const [saturation, setSaturation] = React.useState(100);              // Image saturation
+  const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Forces redraw due to species change
+  const [imageId, setImageId] =  React.useState('image-edit-image-'+Math.random()); // Unique image ID
+
   const brightnessRange = {'default':100, 'min':0, 'max':200};
   const contrastRange = {'default':100, 'min':0, 'max':200};
   const hueRange = {'default':0, 'min':-720, 'max':720};
   const saturationRange = {'default':100, 'min':0, 'max':200};
 
+  // Working species
   let curSpecies = species != undefined ? species : [];
 
+  // Binding functions
   getImageSize = getImageSize.bind(ImageEdit);
   handleInputChange = handleInputChange.bind(ImageEdit);
   handleBlur = handleBlur.bind(ImageEdit);
 
+  // Window resize handler
   React.useLayoutEffect(() => {
       function onResize () {
         getImageSize();
@@ -56,21 +78,36 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       }
   }, []);
 
-  function dragoverHandler(ev) {
-    ev.preventDefault();
-    ev.dataTransfer.dropEffect = "copy";
+  /**
+   * Handle when a draggable object is dragged over
+   * @function
+   * @param {object} event The triggering event
+   */
+  function dragoverHandler(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
   }
 
-  function dropHandler(ev) {
-    ev.preventDefault();
+  /**
+   * Handles when a species is dropped (as part of drag and drop)
+   * @function
+   * @param {object} event The triggering event
+   */
+  function dropHandler(event) {
+    event.preventDefault();
     // Get the id of the target and add the moved element to the target's DOM
-    const speciesScientificName = ev.dataTransfer.getData("text/plain").toUpperCase();
+    const speciesScientificName = event.dataTransfer.getData("text/plain").toUpperCase();
     const speciesKeyItem = speciesItems.find((item) => item.scientificName.toUpperCase() === speciesScientificName);
     if (speciesKeyItem) {
       handleSpeciesAdd(speciesKeyItem);
     }
   }
 
+  /**
+   * Common handler for adding a species to the image
+   * @function
+   * @param {object} speciesAdd The species being added
+   */
   function handleSpeciesAdd(speciesAdd) {
     const haveSpeciesIdx = curSpecies.findIndex((item) => item.name === speciesAdd.name);
     if (haveSpeciesIdx > -1) {
@@ -86,23 +123,47 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     }
   }
 
+  /**
+   * Called when the user adjusts the brightness value
+   * @function
+   * @param {int} value The new value
+   */
   function adjustBrightness(value) {
     setBrightness((brightnessRange.max-brightnessRange.min) * (value / 100.0));
   }
 
+  /**
+   * Called when the user adjusts the contrast value
+   * @function
+   * @param {int} value The new value
+   */
   function adjustContrast(value) {
     setContrast((contrastRange.max-contrastRange.min) * (value / 100.0));
   }
 
+  /**
+   * Called when the user adjusts the hue value
+   * @function
+   * @param {int} value The new value
+   */
   function adjustHue(value) {
     const newValue = value < 50 ? (hueRange.min * (1.0 - (value / 50.0))) : (hueRange.max * ((value - 50.0) / 50.0));
     setHue(newValue);
   }
 
+  /**
+   * Called when the user adjusts the saturation value
+   * @function
+   * @param {int} value The new value
+   */
   function adjustSaturation(value) {
     setSaturation((saturationRange.max-saturationRange.min) * (value / 100.0));
   }
 
+  /**
+   * Sets the image size based upon the rendered image
+   * @function
+   */
   function getImageSize() {
     const el = document.getElementById(imageId);
     if (!el) {
@@ -113,9 +174,15 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     }
   }
 
+  /**
+   * Handles the user changing the count for a species
+   * @function
+   * @param {object} event The triggering event
+   * @param {string} speciesName The name of the species whose count is changing
+   */
   function handleInputChange(event, speciesName) {
     const newValue = event.target.value === '' ? 0 : Number(event.target.value);
-    speciesChange_func(speciesName, newValue);
+    onSpeciesChange(speciesName, newValue);
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
     if (speciesIdx == -1) {
@@ -127,6 +194,12 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
   };
 
+  /**
+   * Handler for when a species input field no longer has focus
+   * @function
+   * @param {object} event The triggering event
+   * @param {string} speciesName The name of the species associated with the event
+   */
   function handleBlur(event, speciesName) {
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
@@ -140,12 +213,17 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     } else if (newValue > 100) {
       newValue = 100;
     }
-    speciesChange_func(speciesName, newValue);
+    onSpeciesChange(speciesName, newValue);
     workingSpecies[speciesIdx].count = newValue;
     curSpecies = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
   }
 
+  /**
+   * Handles deleting a species from the image
+   * @function
+   * @param {string} speciesName The name of the species to delete
+   */
   function handleSpeciesDelete(speciesName) {
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
@@ -159,9 +237,10 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     setSpeciesRedraw(removedSpecies.name+'-deleted');
   }
 
-  const rowHeight = imageSize.height / 3.0;
+  // Return the rendered UI
+  const rowHeight = imageSize.height / 3.0; // Use for the overlays on the image
   const dropExtras = dropable ? {onDrop:dropHandler,onDragOver:dragoverHandler} : {};
-   return (
+  return (
     <React.Fragment>
       <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px', position:'relative'}} {...dropExtras} >
         <img id={imageId} src={url} alt={name} onLoad={() => getImageSize()}
@@ -183,7 +262,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
               </Typography>
             </Grid>
             <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
-              <div id="image-edit-close" sx={{height:'20px', flex:'1'}} onClick={() => onClose_func()}>
+              <div id="image-edit-close" sx={{height:'20px', flex:'1'}} onClick={() => onClose()}>
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}
                                                }}>
@@ -195,11 +274,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           { navigation ?
             <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
               <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
-                <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.prev_func()}
+                <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.onPrev()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
               <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
-                <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.next_func()}
+                <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.onNext()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
             </Grid>
@@ -211,8 +290,8 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
             <Grid item size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
                   visibility:(curSpecies ? 'visible' : 'hidden')}}>
               {curSpecies.map((curItem) =>
-                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onCDelete_func={handleSpeciesDelete}
-                                  onChange_func={handleInputChange} onBlur_func={handleBlur} />
+                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onDelete={handleSpeciesDelete}
+                                  onChange={handleInputChange} onBlur={handleBlur} />
               )}
             </Grid>
           </Grid>

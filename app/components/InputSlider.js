@@ -17,10 +17,10 @@ const Input = styled(MuiInput)`
  * Slider with input field implementation
  * @function
  * @param {string} label The label for the slider
- * @param {function} onChange_func Function to call when the value changes
+ * @param {function} onChange Function to call when the value changes
  * @returns {object} The rendered UI
  */
-export default function InputSlider({label, onChange_func}) {
+export default function InputSlider({label, onChange}) {
   const [value, setValue] = React.useState(50);
 
   /**
@@ -31,7 +31,7 @@ export default function InputSlider({label, onChange_func}) {
    */
   const handleSliderChange = (event, newValue) => {
     setValue(newValue);
-    onChange_func(newValue);
+    onChange(newValue);
   }
 
   /**
@@ -42,7 +42,7 @@ export default function InputSlider({label, onChange_func}) {
   function handleInputChange(event) {
     const newValue = event.target.value === '' ? 0 : Number(event.target.value);
     setValue(newValue);
-    onChange_func(newValue);
+    onChange(newValue);
   }
 
   /**
@@ -52,10 +52,10 @@ export default function InputSlider({label, onChange_func}) {
   function handleBlur() {
     if (value < 0) {
       setValue(0);
-      onChange_func(0);
+      onChange(0);
     } else if (value > 100) {
       setValue(100);
-      onChange_func(100);
+      onChange(100);
     }
   }
 

@@ -4,10 +4,11 @@ import * as React from 'react';
 import styles from './page.module.css'
 import { ThemeProvider } from "@mui/material/styles";
 
-import theme from './Theme'
-import Landing from './Landing'
+import CollectionsManage from './CollectionsManage'
 import FooterBar from './components/FooterBar'
+import Landing from './Landing'
 import Login from './Login'
+import theme from './Theme'
 import TitleBar from './components/TitleBar'
 import UploadManage from './UploadManage'
 import UploadEdit from './UploadEdit'
@@ -99,25 +100,26 @@ const loginStore = {
 };
 
 export default function Home() {
-  const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
-  const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
+  const [collectionInfo, setCollectionInfo] = React.useState(null);
   const [curSearchTitle, setCurSearchTitle] = React.useState(null);
-  const [curSearchHandler, setCurSearchHandler] = React.useState(null);
-  const [loggedIn, setLoggedIn] = React.useState(null);
-  const [dbUser, setDbUser] = React.useState('');
-  const [dbURL, setDbURL] = React.useState('');
-  const [isNarrow, setIsNarrow] = React.useState(null);
-  const [remember, setRemember] = React.useState(false);
-  const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
-  const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [curAction, setCurAction] = React.useState(UserActions.None);
   const [curActionData, setCurActionData] = React.useState(null);
+  const [curSearchHandler, setCurSearchHandler] = React.useState(null);
+  const [dbUser, setDbUser] = React.useState('');
+  const [dbURL, setDbURL] = React.useState('');
   const [editing, setEditing] = React.useState(false);
+  const [isNarrow, setIsNarrow] = React.useState(null);
+  const [lastToken, setLastToken ] = React.useState(null);
+  const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
+  const [loggedIn, setLoggedIn] = React.useState(null);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
   const [mobileDevice, setMobileDevice] = React.useState(null);
+  const [remember, setRemember] = React.useState(false);
   const [sandboxInfo, setSandboxInfo] = React.useState(null);
-  const [collectionInfo, setCollectionInfo] = React.useState(null);
-  const [lastToken, setLastToken ] = React.useState(null);
+  const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
+  const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
+  const [serverURL, setServerURL] = React.useState(utils.getServer());
+
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
 
@@ -127,6 +129,8 @@ export default function Home() {
   // TODO: change dependencies to Theme & use @media to adjust
   // Sets the narrow flag when the window is less than 600 pixels
   React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
+
+  // TODO: Global window resize handler?
 
   // Adds a resize handler to the window, and automatically removes it
   React.useEffect(() => {
@@ -139,6 +143,37 @@ export default function Home() {
       return () => {
           window.removeEventListener("resize", onResize);
       }
+  }, []);
+
+  // Load saved token and see if session is still valid
+  React.useLayoutEffect(() => {
+    if (!savedTokenFetched && !curLoggedIn) {
+      const lastLoginToken = loginStore.loadLoginToken();
+      setSavedTokenFetched(true);
+      if (lastLoginToken) {
+        curLoggedIn = loginUserToken(lastLoginToken);
+        setLoggedIn(curLoggedIn);
+      }
+      if (!lastLoginToken || !curLoggedIn) {
+        loginStore.clearLoginToken();
+      }
+    }
+
+    // Load saved user information: if we haven't already and we're not logged in
+    if (!savedLoginFetched && !curLoggedIn) {
+      const loInfo = loginStore.loadLoginInfo();
+      setSavedLoginFetched(true);
+      if (loInfo != null) {
+        setDbURL(loInfo.url);
+        setDbUser(loInfo.user);
+        setRemember(!!loInfo.remember);
+      }
+    }
+  }, []);
+
+  // Load the last token to make it available for rendering
+  React.useLayoutEffect(() => {
+    setLastToken(loginStore.loadLoginToken());
   }, []);
 
   function setCurrentAction(action, actionData, areEditing) {
@@ -232,6 +267,12 @@ export default function Home() {
     setCurActionData(uploadInfo);
   }
 
+  function editCollectionUpload(collectionId, uploadName) {
+    // Get the information on the upload
+
+    // Set the upload information
+  }
+
   function handleSearch(searchTerm) {
     return curSearchHandler(searchTerm);
   }
@@ -255,41 +296,11 @@ export default function Home() {
     setCurSearchHandler(() => searchHandler);
   }
 
-  // Load saved token and see if session is still valid
-  React.useLayoutEffect(() => {
-    if (!savedTokenFetched && !curLoggedIn) {
-      const lastLoginToken = loginStore.loadLoginToken();
-      setSavedTokenFetched(true);
-      if (lastLoginToken) {
-        curLoggedIn = loginUserToken(lastLoginToken);
-        setLoggedIn(curLoggedIn);
-      }
-      if (!lastLoginToken || !curLoggedIn) {
-        loginStore.clearLoginToken();
-      }
-    }
-
-    // Load saved user information: if we haven't already and we're not logged in
-    if (!savedLoginFetched && !curLoggedIn) {
-      const loInfo = loginStore.loadLoginInfo();
-      setSavedLoginFetched(true);
-      if (loInfo != null) {
-        setDbURL(loInfo.url);
-        setDbUser(loInfo.user);
-        setRemember(!!loInfo.remember);
-      }
-    }
-  }, []);
-
+  // Get mobile device information if we don't have it yet
   if (mobileDevice == null && !mobileDeviceChecked) {
     setMobileDevice(navigator.userAgent.indexOf('Mobi') > -1);
     setMobileDeviceChecked(true);
   }
-
-  // Load the last token to make it available for rendering
-  React.useLayoutEffect(() => {
-    setLastToken(loginStore.loadLoginToken());
-  }, []);
 
   function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
@@ -313,7 +324,7 @@ export default function Home() {
              <TokenContext.Provider value={lastToken}>
               <SandboxInfoContext.Provider value={sandboxInfo}>
                 { editing == false ? 
-                  <UploadManage selectedUpload={curActionData} onEdit_func={editUpload} />
+                  <UploadManage selectedUpload={curActionData} onEdit={editUpload} />
                   : <UploadEdit selectedUpload={curActionData} onCancel={() => setEditing(false)} 
                                 onSearchSetup={setupSearch} />
                 }
@@ -321,6 +332,17 @@ export default function Home() {
              </TokenContext.Provider>
            </BaseURLContext.Provider>
         );
+      case UserActions.Collection:
+      return (
+           <BaseURLContext.Provider value={serverURL}>
+             <TokenContext.Provider value={lastToken}>
+              <CollectionsInfoContext.Provider value={collectionInfo}>
+                <CollectionsManage selectedCollection={curActionData} onEditUpload={editCollectionUpload} 
+                                   onSearchSetup={setupSearch} />
+              </CollectionsInfoContext.Provider>
+             </TokenContext.Provider>
+           </BaseURLContext.Provider>
+      );
     }
   }
 
@@ -330,10 +352,10 @@ export default function Home() {
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
           <NarrowWindowContext.Provider value={narrowWindow}>
-          <TitleBar search_title={curSearchTitle} search_func={handleSearch} />
+          <TitleBar search_title={curSearchTitle} onSearch={handleSearch} size={narrowWindow?"small":"normal"} />
           {!curLoggedIn ? 
              <LoginValidContext.Provider value={loginValidStates}>
-              <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} login_func={handleLogin} />
+              <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} onLogin={handleLogin} />
              </LoginValidContext.Provider>
             :
             renderAction(curAction, editing)
