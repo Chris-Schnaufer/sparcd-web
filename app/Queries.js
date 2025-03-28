@@ -8,6 +8,7 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
+import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
@@ -105,19 +106,30 @@ export default function Queries() {
   }
 
   function addFilter() {
-    console.log('ADD FILTER');
     let elFilter = document.getElementById('query-filter-selection-wrapper');
     if (!elFilter) {
       return;
     }
-    elFilter.style.visibility = 'hidden';
+    let elFilterWait = document.getElementById("query-filter-selection-waiting");
+    if (elFilterWait) {
+      if (elFilter.style.visibility === 'visible') {
+        elFilterWait.style.visibility = 'visible';
+      }
+    }
 
     const newFilter = {type:filterSelected, id:crypto.randomUUID(), data:null}
     const allFilters = filters;
     allFilters.push(newFilter);
-    setFilters(allFilters);
 
-    setFilterRedraw(newFilter.id);
+    window.setTimeout(() => {
+                  elFilter.style.visibility = 'hidden';
+                  if (elFilterWait) {
+                    elFilterWait.style.visibility = 'hidden';
+                  }
+
+                  setFilters(allFilters);
+                  setFilterRedraw(newFilter.id);
+                });
   }
 
   function cancelAddFilter() {
@@ -146,8 +158,19 @@ export default function Queries() {
   }
 
   function handleFilterAccepted(filterChoice) {
-    setFilterSelected(filterChoice);
-    addFilter();
+    let elFilter = document.getElementById('query-filter-selection-wrapper');
+    let elFilterWait = document.getElementById("query-filter-selection-waiting");
+    if (elFilter && elFilterWait) {
+      if (elFilter.style.visibility === 'visible') {
+        elFilterWait.style.visibility = 'visible';
+      }
+    }
+    window.setTimeout(() => { setFilterSelected(filterChoice);
+                              addFilter();
+                              if (elFilterWait) {
+                                elFilterWait.style.visibility = 'hidden';
+                              }
+                            }, 100);
   }
 
   function generateFilterTile(filterInfo) {
@@ -220,12 +243,17 @@ export default function Queries() {
     }
   }
 
-  const curHeight = (totalHeight || 480) + 'px';
+  const elActions = document.getElementById('queries-actions');
+  if (elActions) {
+    window.setTimeout(() => elActions.scrollIntoView(), 10);
+  }
+
+  const curHeight = '360px';//((totalHeight || 480) / 2.0) + 'px';
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative' }} >
-      <Grid container direction="row" alignItems="start" justifyContent="start"
+      <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap"
             spacing={2}
-            sx={{position:'absolute', top:'0px', width:workspaceWidth, minHeight:curHeight, maxHeight:curHeight, backgroundColor:'white',
+            sx={{position:'absolute', top:'0px', minHeight:curHeight, maxHeight:curHeight, backgroundColor:'white',
                  overflow:'scroll', padding:'5px'}}
       >
         { filters.map((item, idx) => 
@@ -241,14 +269,17 @@ export default function Queries() {
             ) 
         }
         <Grid item>
-          <Grid container direction="column" alignItems="center" justifyContent="center"
-                sx={{ minHeight:'310px',minWidth:'250px', border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
+          <Grid id="queries-actions" container direction="column" alignItems="center" justifyContent="center"
+                sx={{ position:'relative', minHeight:'310px',minWidth:'250px', border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
             <Grid item>
               <Tooltip title="Click to add a new filter">
                 <IconButton onClick={handleNewFilter}>
                   <AddCircleOutlineOutlinedIcon sx={{fontSize: 55, color:'grey'}} />
                 </IconButton>
               </Tooltip>
+            </Grid>
+            <Grid item>
+              <Button>Perform Query</Button>
             </Grid>
           </Grid>
         </Grid>
@@ -265,8 +296,8 @@ export default function Queries() {
                   </Typography>
                  }
                />
-              <CardContent>
-                <List sx={{backgroundColor:'silver', border:'1px solid grey', borderRadius:'7px'}} >
+              <CardContent sx={{position:'relative'}}>
+                <List sx={{backgroundColor:'silver', border:'1px solid grey', borderRadius:'7px', maxHeight:'200px', overflow:'scroll'}} >
                   { filterNames.map((item) => 
                       <ListItem disablePadding key={"query-filter-sel-" + item}>
                           <ListItemText primary={item} 
@@ -277,6 +308,11 @@ export default function Queries() {
                       </ListItem>
                   )}
                 </List>
+                <Grid id="query-filter-selection-waiting" container direction="column"  alignItems="center" justifyContent="center"
+                      sx={{position:'absolute', top:'0px', width:'100%', height:'100%', visibility:'hidden'}}
+                >
+                  <CircularProgress id="query-filter-selection-waiting" />
+                </Grid>
               </CardContent>
               <CardActions>
                 <Button id="add-filter" sx={{'flex':'1'}} size="small" onClick={addFilter}

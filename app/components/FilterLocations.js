@@ -20,13 +20,20 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { LocationsInfoContext } from '../serverInfo'
+import FilterCard from './FilterCard'
 
 export default function FilterLocations({data, onClose, onChange}) {
   const theme = useTheme();
   const locationItems = React.useContext(LocationsInfoContext);
   const [displayedLocations, setDisplayedLocations] = React.useState(locationItems); // The visible locations
-  const [selectedLocations, setSelectedLocations] = React.useState(data ? data : []); // The user's selections
+  const [selectedLocations, setSelectedLocations] = React.useState(data ? data : locationItems.map((item)=>item.nameProperty)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+
+  React.useEffect(() => {
+    if (!data) {
+      onChange(selectedLocations);
+    }
+  }, [selectedLocations]);
 
   function handleSelectAll() {
     const curLocations = displayedLocations.map((item) => item.nameProperty);
@@ -85,92 +92,63 @@ export default function FilterLocations({data, onClose, onChange}) {
   }
 
   return (
-    <Card id="filter-location" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
-      <CardHeader title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                      <Grid item>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Locations Filter
-                        </Typography>
-                      </Grid>
-                      <Grid item sx={{marginLeft:'auto'}} >
-                        <div onClick={onClose}>
-                          <Tooltip title="Delete this filter">
-                            <Typography gutterBottom variant="body2" noWrap="true"
-                                        sx={{textTransform:'uppercase',
-                                        color:'grey',
-                                        cursor:'pointer',
-                                        fontWeight:'500',
-                                        backgroundColor:'rgba(0,0,0,0.03)',
-                                        padding:'3px 3px 3px 3px',
-                                        borderRadius:'3px',
-                                        '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
-                                     }}
-                            >
-                                X
-                            </Typography>
-                          </Tooltip>
-                        </div>
-                      </Grid>
-                    </Grid>
-                    }
-                style={{paddingTop:'0px', paddingBottom:'0px'}}
-      />
-      <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
-                          border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
-                          backgroundColor:'rgb(255,255,255,0.3)'
-                        }}>
-            <FormGroup>
-              { displayedLocations.map((item, idx) => 
-                  <FormControlLabel key={'filter-locations-' + item.nameProperty + item.latProperty + item.lngProperty + '-' + idx}
-                                    control={<Checkbox size="small" 
-                                                       checked={selectedLocations.findIndex((curLocation) => curLocation===item.nameProperty) > -1 ? true : false}
-                                                       onChange={(event) => handleCheckboxChange(event,item.nameProperty)}
-                                              />} 
-                                    label={
-                                      <Grid container direction="row" alignItems="center" justifyContent="start" wrap="nowrap" sx={{width:"220px"}}>
-                                        <Grid item wrap="nowrap">
-                                          <Typography variant="body2" sx={{fontWeight:'bold'}}>
-                                            {item.idProperty}
-                                          </Typography>
-                                        </Grid>
-                                        <Grid item sx={{marginLeft:"auto"}}>
-                                          <Typography variant="body2" align="center" sx={{color:'darkgrey'}}>
-                                            {item.nameProperty}
-                                          </Typography>
-                                        </Grid>
-                                      </Grid>
-                                    }
-                  />
-                )
-              }
-            </FormGroup>
-          </Grid>
-          <FormControl fullWidth variant="standard">
-            <TextField
-              variant="standard"
-              id="file-location-search"
-              label="Search"
-              slotProps={{
-                input: {
-                  endAdornment:(
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleClearSearch}>
-                        <BackspaceOutlinedIcon/>
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                },
-              }}
-              onChange={handleSearchChange}
-            />
-          </FormControl>
-      </CardContent>
-      <CardActions>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
-      </CardActions>
-    </Card>
+    <FilterCard title="Locations Filter" onClose={onClose}
+                actions={
+                <React.Fragment>  
+                  <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
+                  <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                </React.Fragment>  
+                }
+    >
+      <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+                      border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
+                      backgroundColor:'rgb(255,255,255,0.3)'
+                    }}>
+        <FormGroup>
+          { displayedLocations.map((item, idx) => 
+              <FormControlLabel key={'filter-locations-' + item.nameProperty + item.latProperty + item.lngProperty + '-' + idx}
+                                control={<Checkbox size="small" 
+                                                   checked={selectedLocations.findIndex((curLocation) => curLocation===item.nameProperty) > -1 ? true : false}
+                                                   onChange={(event) => handleCheckboxChange(event,item.nameProperty)}
+                                          />} 
+                                label={
+                                  <Grid container direction="row" alignItems="center" justifyContent="start" wrap="nowrap" sx={{width:"220px"}}>
+                                    <Grid item wrap="nowrap">
+                                      <Typography variant="body2" sx={{fontWeight:'bold'}}>
+                                        {item.idProperty}
+                                      </Typography>
+                                    </Grid>
+                                    <Grid item sx={{marginLeft:"auto"}}>
+                                      <Typography variant="body2" align="center" sx={{color:'darkgrey'}}>
+                                        {item.nameProperty}
+                                      </Typography>
+                                    </Grid>
+                                  </Grid>
+                                }
+              />
+            )
+          }
+        </FormGroup>
+      </Grid>
+      <FormControl fullWidth variant="standard">
+        <TextField
+          variant="standard"
+          id="file-location-search"
+          label="Search"
+          slotProps={{
+            input: {
+              endAdornment:(
+                <InputAdornment position="end">
+                  <IconButton onClick={handleClearSearch}>
+                    <BackspaceOutlinedIcon/>
+                  </IconButton>
+                </InputAdornment>
+              )
+            },
+          }}
+          onChange={handleSearchChange}
+        />
+      </FormControl>
+    </FilterCard>
   );
 }

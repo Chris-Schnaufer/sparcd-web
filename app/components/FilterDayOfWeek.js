@@ -19,20 +19,28 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import FilterCard from './FilterCard'
+
+const dayNames = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY'
+];
+
 export default function FilterDayOfWeek({data, onClose, onChange}) {
   const theme = useTheme();
-  const [selectedDays, setSelectedDays] = React.useState(data ? data : []); // The user's selections
+  const [selectedDays, setSelectedDays] = React.useState(data ? data : dayNames); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
-  const dayNames = [
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY',
-    'SUNDAY'
-  ];
+  React.useEffect(() => {
+    if (!data) {
+      onChange(selectedDays);
+    }
+  }, [selectedDays]);
 
   function handleSelectAll() {
     setSelectedDays(dayNames);
@@ -68,59 +76,30 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
   }
 
   return (
-    <Card id="filter-day" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
-      <CardHeader title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                      <Grid item>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Day of Week Filter
-                        </Typography>
-                      </Grid>
-                      <Grid item sx={{marginLeft:'auto'}} >
-                        <div onClick={onClose}>
-                          <Tooltip title="Delete this filter">
-                            <Typography gutterBottom variant="body2" noWrap="true"
-                                        sx={{textTransform:'uppercase',
-                                        color:'grey',
-                                        cursor:'pointer',
-                                        fontWeight:'500',
-                                        backgroundColor:'rgba(0,0,0,0.03)',
-                                        padding:'3px 3px 3px 3px',
-                                        borderRadius:'3px',
-                                        '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
-                                     }}
-                            >
-                                X
-                            </Typography>
-                          </Tooltip>
-                        </div>
-                      </Grid>
-                    </Grid>
-                    }
-                style={{paddingTop:'0px', paddingBottom:'0px'}}
-      />
-      <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid item sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
-                          border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
-                          backgroundColor:'rgb(255,255,255,0.3)'
-                        }}>
-            <FormGroup>
-              { dayNames.map((item) => 
-                  <FormControlLabel key={'filter-day-' + item}
-                                    control={<Checkbox size="small" 
-                                                       checked={selectedDays.findIndex((curDay) => curDay===item) > -1 ? true : false}
-                                                       onChange={(event) => handleCheckboxChange(event,item)}
-                                              />} 
-                                    label={<Typography variant="body2">{item}</Typography>} />
-                )
-              }
-            </FormGroup>
-          </Grid>
-      </CardContent>
-      <CardActions>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
-      </CardActions>
-    </Card>
+    <FilterCard title="Day of Week Filter" onClose={onClose} 
+                actions={
+                  <React.Fragment>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                  </React.Fragment>
+                }
+    >
+      <Grid item sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
+                      border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
+                      backgroundColor:'rgb(255,255,255,0.3)'
+                    }}>
+        <FormGroup>
+          { dayNames.map((item) => 
+              <FormControlLabel key={'filter-day-' + item}
+                                control={<Checkbox size="small" 
+                                                   checked={selectedDays.findIndex((curDay) => curDay===item) > -1 ? true : false}
+                                                   onChange={(event) => handleCheckboxChange(event,item)}
+                                          />} 
+                                label={<Typography variant="body2">{item}</Typography>} />
+            )
+          }
+        </FormGroup>
+      </Grid>
+    </FilterCard>
   );
 }

@@ -1,4 +1,4 @@
-/** @module components/FilterContent */
+/** @module components/FilterCard */
 
 import * as React from 'react';
 import Card from '@mui/material/Card';
@@ -12,7 +12,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-export default function FilterContent({title, onClose, actions, children}) {
+export default function FilterCard({title, onClose, actions, children}) {
   const theme = useTheme();
 
   return (

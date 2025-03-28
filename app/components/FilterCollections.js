@@ -20,13 +20,20 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { CollectionsInfoContext } from '../serverInfo'
+import FilterCard from './FilterCard'
 
 export default function FilterCollections({data, onClose, onChange}) {
   const theme = useTheme();
   const collectionItems = React.useContext(CollectionsInfoContext);
   const [displayedCollections, setDisplayedCollections] = React.useState(collectionItems); // The visible collections
-  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : []); // The user's selections
+  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.name)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+
+  React.useEffect(() => {
+    if (!data) {
+      onChange(selectedCollections);
+    }
+  }, [selectedCollections]);
 
   function handleSelectAll() {
     const curCollections = displayedCollections.map((item) => item.name);
@@ -84,78 +91,49 @@ export default function FilterCollections({data, onClose, onChange}) {
   }
 
   return (
-    <Card id="filter-collections" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
-      <CardHeader title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                      <Grid item>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Collections Filter
-                        </Typography>
-                      </Grid>
-                      <Grid item sx={{marginLeft:'auto'}} >
-                        <div onClick={onClose}>
-                          <Tooltip title="Delete this filter">
-                            <Typography gutterBottom variant="body2" noWrap="true"
-                                        sx={{textTransform:'uppercase',
-                                        color:'grey',
-                                        cursor:'pointer',
-                                        fontWeight:'500',
-                                        backgroundColor:'rgba(0,0,0,0.03)',
-                                        padding:'3px 3px 3px 3px',
-                                        borderRadius:'3px',
-                                        '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
-                                     }}
-                            >
-                                X
-                            </Typography>
-                          </Tooltip>
-                        </div>
-                      </Grid>
-                    </Grid>
-                    }
-                style={{paddingTop:'0px', paddingBottom:'0px'}}
-      />
-      <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
-                          border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
-                          backgroundColor:'rgb(255,255,255,0.3)'
-                        }}>
-            <FormGroup>
-              { displayedCollections.map((item) => 
-                  <FormControlLabel key={'filter-collections-' + item.name}
-                                    control={<Checkbox size="small" 
-                                                       checked={selectedCollections.findIndex((curCollections) => curCollections===item.name) > -1 ? true : false}
-                                                       onChange={(event) => handleCheckboxChange(event,item.name)}
-                                              />} 
-                                    label={<Typography variant="body2">{item.name}</Typography>} />
-                )
-              }
-            </FormGroup>
-          </Grid>
-          <FormControl fullWidth variant="standard">
-            <TextField
-              variant="standard"
-              id="file-collections-search"
-              label="Search"
-              slotProps={{
-                input: {
-                  endAdornment:(
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleClearSearch}>
-                        <BackspaceOutlinedIcon/>
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                },
-              }}
-              onChange={handleSearchChange}
-            />
-          </FormControl>
-      </CardContent>
-      <CardActions>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
-      </CardActions>
-    </Card>
+    <FilterCard title="Collections Filter" onClose={onClose}
+                actions={
+                  <React.Fragment>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                  </React.Fragment>
+                }
+    >
+      <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+                      border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
+                      backgroundColor:'rgb(255,255,255,0.3)'
+                    }}>
+        <FormGroup>
+          { displayedCollections.map((item) => 
+              <FormControlLabel key={'filter-collections-' + item.name}
+                                control={<Checkbox size="small" 
+                                                   checked={selectedCollections.findIndex((curCollections) => curCollections===item.name) > -1 ? true : false}
+                                                   onChange={(event) => handleCheckboxChange(event,item.name)}
+                                          />} 
+                                label={<Typography variant="body2">{item.name}</Typography>} />
+            )
+          }
+        </FormGroup>
+      </Grid>
+      <FormControl fullWidth variant="standard">
+        <TextField
+          variant="standard"
+          id="file-collections-search"
+          label="Search"
+          slotProps={{
+            input: {
+              endAdornment:(
+                <InputAdornment position="end">
+                  <IconButton onClick={handleClearSearch}>
+                    <BackspaceOutlinedIcon/>
+                  </IconButton>
+                </InputAdornment>
+              )
+            },
+          }}
+          onChange={handleSearchChange}
+        />
+      </FormControl>
+    </FilterCard>
   );
 }

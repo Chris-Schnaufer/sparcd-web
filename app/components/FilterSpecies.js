@@ -20,13 +20,20 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { SpeciesInfoContext } from '../serverInfo'
+import FilterCard from './FilterCard'
 
 export default function FilterSpecies({data, onClose, onChange}) {
   const theme = useTheme();
   const speciesItems = React.useContext(SpeciesInfoContext);
   const [displayedSpecies, setDisplayedSpecies] = React.useState(speciesItems); // The visible species
-  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : []); // The user's selections
+  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : speciesItems.map((item)=>item.name)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
+
+  React.useEffect(() => {
+    if (!data) {
+      onChange(selectedSpecies);
+    }
+  }, [selectedSpecies]);
 
   function handleSelectAll() {
     const curSpecies = displayedSpecies.map((item) => item.name);
@@ -84,78 +91,48 @@ export default function FilterSpecies({data, onClose, onChange}) {
   }
 
   return (
-    <Card id="filter-species" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
-      <CardHeader title={
-                    <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                      <Grid item>
-                        <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Species Filter
-                        </Typography>
-                      </Grid>
-                      <Grid item sx={{marginLeft:'auto'}} >
-                        <div onClick={onClose}>
-                          <Tooltip title="Delete this filter">
-                            <Typography gutterBottom variant="body2" noWrap="true"
-                                        sx={{textTransform:'uppercase',
-                                        color:'grey',
-                                        cursor:'pointer',
-                                        fontWeight:'500',
-                                        backgroundColor:'rgba(0,0,0,0.03)',
-                                        padding:'3px 3px 3px 3px',
-                                        borderRadius:'3px',
-                                        '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
-                                     }}
-                            >
-                                X
-                            </Typography>
-                          </Tooltip>
-                        </div>
-                      </Grid>
-                    </Grid>
-                    }
-                style={{paddingTop:'0px', paddingBottom:'0px'}}
-      />
-      <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
-                          border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
-                          backgroundColor:'rgb(255,255,255,0.3)'
-                        }}>
-            <FormGroup>
-              { displayedSpecies.map((item) => 
-                  <FormControlLabel key={'filter-species-' + item.name}
-                                    control={<Checkbox size="small" 
-                                                       checked={selectedSpecies.findIndex((curSpecies) => curSpecies===item.name) > -1 ? true : false}
-                                                       onChange={(event) => handleCheckboxChange(event,item.name)}
-                                              />} 
-                                    label={<Typography variant="body2">{item.name}</Typography>} />
-                )
+    <FilterCard title="Species Filter" onClose={onClose} actions={
+                <React.Fragment>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
+                    <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
+                </React.Fragment>
               }
-            </FormGroup>
-          </Grid>
-          <FormControl fullWidth variant="standard">
-            <TextField
-              variant="standard"
-              id="file-species-search"
-              label="Search"
-              slotProps={{
-                input: {
-                  endAdornment:(
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleClearSearch}>
-                        <BackspaceOutlinedIcon/>
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                },
-              }}
-              onChange={handleSearchChange}
-            />
-          </FormControl>
-      </CardContent>
-      <CardActions>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
-              <Button sx={{'flex':'1'}} size="small" onClick={handleSelectNone}>Select None</Button>
-      </CardActions>
-    </Card>
+    >
+      <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+                      border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
+                      backgroundColor:'rgb(255,255,255,0.3)'
+                    }}>
+        <FormGroup>
+          { displayedSpecies.map((item) => 
+              <FormControlLabel key={'filter-species-' + item.name}
+                                control={<Checkbox size="small" 
+                                                   checked={selectedSpecies.findIndex((curSpecies) => curSpecies===item.name) > -1 ? true : false}
+                                                   onChange={(event) => handleCheckboxChange(event,item.name)}
+                                          />} 
+                                label={<Typography variant="body2">{item.name}</Typography>} />
+            )
+          }
+        </FormGroup>
+      </Grid>
+      <FormControl fullWidth variant="standard">
+        <TextField
+          variant="standard"
+          id="file-species-search"
+          label="Search"
+          slotProps={{
+            input: {
+              endAdornment:(
+                <InputAdornment position="end">
+                  <IconButton onClick={handleClearSearch}>
+                    <BackspaceOutlinedIcon/>
+                  </IconButton>
+                </InputAdornment>
+              )
+            },
+          }}
+          onChange={handleSearchChange}
+        />
+      </FormControl>
+    </FilterCard>
   );
 }
