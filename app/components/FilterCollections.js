@@ -1,4 +1,4 @@
-/** @module components/FilterSpecies */
+/** @module components/FilterCollections */
 
 import * as React from 'react';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
@@ -19,48 +19,48 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { SpeciesInfoContext } from '../serverInfo'
+import { CollectionsInfoContext } from '../serverInfo'
 
-export default function FilterSpecies({data, onClose, onChange}) {
+export default function FilterCollections({data, onClose, onChange}) {
   const theme = useTheme();
-  const speciesItems = React.useContext(SpeciesInfoContext);
-  const [displayedSpecies, setDisplayedSpecies] = React.useState(speciesItems); // The visible species
-  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : []); // The user's selections
+  const collectionItems = React.useContext(CollectionsInfoContext);
+  const [displayedCollections, setDisplayedCollections] = React.useState(collectionItems); // The visible collections
+  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : []); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
   function handleSelectAll() {
-    const curSpecies = displayedSpecies.map((item) => item.name);
-    const newSpecies = curSpecies.filter((item) => selectedSpecies.findIndex((selItem) => selItem === item) < 0);
-    const updatedSelections = [...selectedSpecies, ...newSpecies];
-    setSelectedSpecies(updatedSelections);
+    const curCollections = displayedCollections.map((item) => item.name);
+    const newCollections = curCollections.filter((item) => selectedCollections.findIndex((selItem) => selItem === item) < 0);
+    const updatedSelections = [...selectedCollections, ...newCollections];
+    setSelectedCollections(updatedSelections);
     onChange(updatedSelections);
     handleClearSearch();
   }
 
   function handleSelectNone() {
-    setSelectedSpecies([]);
+    setSelectedCollections([]);
     onChange([]);
     handleClearSearch();
   }
 
-  function handleCheckboxChange(event, speciesName) {
+  function handleCheckboxChange(event, collectionName) {
 
     if (event.target.checked) {
-      const speciesIdx = selectedSpecies.findIndex((item) => speciesName === item);
-      // Add the species in if we don't have it already
-      if (speciesIdx < 0) {
-        const curSpecies = selectedSpecies;
-        curSpecies.push(speciesName);
-        setSelectedSpecies(curSpecies);
-        onChange(curSpecies);
+      const collectionIdx = selectedCollections.findIndex((item) => collectionName === item);
+      // Add the collections in if we don't have it already
+      if (collectionIdx < 0) {
+        const curCollections = selectedCollections;
+        curCollections.push(collectionName);
+        setSelectedCollections(curCollections);
+        onChange(curCollections);
         setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
-      // Remove the species if we have it
-      const curSpecies = selectedSpecies.filter((item) => item !== speciesName);
-      if (curSpecies.length < selectedSpecies.length) {
-        setSelectedSpecies(curSpecies);
-        onChange(curSpecies);
+      // Remove the collections if we have it
+      const curCollections = selectedCollections.filter((item) => item !== collectionName);
+      if (curCollections.length < selectedCollections.length) {
+        setSelectedCollections(curCollections);
+        onChange(curCollections);
         setSelectionRedraw(selectionRedraw + 1);
       }
     }
@@ -69,27 +69,27 @@ export default function FilterSpecies({data, onClose, onChange}) {
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
-      setDisplayedSpecies(speciesItems.filter((item) => item.name.toUpperCase().includes(ucSearch)));
+      setDisplayedCollections(collectionItems.filter((item) => item.name.toUpperCase().includes(ucSearch)));
     } else {
-      setDisplayedSpecies(speciesItems);
+      setDisplayedCollections(collectionItems);
     }
   }
 
   function handleClearSearch() {
-    const searchEl = document.getElementById('file-species-search');
+    const searchEl = document.getElementById('file-collections-search');
     if (searchEl) {
       searchEl.value = '';
-      setDisplayedSpecies(speciesItems);
+      setDisplayedCollections(collectionItems);
     }
   }
 
   return (
-    <Card id="filter-species" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
+    <Card id="filter-collections" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
       <CardHeader title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                       <Grid item>
                         <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Species Filter
+                          Collections Filter
                         </Typography>
                       </Grid>
                       <Grid item sx={{marginLeft:'auto'}} >
@@ -121,10 +121,10 @@ export default function FilterSpecies({data, onClose, onChange}) {
                           backgroundColor:'rgb(255,255,255,0.3)'
                         }}>
             <FormGroup>
-              { displayedSpecies.map((item) => 
-                  <FormControlLabel key={'filter-species-' + item.name}
+              { displayedCollections.map((item) => 
+                  <FormControlLabel key={'filter-collections-' + item.name}
                                     control={<Checkbox size="small" 
-                                                       checked={selectedSpecies.findIndex((curSpecies) => curSpecies===item.name) > -1 ? true : false}
+                                                       checked={selectedCollections.findIndex((curCollections) => curCollections===item.name) > -1 ? true : false}
                                                        onChange={(event) => handleCheckboxChange(event,item.name)}
                                               />} 
                                     label={<Typography variant="body2">{item.name}</Typography>} />
@@ -135,7 +135,7 @@ export default function FilterSpecies({data, onClose, onChange}) {
           <FormControl fullWidth variant="standard">
             <TextField
               variant="standard"
-              id="file-species-search"
+              id="file-collections-search"
               label="Search"
               slotProps={{
                 input: {

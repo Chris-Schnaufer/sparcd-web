@@ -64,9 +64,8 @@ export default function FilterElevations({data, onClose, onChange}) {
     onChange(curElevation);
   }
 
-  console.log('REDRAW',selectedElevation.value);
   return (
-    <Card id="filter-species" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
+    <Card id="filter-elevation" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
       <CardHeader title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                       <Grid item>

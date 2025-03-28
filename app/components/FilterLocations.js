@@ -34,11 +34,13 @@ export default function FilterLocations({data, onClose, onChange}) {
     const updateSelections = [...selectedLocations, ...newLocations]
     setSelectedLocations(updateSelections);
     onChange(updateSelections);
+    handleClearSearch();
   }
 
   function handleSelectNone() {
     setSelectedLocations([]);
     onChange([]);
+    handleClearSearch();
   }
 
   function handleCheckboxChange(event, locationName) {
@@ -74,7 +76,7 @@ export default function FilterLocations({data, onClose, onChange}) {
     }
   }
 
-  function handleClearSearch(event) {
+  function handleClearSearch() {
     const searchEl = document.getElementById('file-location-search');
     if (searchEl) {
       searchEl.value = '';

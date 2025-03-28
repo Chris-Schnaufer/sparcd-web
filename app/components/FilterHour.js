@@ -1,4 +1,4 @@
-/** @module components/FilterSpecies */
+/** @module components/FilterHour */
 
 import * as React from 'react';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
@@ -19,77 +19,78 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { SpeciesInfoContext } from '../serverInfo'
-
-export default function FilterSpecies({data, onClose, onChange}) {
+export default function FilterHour({data, onClose, onChange}) {
   const theme = useTheme();
-  const speciesItems = React.useContext(SpeciesInfoContext);
-  const [displayedSpecies, setDisplayedSpecies] = React.useState(speciesItems); // The visible species
-  const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : []); // The user's selections
+  const [selectedHours, setSelectedHours] = React.useState(data ? data : []); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  const hoursNames = [
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12',
+    '13',
+    '14',
+    '15',
+    '16',
+    '17',
+    '18',
+    '19',
+    '20',
+    '21',
+    '22',
+    '23',
+    '24',
+  ];
+
   function handleSelectAll() {
-    const curSpecies = displayedSpecies.map((item) => item.name);
-    const newSpecies = curSpecies.filter((item) => selectedSpecies.findIndex((selItem) => selItem === item) < 0);
-    const updatedSelections = [...selectedSpecies, ...newSpecies];
-    setSelectedSpecies(updatedSelections);
-    onChange(updatedSelections);
-    handleClearSearch();
+    setSelectedHours(hoursNames);
+    onChange(hoursNames);
   }
 
   function handleSelectNone() {
-    setSelectedSpecies([]);
+    setSelectedHours([]);
     onChange([]);
-    handleClearSearch();
   }
 
-  function handleCheckboxChange(event, speciesName) {
+  function handleCheckboxChange(event, hourName) {
 
     if (event.target.checked) {
-      const speciesIdx = selectedSpecies.findIndex((item) => speciesName === item);
-      // Add the species in if we don't have it already
-      if (speciesIdx < 0) {
-        const curSpecies = selectedSpecies;
-        curSpecies.push(speciesName);
-        setSelectedSpecies(curSpecies);
-        onChange(curSpecies);
+      const hourIdx = selectedHours.findIndex((item) => hourName === item);
+      // Add the hour in if we don't have it already
+      if (hourIdx < 0) {
+        const curHours = selectedHours;
+        curHours.push(hourName);
+        setSelectedHours(curHours);
+        onChange(curHours);
         setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
-      // Remove the species if we have it
-      const curSpecies = selectedSpecies.filter((item) => item !== speciesName);
-      if (curSpecies.length < selectedSpecies.length) {
-        setSelectedSpecies(curSpecies);
-        onChange(curSpecies);
+      // Remove the hour if we have it
+      const curHours = selectedHours.filter((item) => item !== hourName);
+      if (curHours.length < selectedHours.length) {
+        setSelectedHours(curHours);
+        onChange(curHours);
         setSelectionRedraw(selectionRedraw + 1);
       }
-    }
-  }
-
-  function handleSearchChange(event) {
-    if (event.target.value) {
-      const ucSearch = event.target.value.toUpperCase();
-      setDisplayedSpecies(speciesItems.filter((item) => item.name.toUpperCase().includes(ucSearch)));
-    } else {
-      setDisplayedSpecies(speciesItems);
-    }
-  }
-
-  function handleClearSearch() {
-    const searchEl = document.getElementById('file-species-search');
-    if (searchEl) {
-      searchEl.value = '';
-      setDisplayedSpecies(speciesItems);
     }
   }
 
   return (
-    <Card id="filter-species" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
+    <Card id="filter-hours" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
       <CardHeader title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                       <Grid item>
                         <Typography gutterBottom variant="h6" component="h4" noWrap="true">
-                          Species Filter
+                          Hour Filter
                         </Typography>
                       </Grid>
                       <Grid item sx={{marginLeft:'auto'}} >
@@ -116,41 +117,22 @@ export default function FilterSpecies({data, onClose, onChange}) {
                 style={{paddingTop:'0px', paddingBottom:'0px'}}
       />
       <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
-          <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+          <Grid item sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
                           border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                           backgroundColor:'rgb(255,255,255,0.3)'
                         }}>
             <FormGroup>
-              { displayedSpecies.map((item) => 
-                  <FormControlLabel key={'filter-species-' + item.name}
+              { hoursNames.map((item) => 
+                  <FormControlLabel key={'filter-hours-' + item}
                                     control={<Checkbox size="small" 
-                                                       checked={selectedSpecies.findIndex((curSpecies) => curSpecies===item.name) > -1 ? true : false}
-                                                       onChange={(event) => handleCheckboxChange(event,item.name)}
+                                                       checked={selectedHours.findIndex((curHour) => curHour===item) > -1 ? true : false}
+                                                       onChange={(event) => handleCheckboxChange(event,item)}
                                               />} 
-                                    label={<Typography variant="body2">{item.name}</Typography>} />
+                                    label={<Typography variant="body2">{item}</Typography>} />
                 )
               }
             </FormGroup>
           </Grid>
-          <FormControl fullWidth variant="standard">
-            <TextField
-              variant="standard"
-              id="file-species-search"
-              label="Search"
-              slotProps={{
-                input: {
-                  endAdornment:(
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleClearSearch}>
-                        <BackspaceOutlinedIcon/>
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                },
-              }}
-              onChange={handleSearchChange}
-            />
-          </FormControl>
       </CardContent>
       <CardActions>
               <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>

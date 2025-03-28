@@ -19,9 +19,15 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import FilterCollections from './components/FilterCollections';
+import FilterDate from './components/FilterDate';
+import FilterDayOfWeek from './components/FilterDayOfWeek';
 import FilterElevation from './components/FilterElevation';
+import FilterHour from './components/FilterHour';
 import FilterLocations from './components/FilterLocations';
+import FilterMonth from './components/FilterMonth';
 import FilterSpecies from './components/FilterSpecies';
+import FilterYear from './components/FilterYear';
 
 export default function Queries() {
   const theme = useTheme();
@@ -41,6 +47,7 @@ export default function Queries() {
     'Month Filter',
     'Hour Filter',
     'Day of Week Filter',
+    'Start Date Filter',
     'End Date Filter',
     'Collection Filter'
   ];
@@ -145,6 +152,20 @@ export default function Queries() {
 
   function generateFilterTile(filterInfo) {
     switch(filterInfo.type) {
+      case 'Collection Filter':
+        return (
+          <FilterCollections data={filterInfo.data}
+                             onClose={() => removeFilter(filterInfo.id)} 
+                             onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+
+        );
+      case 'Day of Week Filter':
+        return (
+          <FilterDayOfWeek data={filterInfo.data}
+                           onClose={() => removeFilter(filterInfo.id)} 
+                           onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+
+        );
       case 'Elevation Filter':
         return (
           <FilterElevation data={filterInfo.data}
@@ -152,17 +173,49 @@ export default function Queries() {
                            onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
 
         );
+      case 'End Date Filter':
+        return (
+            <FilterDate data={filterInfo.data}
+                        title='End Date Filter'
+                        onClose={() => removeFilter(filterInfo.id)} 
+                        onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+        );
+      case 'Hour Filter':
+        return (
+            <FilterHour data={filterInfo.data}
+                        onClose={() => removeFilter(filterInfo.id)} 
+                        onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+        );
       case 'Location Filter':
         return (
             <FilterLocations data={filterInfo.data}
                            onClose={() => removeFilter(filterInfo.id)} 
                            onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
         );
+      case 'Month Filter':
+        return (
+            <FilterMonth data={filterInfo.data}
+                         onClose={() => removeFilter(filterInfo.id)} 
+                         onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+        );
       case 'Species Filter':
         return (
             <FilterSpecies data={filterInfo.data}
                            onClose={() => removeFilter(filterInfo.id)} 
                            onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+        );
+      case 'Start Date Filter':
+        return (
+            <FilterDate data={filterInfo.data}
+                        title='Start Date Filter'
+                        onClose={() => removeFilter(filterInfo.id)} 
+                        onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
+        );
+      case 'Year Filter':
+        return (
+            <FilterYear data={filterInfo.data}
+                        onClose={() => removeFilter(filterInfo.id)} 
+                        onChange={(data) => handleFilterChange(filterInfo.id, data)}/>
         );
     }
   }
