@@ -1,6 +1,6 @@
-/** @module UploadEdit */
-
 'use client'
+
+/** @module UploadEdit */
 
 import * as React from 'react';
 import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { LocationsInfoContext, NarrowWindowContext, SandboxInfoContext, SpeciesInfoContext } from './serverInfo'
+import { LocationsInfoContext, NarrowWindowContext, SpeciesInfoContext, UploadEditContext } from './serverInfo'
 import ImageEdit from './ImageEdit'
 import ImageTile from './components/ImageTile'
 import LocationSelection from './LocationSelection'
@@ -25,15 +25,15 @@ import * as utils from './utils'
  * @function
  * @param {object} selectedUpload The active upload to edit
  * @param {function} onCancel Call when finished with the the upload edit
- * @param {function} onSearchSetup Call when settting up or clearing search elements
+ * @param {function} searchSetup Call when settting up or clearing search elements
  * @returns {object} The UI to render
  */
-export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
+export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const theme = useTheme();
   const editingStates = {'none':0, 'listImages':2, 'editImage': 3}; // Different states of this page
   const sidebarSpeciesRef = React.useRef();  // Used for sizeing
   const sidebarTopRef = React.useRef();   // Used for sizeing
-  const sandboxItems = React.useContext(SandboxInfoContext);
+  const curUpload = React.useContext(UploadEditContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
@@ -56,8 +56,6 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
   const [windowSize, setWindowSize] = React.useState({'width':640,'height':480}); // The current window size
 
   // Some local variables
-  const curUploadIdx = sandboxItems.findIndex((item) => item.name === selectedUpload);
-  const curUpload = curUploadIdx >= 0 ? sandboxItems[curUploadIdx] : null;
   const curUploadLocation = locationItems.find((item) => item.idProperty === curUpload.location);
 
   // Bind functions to ensure scope
@@ -245,7 +243,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
     curUpload.location = locEl.value;
     setCurEditState(editingStates.listImages);
     setEditingLocation(false);
-    onSearchSetup('Image Name', handleImageSearch);
+    searchSetup('Image Name', handleImageSearch);
   }
 
   /**
@@ -445,7 +443,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
   function editingImage(imageName) {
     setCurEditState(editingStates.editImage);
     setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
-    onSearchSetup();
+    searchSetup();
   }
 
   // Calculate the total available height if we don't have anything yet
@@ -514,7 +512,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
         </Grid>
         <Grid sx={{marginLeft:'auto'}}>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.location && curUpload.location.length ? curUploadLocation : '<location>'}
+            {curUpload.location && curUpload.location.length ? curUploadLocation.idProperty : '<location>'}
           </Typography>
           <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
             <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
@@ -553,7 +551,7 @@ export default function UploadEdit({selectedUpload, onCancel, onSearchSetup}) {
                        parentX={workplaceStartX} parentId='image-edit-workspace'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
-                       onClose={() => {setCurEditState(editingStates.listImages);onSearchSetup('Image Name', handleImageSearch);}}
+                       onClose={() => {setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}
                        adjustments={true}
                        dropable={true}
                        navigation={{onPrev:handlePrevImage,onNext:handleNextImage}}

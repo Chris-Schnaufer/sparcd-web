@@ -61,6 +61,7 @@ export default function LandingCollections({onCollectionInfo, onChange}) {
                 'description': 'Whetstones - WHE12 - 4812 - Uploaded 03-09-2025 - Collected 03-08-2025',
                 'imagesCount': 100,
                 'imagesWithSpeciesCount': 100,
+                'location':'CAN06', 
                 'edits': [{'name':'smalusa','date':'2024.10.26.09.18.19'},
                          {'name':'smalusa','date':'2024.10.27.13.36.03'},
                         ]
@@ -69,6 +70,7 @@ export default function LandingCollections({onCollectionInfo, onChange}) {
                 'description': 'Whetstones - WHE12 - 800 - uploaded 09-12-2024 - collected 09-11-2024',
                 'imagesCount': 130,
                 'imagesWithSpeciesCount': 120,
+                'location':'CAN06', 
                 'edits': [{'name':'lizt','date':'2024.09.19.16.07.17'},
                         ]
               }, {
@@ -76,6 +78,7 @@ export default function LandingCollections({onCollectionInfo, onChange}) {
                 'description': 'Whetstones - WHE12 - 2100 - uploaded 10-13-2024 - collected 10-12-2024',
                 'imagesCount': 4000,
                 'imagesWithSpeciesCount': 3998,
+                'location':'CAN06', 
                 'edits': [{'name':'lizt','date':'2024.05.19.15.35.07'},
                         ]
               }

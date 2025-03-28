@@ -6,6 +6,8 @@ import { createContext } from 'react';
 
 /** React context for base URL */
 export const BaseURLContext = createContext(null);
+/** React context for the current upload edit */
+export const UploadEditContext = createContext(null);
 /** React context for Collections information */
 export const CollectionsInfoContext = createContext(null);
 /** React context for locations information */

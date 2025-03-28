@@ -12,7 +12,7 @@ import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import CloudCircleOutlinedIcon from '@mui/icons-material/CloudCircleOutlined';
+import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton'
@@ -28,10 +28,10 @@ import UploadSidebarItem from './components/UploadSidebarItem'
  * @function
  * @param {object} selectedCollection The currently selected collection
  * @param {function} onEditUpload Called when the user wants to edit an upload of a collection
-  * @param {function} onSearchSetup Call when settting up or clearing search elements
+  * @param {function} searchSetup Call when settting up or clearing search elements
 * @returns {object} The rendered UI
  */
-export default function CollectionsManage({selectedCollection, onEditUpload, onSearchSetup}) {
+export default function CollectionsManage({selectedCollection, onEditUpload, searchSetup}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const collectionsItems = React.useContext(CollectionsInfoContext);
@@ -48,9 +48,9 @@ export default function CollectionsManage({selectedCollection, onEditUpload, onS
 
   // Setup search
   React.useEffect(() => {
-    onSearchSetup('Collection Name', handleCollectionSearch);
+    searchSetup('Collection Name', handleCollectionSearch);
 
-    return () => onSearchSetup();
+    return () => searchSetup();
   }, []);
 
   // Recalcuate available space in the window
@@ -93,7 +93,11 @@ export default function CollectionsManage({selectedCollection, onEditUpload, onS
                                                                item.description.toUpperCase().includes(ucSearchTerm));
 
     if (foundCollections) {
-      console.log('FOUND', foundCollections);
+      const elCollection = document.getElementById("collection-"+foundCollections[0].name);
+      if (elCollection) {
+        elCollection.scrollIntoView();
+        searchSetup('Collection Name', handleCollectionSearch);
+      }
     }
   }
 
@@ -155,18 +159,18 @@ export default function CollectionsManage({selectedCollection, onEditUpload, onS
                  borderLeft:'1px solid grey', overflow:'scroll'}}
       >
         { curCollection.uploads.map((item, idx) =>
-          <Card id={name} key={'collection-upload-'+idx} variant="outlined" sx={{minWidth:'100%', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+          <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" sx={{minWidth:'100%', '&:hover':{backgroundColor:theme.palette.action.active} }}>
             <CardHeader title={
-                              <Grid id="card-header-wrapper" container direction="row" alignItems="start" justifyContent="start">
+                              <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                                 <Grid item>
-                                  <Typography gutterBottom variant="h6" component="h4">
+                                  <Typography gutterBottom variant="h6" component="h4" noWrap="true">
                                     {item.name}
                                   </Typography>
                                 </Grid>
                                 <Grid item sx={{marginLeft:'auto'}}>
                                   <Tooltip title="Edit this upload">
-                                    <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.name)}>
-                                      <CloudCircleOutlinedIcon fontSize="small"/>
+                                    <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.name, "Collections")}>
+                                      <BorderColorOutlinedIcon fontSize="small"/>
                                     </IconButton>
                                   </Tooltip>
                                 </Grid>
@@ -232,7 +236,7 @@ export default function CollectionsManage({selectedCollection, onEditUpload, onS
         { collectionsItems.map((item, idx) =>
           <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }}>
                 <Grid display='flex' justifyContent='left' size='grow' >
-                  <Card id={item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
+                  <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
                         sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
                     <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
                       sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}

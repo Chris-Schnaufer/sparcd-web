@@ -117,7 +117,10 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
             <LandingCard title="Upload Images" 
                          action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload() } : null,
                                   {'title':'Manage', 
-                                   'onClick':() => {onUserAction(UserActions.Upload, selUploadInfo, selUploadInfo ? true : false);},
+                                   'onClick':() => {
+                                                    onUserAction(selUploadInfo ? UserActions.UploadEdit : UserActions.Upload, 
+                                                                  selUploadInfo, selUploadInfo ? true : false, 'Home');
+                                                   },
                                    'disabled': curSandboxInfo ? false : true
                                   }
                                  ]}
@@ -128,7 +131,7 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Collections"
                          action={{'title':'Manage', 
-                                  'onClick':() => {onUserAction(UserActions.Collection, selCollectionInfo);},
+                                  'onClick':() => {onUserAction(UserActions.Collection, selCollectionInfo, false, 'Home');},
                                   'disabled': curCollectionInfo ? false : true}}
             >
               <LandingCollections onCollectionInfo={updateCollectionInfo} onChange={setCollectionSelection} />
@@ -136,13 +139,13 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Search Images" 
-                         action={{'title':'Query', 'onClick':() => {console.log('Query');onUserAction(UserActions.Query);} }}
+                         action={{'title':'Query', 'onClick':() => {onUserAction(UserActions.Query, null, false, 'Home');} }}
             >
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Maps"
-                         action={{'title':'Maps', 'onClick':() => {console.log('Maps');onUserAction(UserActions.Maps);} }}
+                         action={{'title':'Maps', 'onClick':() => {onUserAction(UserActions.Maps, null, false, 'Home');} }}
             >
             </LandingCard>
           </Grid>

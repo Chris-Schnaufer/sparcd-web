@@ -45,8 +45,9 @@ export default function LandingUpload({setUploadInfo, onChange}) {
     */
 
     // TODO: Remove refresh
-    return [{'name': 'foo'},
-            {'name': 'bar',
+    return [{'collectionId':'11111111-1111-4444-4444-121212121212','name': 'foo'},
+            {'collectionId':'11111111-2222-4444-4444-121212121212',
+             'name': 'bar',
              'location':'CAN06', 
              'images': [{'name':'image0001', 'url': '../IMAG0120.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
                         {'name':'image0002', 'url': '../IMAG0120.JPG', 'species': [{'name':'dog','count':'1'}]},
@@ -79,7 +80,12 @@ export default function LandingUpload({setUploadInfo, onChange}) {
                         {'name':'image0030', 'url': '../IMAG0120.JPG', 'species': []},
                       ]
             }, 
-            {'name': 'zar'}, {'name': 'har'}, {'name': 'gar'}, {'name': 'far'}, {'name': 'dar'}, {'name': 'car'}];
+            {'collectionId':'11111111-3333-4444-4444-121212121212','name': 'zar'},
+            {'collectionId':'11111111-0000-4444-4444-121212121212','name': 'har'},
+            {'collectionId':'11111111-5555-4444-4444-121212121212','name': 'gar'},
+            {'collectionId':'11111111-6666-4444-4444-121212121212','name': 'far'},
+            {'collectionId':'11111111-7777-4444-4444-121212121212','name': 'dar'},
+            {'collectionId':'11111111-8888-4444-4444-121212121212','name': 'car'}];
     //return [];
   }
 
@@ -89,8 +95,9 @@ export default function LandingUpload({setUploadInfo, onChange}) {
    * @param {object} event The event object
    */ 
   function handleChange(event) {
+    const uploadInfo = JSON.parse(event.target.value);
     setSelectedUpload(event.target.value);
-    onChange(event.target.value);
+    onChange(uploadInfo);
   }
 
   // TODO: cache these
@@ -134,7 +141,7 @@ export default function LandingUpload({setUploadInfo, onChange}) {
               >
                   {
                     sandboxItems.map(function(obj, idx) {
-                      return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name} />
+                      return <FormControlLabel value={JSON.stringify(obj)} control={<Radio />} label={obj.name} key={obj.name} />
                     })
                   }
               </RadioGroup>

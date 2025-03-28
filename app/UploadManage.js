@@ -20,10 +20,10 @@ import UploadSidebarItem from './components/UploadSidebarItem'
  * Renders the UI for managing the list of uploaded folders
  * @function
  * @param {object} selectedUpload The currently selected upload
- * @param {function} onEdit Called when the user wants to edit the selected upload
+ * @param {function} onEditUpload Called when the user wants to edit the selected upload
  * @returns {object} The rendered UI
  */
-export default function UploadManage({selectedUpload, onEdit}) {
+export default function UploadManage({selectedUpload, onEditUpload}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
@@ -92,9 +92,9 @@ export default function UploadManage({selectedUpload, onEdit}) {
    * @function
    * @param {object} event The event
    */
-  function onEditUpload(event) {
+  function handleEditUpload(event) {
     event.preventDefault();
-    onEdit(sandboxItems[selectionIndex].name);
+    onEditUpload(sandboxItems[selectionIndex].collectionId, sandboxItems[selectionIndex].name, "Uploads");
   }
 
   /**
@@ -159,7 +159,7 @@ export default function UploadManage({selectedUpload, onEdit}) {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button sx={{'flex':'1'}} size="small" onClick={onEditUpload} >Edit</Button>
+                  <Button sx={{'flex':'1'}} size="small" onClick={handleEditUpload} >Edit</Button>
                   <Button sx={{'flex':'1'}} size="small"onClick={onCancelEditUpload} >Cancel</Button>
                 </CardActions>
               </Card>

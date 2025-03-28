@@ -6,8 +6,10 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import Link from '@mui/material/Link';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 import styles from './components.module.css'
 
@@ -15,10 +17,13 @@ import styles from './components.module.css'
  * Renders the title bar
  * @function
  * @param {string} [search_title] The optional title of the search field
+ * @param {array} [breadcrumbs] An optional list of breadcrumbs to display
+ * @param {string} [size] Optionally one of "small" or "full"
  * @param {function} [onSearch] The function to call to perform a search
+ * @param {function} [onBreadcrumb] The breadcrumb click handler
  * @returns {object} The rendered UI
  */
-export default function TitleBar({search_title, size, onSearch}) {
+export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb}) {
 
   /**
    * Handles the clicking of the search icon
@@ -44,42 +49,68 @@ export default function TitleBar({search_title, size, onSearch}) {
     }
   }
 
+  function handleNav(navItem) {
+    onBreadcrumb(navItem);
+  }
+
   const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};
 
   // Render the UI
   return (
     <header id='sparcd-header' className={styles.titlebar} role="banner">
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
-        <Grid container spacing={3} sx={{flexGrow:1}}>
+        <Grid container direction="column" spacing={3} sx={{flexGrow:1}}>
           <Grid item size={{xs:12, sm:12, md:12}}>
-            <Grid container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
-                <div
-                  aria-description="Scientific Photo Analysis for Research & Conservation database"
-                  className={styles.titlebar_title}>SPARC&apos;d
-                </div>
-                <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
+            <Grid container direction="row" spacing={3} sx={{flexGrow:1}}>
+              <Grid item size={{xs:12, sm:12, md:12}}>
+                <Grid container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
+                    <div
+                      aria-description="Scientific Photo Analysis for Research & Conservation database"
+                      className={styles.titlebar_title}>SPARC&apos;d
+                    </div>
+                    <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
+                </Grid>
+              </Grid>
+              <Grid item size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
+                { search_title ?
+                  <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
+                            onKeyPress={handleSearchChange}
+                            slotProps={{
+                              input: {
+                                endAdornment:
+                                  <InputAdornment position="end">
+                                    <IconButton
+                                      aria-label="description for action"
+                                      onClick={clickHandler}
+                                    >
+                                      <SearchOutlinedIcon />
+                                    </IconButton>
+                                  </InputAdornment>
+                              },
+                            }}
+                 />
+                  : null
+                }
+              </Grid>
             </Grid>
           </Grid>
-          <Grid item size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
-            { search_title ?
-              <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
-                        onKeyPress={handleSearchChange}
-                        slotProps={{
-                          input: {
-                            endAdornment:
-                              <InputAdornment position="end">
-                                <IconButton
-                                  aria-label="description for action"
-                                  onClick={clickHandler}
-                                >
-                                  <SearchOutlinedIcon />
-                                </IconButton>
-                              </InputAdornment>
-                          },
-                        }}
-             />
-              : null
+          <Grid item size={{xs:12, sm:12, md:12}} style={{paddingTop:'0', visibility:breadcrumbs ? 'visible':'hidden' }}>
+            <Typography sx={{fontSize:"xx-small"}}>
+            { breadcrumbs ? 
+                breadcrumbs.map((item, idx) => {
+                              return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
+                                        &nbsp;
+                                        <Link component="button" underline="hover"
+                                              onClick={() => handleNav(item)}
+                                        >
+                                          {item.name}{idx < (breadcrumbs.length -1) ? ' / ' : ' '}
+                                        </Link>
+                                      </React.Fragment>
+                              );}
+                            )
+              : <React.Fragment>&nbsp;</React.Fragment>
             }
+            </Typography>
           </Grid>
         </Grid>
       </Box>

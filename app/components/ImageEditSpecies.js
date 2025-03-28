@@ -59,7 +59,7 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
                   type: 'number',
                   'aria-labelledby':"species-name-"+name,
                 }}
-                sx={{flex:'6', position:'relative', marginleft:'auto', color:'inherit'}}
+                sx={{flex:'6', position:'relative', marginLeft:'auto', color:'inherit'}}
               />
           </Grid>
         </Grid>

@@ -1,6 +1,6 @@
-/** @module components/SpeciesKeybind */
-
 'use client'
+
+/** @module components/SpeciesKeybind */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
