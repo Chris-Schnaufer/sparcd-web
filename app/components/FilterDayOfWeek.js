@@ -31,6 +31,10 @@ const dayNames = [
   'SUNDAY'
 ];
 
+export function FilterDayOfWeekFormData(data, formData) {
+  formData.append('dayofweek', JSON.stringify(data));
+}
+
 export default function FilterDayOfWeek({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedDays, setSelectedDays] = React.useState(data ? data : dayNames); // The user's selections

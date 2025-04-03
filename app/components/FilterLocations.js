@@ -22,6 +22,10 @@ import { useTheme } from '@mui/material/styles';
 import { LocationsInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+export function FilterLocationsFormData(data, formData) {
+  formData.append('locations', JSON.stringify(data));
+}
+
 export default function FilterLocations({data, onClose, onChange}) {
   const theme = useTheme();
   const locationItems = React.useContext(LocationsInfoContext);

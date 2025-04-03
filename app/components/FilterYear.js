@@ -20,6 +20,12 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+export function FilterYearFormData(data, formData) {
+  formData.append('yearStart', data.start + '');
+  formData.append('yearEnd', data.end + '');
+  return formData;
+}
+
 export default function FilterYear({data, onClose, onChange}) {
   const theme = useTheme();
   const curYear = new Date().getFullYear();

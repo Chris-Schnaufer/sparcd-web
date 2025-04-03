@@ -22,6 +22,10 @@ import { useTheme } from '@mui/material/styles';
 import { CollectionsInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+export function FilterCollectionsFormData(data, formData) {
+  formData.append('collections', JSON.stringify(data));
+}
+
 export default function FilterCollections({data, onClose, onChange}) {
   const theme = useTheme();
   const collectionItems = React.useContext(CollectionsInfoContext);

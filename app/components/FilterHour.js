@@ -48,6 +48,10 @@ const hoursNames = [
   '24',
 ];
 
+export function FilterHourFormData(data, formData) {
+  formData.append('hour', JSON.stringify(data));
+}
+
 export default function FilterHour({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedHours, setSelectedHours] = React.useState(data ? data : hoursNames); // The user's selections

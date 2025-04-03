@@ -22,6 +22,10 @@ import { useTheme } from '@mui/material/styles';
 import { SpeciesInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+export function FilterSpeciesFormData(data, formData) {
+  formData.append('species', JSON.stringify(data));
+}
+
 export default function FilterSpecies({data, onClose, onChange}) {
   const theme = useTheme();
   const speciesItems = React.useContext(SpeciesInfoContext);

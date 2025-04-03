@@ -15,6 +15,10 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+export function FilterDateFormData(fieldName, data, formData) {
+  formData.append(fieldName, data.$d);
+}
+
 export default function FilterStartDate({title, data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedDateTime, setSelectedDateTime] = React.useState(data ? data.end : dayjs()); // The user's start year

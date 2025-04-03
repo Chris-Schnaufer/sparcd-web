@@ -36,6 +36,10 @@ const monthNames = [
   'DECEMBER'
 ];
 
+export function FilterMonthFormData(data, formData) {
+  formData.append('month', JSON.stringify(data));
+}
+
 export default function FilterMonth({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedMonths, setSelectedMonths] = React.useState(data ? data : monthNames); // The user's selections

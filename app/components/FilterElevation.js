@@ -20,6 +20,10 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+export function FilterElevationsFormData(data, formData) {
+  formData.append('elevations', JSON.stringify(data));
+}
+
 export default function FilterElevations({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedElevation, setSelectedElevation] = React.useState(data ? data : {type:"=", value:0.0, units:"meters"}); // The user's selections
