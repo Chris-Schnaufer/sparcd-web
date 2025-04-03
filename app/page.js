@@ -122,6 +122,7 @@ export default function Home() {
   const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
   const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
   const [serverURL, setServerURL] = React.useState(utils.getServer());
+  const [windowSize, setWindowSize] = React.useState({width:640, height:480});
 
   const loginValidStates = loginValid;
   let curLoggedIn = loggedIn;
@@ -135,11 +136,20 @@ export default function Home() {
   React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
 
   // TODO: Global window resize handler?
+  // Recalcuate available space in the window
+  React.useLayoutEffect(() => {
+    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setWindowSize(newSize);
+  }, []);
 
   // Adds a resize handler to the window, and automatically removes it
   React.useEffect(() => {
       function onResize () {
-          setIsNarrow(window.innerWidth <= 640);
+          const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+
+          // TODO: transition to MaterialUI sizes          
+          setIsNarrow(newSize.width <= 640);
+          setWindowSize(newSize);
       }
 
       window.addEventListener("resize", onResize);
@@ -483,7 +493,7 @@ export default function Home() {
   console.log('REDRAW',curAction,curActionData,editing);
   const narrowWindow = isNarrow;
   return (
-    <main className={styles.main}>
+    <main className={styles.main} style={{position:'relative'}}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
           <NarrowWindowContext.Provider value={narrowWindow}>

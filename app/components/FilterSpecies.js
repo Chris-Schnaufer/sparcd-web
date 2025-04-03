@@ -22,10 +22,23 @@ import { useTheme } from '@mui/material/styles';
 import { SpeciesInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+/**
+ * Adds species information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterSpeciesFormData(data, formData) {
   formData.append('species', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by species
+ * @param {object} {data} Saved species data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by species range
+ */
 export default function FilterSpecies({data, onClose, onChange}) {
   const theme = useTheme();
   const speciesItems = React.useContext(SpeciesInfoContext);
@@ -33,12 +46,17 @@ export default function FilterSpecies({data, onClose, onChange}) {
   const [selectedSpecies, setSelectedSpecies] = React.useState(data ? data : speciesItems.map((item)=>item.name)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Set the default data if not set yet
   React.useEffect(() => {
     if (!data) {
       onChange(selectedSpecies);
     }
   }, [selectedSpecies]);
 
+  /**
+   * Handles selecting all the species choices
+   * @function
+   */
   function handleSelectAll() {
     const curSpecies = displayedSpecies.map((item) => item.name);
     const newSpecies = curSpecies.filter((item) => selectedSpecies.findIndex((selItem) => selItem === item) < 0);
@@ -48,12 +66,22 @@ export default function FilterSpecies({data, onClose, onChange}) {
     handleClearSearch();
   }
 
+  /**
+   * Handles clearing all selected species choices
+   * @function
+   */
   function handleSelectNone() {
     setSelectedSpecies([]);
     onChange([]);
     handleClearSearch();
   }
 
+  /**
+   * Handles the user selecting or deselecting a species
+   * @function
+   * @param {object} event The triggering event data
+   * @param {string} speciesName The name of the species to add or remove from the filter
+   */
   function handleCheckboxChange(event, speciesName) {
 
     if (event.target.checked) {
@@ -77,6 +105,11 @@ export default function FilterSpecies({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles a change in the species search
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
@@ -86,6 +119,9 @@ export default function FilterSpecies({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles clearing the species search
+   */
   function handleClearSearch() {
     const searchEl = document.getElementById('file-species-search');
     if (searchEl) {
@@ -94,6 +130,7 @@ export default function FilterSpecies({data, onClose, onChange}) {
     }
   }
 
+  // Return the UI for filtering by species
   return (
     <FilterCard title="Species Filter" onClose={onClose} actions={
                 <React.Fragment>

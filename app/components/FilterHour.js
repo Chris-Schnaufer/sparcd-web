@@ -21,6 +21,7 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+// The names of the hours to use
 const hoursNames = [
   '1',
   '2',
@@ -48,31 +49,60 @@ const hoursNames = [
   '24',
 ];
 
+/**
+ * Adds hour information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterHourFormData(data, formData) {
   formData.append('hour', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by hours
+ * @param {object} {data} Saved hour data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by hour
+ */
 export default function FilterHour({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedHours, setSelectedHours] = React.useState(data ? data : hoursNames); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Set the default data if we don't have any yet
   React.useEffect(() => {
     if (!data) {
       onChange(selectedHours);
     }
   }, [selectedHours]);
 
+  /**
+   * Handles selecting all the filter choices
+   * @function
+   */
   function handleSelectAll() {
     setSelectedHours(hoursNames);
     onChange(hoursNames);
   }
 
+  /**
+   * Handles clearing all of the filter choices
+   * @function
+   */
   function handleSelectNone() {
     setSelectedHours([]);
     onChange([]);
   }
 
+
+  /**
+   * Handles the user selecting or deselecting an hour
+   * @function
+   * @param {object} event The triggering event data
+   * @param {string} hourName The name of the hour to add or remove from the filter
+   */
   function handleCheckboxChange(event, hourName) {
 
     if (event.target.checked) {
@@ -96,6 +126,7 @@ export default function FilterHour({data, onClose, onChange}) {
     }
   }
 
+  // Return the UI for filtering by the hour
   return (
     <FilterCard title="Hour Filter" onClose={onClose}
                 actions={

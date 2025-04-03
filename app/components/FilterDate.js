@@ -1,4 +1,4 @@
-/** @module components/FilterStartDate */
+/** @module components/FilterDate */
 
 import * as React from 'react';
 import dayjs from 'dayjs';
@@ -15,25 +15,48 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+/**
+ * Adds date and time information to form data
+ * @function
+ * @param {string} fieldName The name of the form field
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterDateFormData(fieldName, data, formData) {
   formData.append(fieldName, data.$d);
 }
 
-export default function FilterStartDate({title, data, onClose, onChange}) {
+/**
+ * Returns the UI for filtering by date
+ * @function
+ * @param {string} title The title of this filter
+ * @param {object} {data} Any stored data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by date
+ */
+export default function FilterDate({title, data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedDateTime, setSelectedDateTime] = React.useState(data ? data.end : dayjs()); // The user's start year
 
+  // Handle setting an initial value
   React.useEffect(() => {
     if (!data) {
       onChange(selectedDateTime);
     }
   }, [selectedDateTime]);
 
+  /**
+   * Handles when the date or time is changed
+   * @function
+   * @param {object} event The triggering event object
+   */
   function handleDateTimeChange(event) {
     setSelectedDateTime(event);
     onChange(event);
   }
 
+  // Return the rendered UI
   return (
     <FilterCard title={title} onClose={onClose} >
       <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',

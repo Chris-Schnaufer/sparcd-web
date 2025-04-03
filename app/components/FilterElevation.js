@@ -20,15 +20,29 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+/**
+ * Adds elevation information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterElevationsFormData(data, formData) {
   formData.append('elevations', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by elevation
+ * @param {object} {data} Saved elevation data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by elevation range
+ */
 export default function FilterElevations({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedElevation, setSelectedElevation] = React.useState(data ? data : {type:"=", value:0.0, units:"meters"}); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Comparison choices and their logical representation types
   const elevationChoices = [
     {name:"Equal To", type:"="},
     {name:"Greater Than", type:">"},
@@ -37,17 +51,24 @@ export default function FilterElevations({data, onClose, onChange}) {
     {name:"Less Than or Equal To",type:"<="}
   ];
 
+  // Supported elevation value units
   const elevationUnits = [
     "meters",
     "feet"
   ];
 
+  // Set the default values if they're not set yet
   React.useEffect(() => {
     if (!data) {
       onChange(selectedElevation);
     }
   }, [selectedElevation]);
 
+  /**
+   * Handles the selection of a new type of comparison
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleChangeComparison(event) {
     const curElevation = selectedElevation;
     curElevation.type = event.target.value;
@@ -55,6 +76,11 @@ export default function FilterElevations({data, onClose, onChange}) {
     onChange(curElevation);
   }
 
+  /**
+   * Handles a change in the elevation value
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleElevationChange(event) {
     const curElevation = selectedElevation;
     curElevation.value = parseFloat(event.target.value);//event.target.value;
@@ -69,6 +95,11 @@ export default function FilterElevations({data, onClose, onChange}) {
     setSelectionRedraw(curElevation.value);
   }
 
+  /**
+   * Handles the selection of a new type of measurement units
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleChangeUnits(event) {
     const curElevation = selectedElevation;
     curElevation.units = event.target.value;
@@ -76,6 +107,7 @@ export default function FilterElevations({data, onClose, onChange}) {
     onChange(curElevation);
   }
 
+  // Return the UI for the elevation filter
   return (
     <FilterCard title="Elevation Filter" onClose={onClose} >
       <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', overflow:'scroll',

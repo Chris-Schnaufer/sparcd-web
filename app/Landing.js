@@ -111,7 +111,7 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
   // Render the page depending upon user choices
   return (
     <React.Fragment>
-      <Box id='landing-page' sx={{ flexGrow: 1, 'width': '100vw' }} >
+      <Box id='landing-page' sx={{flexGrow:1, 'width':'100vw', overflow:'scroll'}} >
         <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}} sx={{ 'margin': '4vw' }} >
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 

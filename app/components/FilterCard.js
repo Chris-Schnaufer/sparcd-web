@@ -12,6 +12,15 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+/**
+ * Returns the wrapper UI for filters
+ * @function
+ * @param {string} title The title of the filter
+ * @param {function} onClose Called when the filter is to be closed
+ * @param {array} actions Array of actions to add to the filter (after the children)
+ * @param {object} {children} The child elements of the filter (filter specific UI elements)
+ * @returns {object} The UI of the filter
+ */
 export default function FilterCard({title, onClose, actions, children}) {
   const theme = useTheme();
 

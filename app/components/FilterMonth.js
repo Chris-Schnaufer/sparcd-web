@@ -21,6 +21,7 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+// The names of the month to use
 const monthNames = [
   'JANUARY',
   'FEBRUARY',
@@ -36,31 +37,59 @@ const monthNames = [
   'DECEMBER'
 ];
 
+/**
+ * Adds month information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterMonthFormData(data, formData) {
   formData.append('month', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by month
+ * @param {object} {data} Saved month data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by month
+ */
 export default function FilterMonth({data, onClose, onChange}) {
   const theme = useTheme();
   const [selectedMonths, setSelectedMonths] = React.useState(data ? data : monthNames); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Set hte default data if we don't have any
   React.useEffect(() => {
     if (!data) {
       onChange(selectedMonths);
     }
   }, [selectedMonths]);
 
+  /**
+   * Handle selecting all the filter choices
+   * @function
+   */
   function handleSelectAll() {
     setSelectedMonths(monthNames);
     onChange(monthNames);
   }
 
+  /**
+   * Handles clearing all the filter choices
+   * @function
+   */
   function handleSelectNone() {
     setSelectedMonths([]);
     onChange([]);
   }
 
+  /**
+   * Handles the user selecting or deselecting an month
+   * @function
+   * @param {object} event The triggering event data
+   * @param {string} monthName The name of the month to add or remove from the filter
+   */
   function handleCheckboxChange(event, monthName) {
 
     if (event.target.checked) {
@@ -84,6 +113,7 @@ export default function FilterMonth({data, onClose, onChange}) {
     }
   }
 
+  // Return the UI for the month filter
   return (
     <FilterCard title="Month Filter" onClose={onClose} 
                 actions={

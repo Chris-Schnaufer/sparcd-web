@@ -22,10 +22,23 @@ import { useTheme } from '@mui/material/styles';
 import { LocationsInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+/**
+ * Adds location information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterLocationsFormData(data, formData) {
   formData.append('locations', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by location
+ * @param {object} {data} Saved location data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by location range
+ */
 export default function FilterLocations({data, onClose, onChange}) {
   const theme = useTheme();
   const locationItems = React.useContext(LocationsInfoContext);
@@ -33,12 +46,17 @@ export default function FilterLocations({data, onClose, onChange}) {
   const [selectedLocations, setSelectedLocations] = React.useState(data ? data : locationItems.map((item)=>item.nameProperty)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Set the default data if it's not set yet
   React.useEffect(() => {
     if (!data) {
       onChange(selectedLocations);
     }
   }, [selectedLocations]);
 
+  /**
+   * Handles selecting all the location choices
+   * @function
+   */
   function handleSelectAll() {
     const curLocations = displayedLocations.map((item) => item.nameProperty);
     const newLocations = curLocations.filter((item) => selectedLocations.findIndex((selItem) => selItem === item) < 0);
@@ -48,12 +66,22 @@ export default function FilterLocations({data, onClose, onChange}) {
     handleClearSearch();
   }
 
+  /**
+   * Handles clearing all selected location choices
+   * @function
+   */
   function handleSelectNone() {
     setSelectedLocations([]);
     onChange([]);
     handleClearSearch();
   }
 
+  /**
+   * Handles the user selecting or deselecting a location
+   * @function
+   * @param {object} event The triggering event data
+   * @param {string} locationName The name of the location to add or remove from the filter
+   */
   function handleCheckboxChange(event, locationName) {
 
     if (event.target.checked) {
@@ -77,6 +105,11 @@ export default function FilterLocations({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles a change in the locations search
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
@@ -87,6 +120,9 @@ export default function FilterLocations({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles clearing the locations search
+   */
   function handleClearSearch() {
     const searchEl = document.getElementById('file-location-search');
     if (searchEl) {
@@ -95,6 +131,7 @@ export default function FilterLocations({data, onClose, onChange}) {
     }
   }
 
+  // Return the UI for filtering on locations
   return (
     <FilterCard title="Locations Filter" onClose={onClose}
                 actions={

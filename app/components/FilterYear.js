@@ -20,12 +20,25 @@ import { useTheme } from '@mui/material/styles';
 
 import FilterCard from './FilterCard'
 
+/**
+ * Adds year range information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterYearFormData(data, formData) {
   formData.append('yearStart', data.start + '');
   formData.append('yearEnd', data.end + '');
   return formData;
 }
 
+/**
+ * Returns the UI for filtering by year range
+ * @param {object} {data} Saved year data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by year range
+ */
 export default function FilterYear({data, onClose, onChange}) {
   const theme = useTheme();
   const curYear = new Date().getFullYear();
@@ -34,12 +47,18 @@ export default function FilterYear({data, onClose, onChange}) {
   const [yearEndError, setYearEndError] = React.useState(false); // The user's end year is in error
   const [yearStartError, setYearStartError] = React.useState(false); // The user's start year is in error
 
+  // Set the default data if it's not set yet
   React.useEffect(() => {
     if (!data) {
       onChange({start:selectedYearStart, end:selectedYearEnd});
     }
   }, [selectedYearStart,selectedYearEnd]);
 
+  /**
+   * Handles the starting year changing
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleYearStartChange(event) {
     const newYear = parseInt(event.target.value);
     setSelectedYearStart(newYear);
@@ -51,6 +70,11 @@ export default function FilterYear({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles the ending year changing
+   * @function
+   * @param {object} event The triggering event data
+   */
   function handleYearEndChange(event) {
     const newYear = parseInt(event.target.value);
     setSelectedYearEnd(newYear);
@@ -62,6 +86,7 @@ export default function FilterYear({data, onClose, onChange}) {
     }
   }
 
+  // Return the UI for filtering by year
   return (
     <FilterCard title="Year Filter" onClose={onClose} >
       <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',

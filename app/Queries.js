@@ -1,4 +1,4 @@
-/** @module CollectionsManage */
+/** @module Queries */
 
 import * as React from 'react';
 import AddCircleOutlineOutlinedIcon from '@mui/icons-material/AddCircleOutlineOutlined';
@@ -38,11 +38,16 @@ import FilterSpecies, { FilterSpeciesFormData } from './components/FilterSpecies
 import FilterYear, { FilterYearFormData } from './components/FilterYear';
 import * as utils from './utils'
 
-import { resp } from './queryresult';
+import { resp } from './queryresult'; //TODO: remove when obtaining real data
 
+/**
+ * Provides the UI for queries
+ * @function
+ * @returns {object} The UI for generating queries
+ */
 export default function Queries() {
   const theme = useTheme();
-  const apiRef = useGridApiRef(); // TODO: Auto size columns
+  const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const [activeTab, setActiveTab] = React.useState(0);
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [filterSelected, setFilterSelected] = React.useState(false); // Indicates a new filter is selected
@@ -54,10 +59,7 @@ export default function Queries() {
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
-  const handleChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
+  // The names of the available filters
   const filterNames = [
     'Species Filter',
     'Location Filter',
@@ -70,6 +72,16 @@ export default function Queries() {
     'End Date Filter',
     'Collection Filter'
   ];
+
+  /**
+   * Updates fields when a new tab is selected for display
+   * @function
+   * @param {object} event The triggering event object
+   * @param {object} newValue The new tab value
+   */
+  function handleTabChange(event, newValue) {
+    setActiveTab(newValue);
+  }
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -115,6 +127,10 @@ export default function Queries() {
     setWorkspaceWidth(curSize.width);
   }
 
+  /**
+   * Handles displaying a filter type selection when the user wants to add a new filter
+   * @function
+   */
   function handleNewFilter() {
     let elFilter = document.getElementById('query-filter-selection-wrapper');
     if (!elFilter) {
@@ -123,11 +139,17 @@ export default function Queries() {
     elFilter.style.visibility = 'visible';
   }
 
+  /**
+   * Adds a new filter to the list of filters
+   * @function
+   */
   function addFilter() {
+    // Get the filter elements we need to access
     let elFilter = document.getElementById('query-filter-selection-wrapper');
     if (!elFilter) {
       return;
     }
+    // Show the spinner until the new filter is added
     let elFilterWait = document.getElementById("query-filter-selection-waiting");
     if (elFilterWait) {
       if (elFilter.style.visibility === 'visible') {
@@ -135,10 +157,12 @@ export default function Queries() {
       }
     }
 
+    // Add the new filter to the array of filters
     const newFilter = {type:filterSelected, id:crypto.randomUUID(), data:null}
     const allFilters = filters;
     allFilters.push(newFilter);
 
+    // Set the timeout to remove the spinner and update the UI
     window.setTimeout(() => {
                   elFilter.style.visibility = 'hidden';
                   if (elFilterWait) {
@@ -150,6 +174,10 @@ export default function Queries() {
                 });
   }
 
+  /**
+   * Called when the user decides they don't want a new filter
+   * @function
+   */
   function cancelAddFilter() {
     let elFilter = document.getElementById('query-filter-selection-wrapper');
     if (!elFilter) {
@@ -158,6 +186,11 @@ export default function Queries() {
     elFilter.style.visibility = 'hidden';
   }
 
+  /**
+   * Removes a filter from the list
+   * @function
+   * @param {string} filterId The unique ID of the filter to remove
+   */
   function removeFilter(filterId) {
     const remainingFilters = filters.filter((item) => item.id != filterId);
     setFilters(remainingFilters);
@@ -165,6 +198,12 @@ export default function Queries() {
     setFilterRedraw(crypto.randomUUID());
   }
 
+  /**
+   * Called when the data for a filter is changed
+   * @function
+   * @param {string} filterId The ID of the filter to update
+   * @param {object} filterData The new filter data to save
+   */
   function handleFilterChange(filterId, filterData) {
     const filterIdx = filters.findIndex((item) => item.id === filterId);
     if (filterIdx > -1) {
@@ -174,14 +213,21 @@ export default function Queries() {
     }
   }
 
+  /**
+   * Handles adding a new filter when a filter is double-clicked
+   * @function
+   * @param {string} filterChoice The filter name that is to be added
+   */
   function handleFilterAccepted(filterChoice) {
     let elFilter = document.getElementById('query-filter-selection-wrapper');
+    // Show the wait spinner
     let elFilterWait = document.getElementById("query-filter-selection-waiting");
     if (elFilter && elFilterWait) {
       if (elFilter.style.visibility === 'visible') {
         elFilterWait.style.visibility = 'visible';
       }
     }
+    // Set the timeout to add the filter and update the UI
     window.setTimeout(() => { setFilterSelected(filterChoice);
                               addFilter();
                               if (elFilterWait) {
@@ -190,6 +236,12 @@ export default function Queries() {
                             }, 100);
   }
 
+  /**
+   * Fills in the form data for all of the user's filters
+   * @function
+   * @param {array} queryFilters The array of filter information to use to fill in the FormData
+   * @returns {object} Returns a new FormData with the filters added
+   */
   function getQueryFormData(queryFilters) {
     let formData = new FormData();
 
@@ -232,6 +284,10 @@ export default function Queries() {
     return formData;
   }
 
+  /**
+   * Makes the call to get the query data and saves the results
+   * @function
+   */
   function handleQuery() {
     const uploadUrl = serverURL + '/query';
     const formData = getQueryFormData(filters);
@@ -248,6 +304,12 @@ export default function Queries() {
     setQueryResults(resp);
   }
 
+  /**
+   * Returns the UI fields for each filter type
+   * @function
+   * @param {object} filterInfo The information on the filter to return the UI for
+   * @returns {object} The filter-specific UI to render
+   */
   function generateFilterTile(filterInfo) {
     switch(filterInfo.type) {
       case 'Collection Filter':
@@ -318,6 +380,12 @@ export default function Queries() {
     }
   }
 
+  /**
+   * Internal TabPanel element type
+   * @function
+   * @param {object} props The properties of the TabPanel element
+   * @returns {object} Returns the UI for the TabPanel
+   */
   function TabPanel(props) {
     const { children, value, index, ...other } = props;
 
@@ -338,12 +406,19 @@ export default function Queries() {
     );
   }
 
+  // Define the types of the properties accepted by the TabPanel
   TabPanel.propTypes = {
     children: PropTypes.node,
     index: PropTypes.number.isRequired,
     value: PropTypes.number.isRequired,
   };
 
+  /**
+   * Returns the a11y properties for a tab control
+   * @function
+   * @param {integer} index The index of the tab
+   * @returns {object} The properties to use for the tab
+   */
   function a11yPropsTabPanel(index) {
     return {
       id: `query-results-${index}`,
@@ -351,7 +426,17 @@ export default function Queries() {
     };
   }
 
+  /**
+   * Generates a panel for displaying the query results based upon different tabs
+   * @function
+   * @param {object} queryResults The results of the performed query
+   * @param {string} tabName The unique identifier of the tab to generate the panel for
+   * @param {integer} tabIndex The relative index of the tab
+   * @returns {object} The panel UI to render
+   */ 
   function generateResultPanel(queryResults, tabName, tabIndex) {
+
+      // Generate a textarea to display the results if we aren't generating a data grid
     if (queryResults.columns[tabName] == undefined) {
       return (
           <textarea id={'query-results-'+tabName} readOnly wrap="off"
@@ -362,6 +447,7 @@ export default function Queries() {
       );
     }
 
+    // Generate a DataGrid to display the results
     let colTitles = queryResults.columns[tabName];
     let colData = queryResults[tabName];
     let keys = Object.keys(colTitles);
@@ -374,7 +460,7 @@ export default function Queries() {
       curData = colData.map((row, rowIdx) => {return {id:rowIdx, ...row}});
     }
 
-    // Check if we have column groupings and update fields when we do
+    // Check if we have column groupings and regenerate/update variables if we do
     if (keys.find((item) => typeof(colTitles[item]) === 'object' && !Array.isArray(colTitles[item])) != undefined) {
       let newKeys = [];
       let newTitles = [];
@@ -419,11 +505,17 @@ export default function Queries() {
     );
   }
 
+  /**
+   * Generates the UI for displaying query results
+   * @param {object} queryResults The results of a query to display
+   * @returns {object} The UI of the query results
+   */
   function generateQueryResults(queryResults) {
     return (
       <Grid container alignItems="start" justifyContent="start" >
-        <Grid item  xs={2}  sx={{backgroundColor:"#EAEAEA"}}>
-          <Tabs value={activeTab} onChange={handleChange} aria-label="Query results" orientation="vertical" variant="scrollable">
+        <Grid item xs={2}  sx={{backgroundColor:"#EAEAEA"}}>
+          <Tabs id='testing' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable" scrollButtons={false}
+                style={{overflow:'scroll', maxHeight:'215px'}}>
           { queryResults.tabs.order.map((item, idx) => 
               <Tab label={
                           <Grid container direction="row" alignItems="center" justifyContent="center">
@@ -461,11 +553,13 @@ export default function Queries() {
     );
   }
 
+  // Set a time to have new panels scroll into view
   const elActions = document.getElementById('queries-actions');
   if (elActions && filters) {
     window.setTimeout(() => elActions.scrollIntoView({ behavior:'smooth', inline:'nearest'}), 10);
   }
 
+  // Return the UI
   const curHeight = 350;//((totalHeight || 480) / 2.0) + 'px';
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >

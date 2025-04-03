@@ -22,10 +22,24 @@ import { useTheme } from '@mui/material/styles';
 import { CollectionsInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
 
+/**
+ * Adds collection information to form data
+ * @function
+ * @param {object} data The saved data to add to the form
+ * @param {object} formData The FormData to add the fields to
+ */
 export function FilterCollectionsFormData(data, formData) {
   formData.append('collections', JSON.stringify(data));
 }
 
+/**
+ * Returns the UI for filtering by date
+ * @function
+ * @param {object} {data} Any stored collections data
+ * @param {function} onClose The handler for closing this filter
+ * @param {function} onChange The handler for when the filter data changes
+ * @returns {object} The UI specific for filtering by collection
+ */
 export default function FilterCollections({data, onClose, onChange}) {
   const theme = useTheme();
   const collectionItems = React.useContext(CollectionsInfoContext);
@@ -33,12 +47,17 @@ export default function FilterCollections({data, onClose, onChange}) {
   const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.name)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
+  // Set the initial data if we don't have any
   React.useEffect(() => {
     if (!data) {
       onChange(selectedCollections);
     }
   }, [selectedCollections]);
 
+  /**
+   * Handles selecting all collections to the filter
+   * @function
+   */
   function handleSelectAll() {
     const curCollections = displayedCollections.map((item) => item.name);
     const newCollections = curCollections.filter((item) => selectedCollections.findIndex((selItem) => selItem === item) < 0);
@@ -48,12 +67,22 @@ export default function FilterCollections({data, onClose, onChange}) {
     handleClearSearch();
   }
 
+  /**
+   * Clears all selected collections
+   * @function
+   */
   function handleSelectNone() {
     setSelectedCollections([]);
     onChange([]);
     handleClearSearch();
   }
 
+  /**
+   * Handles when the user selects or deselects a collection
+   * @function
+   * @param {object} event The triggering event object
+   * @param {string} collectionName The name of the collection to add or remove
+   */
   function handleCheckboxChange(event, collectionName) {
 
     if (event.target.checked) {
@@ -77,6 +106,11 @@ export default function FilterCollections({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles the user changing the search criteria
+   * @function
+   * @param {object} event The triggering event
+   */
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
@@ -86,6 +120,10 @@ export default function FilterCollections({data, onClose, onChange}) {
     }
   }
 
+  /**
+   * Handles resetting the search field
+   * @function
+   */
   function handleClearSearch() {
     const searchEl = document.getElementById('file-collections-search');
     if (searchEl) {
@@ -94,6 +132,7 @@ export default function FilterCollections({data, onClose, onChange}) {
     }
   }
 
+  // Return the collection filter UI
   return (
     <FilterCard title="Collections Filter" onClose={onClose}
                 actions={
