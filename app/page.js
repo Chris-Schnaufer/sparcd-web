@@ -1,23 +1,24 @@
 'use client'
 
 import * as React from 'react';
-import styles from './page.module.css'
+import styles from './page.module.css';
 import { ThemeProvider } from "@mui/material/styles";
 
-import CollectionsManage from './CollectionsManage'
-import FooterBar from './components/FooterBar'
-import Landing from './Landing'
-import Login from './Login'
-import Queries from './Queries'
-import theme from './Theme'
-import TitleBar from './components/TitleBar'
-import UploadManage from './UploadManage'
-import UploadEdit from './UploadEdit'
-import UserActions from './components/userActions'
-import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin'
+import CollectionsManage from './CollectionsManage';
+import FooterBar from './components/FooterBar';
+import Landing from './Landing';
+import Login from './Login';
+import Maps from './Maps';
+import Queries from './Queries';
+import theme from './Theme';
+import TitleBar from './components/TitleBar';
+import UploadManage from './UploadManage';
+import UploadEdit from './UploadEdit';
+import UserActions from './components/userActions';
+import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, NarrowWindowContext, 
-         SandboxInfoContext, TokenContext, UploadEditContext } from './serverInfo'
-import * as utils from './utils'
+         SandboxInfoContext, TokenContext, UploadEditContext } from './serverInfo';
+import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
 const loginStore = {
@@ -473,7 +474,6 @@ export default function Home() {
            </BaseURLContext.Provider>
       );
       case UserActions.Query:
-        console.log('QUERY');
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
@@ -484,8 +484,10 @@ export default function Home() {
            </BaseURLContext.Provider>
         );
       case UserActions.Maps:
-        console.log('MAPS');
-        return ( <React.Fragment/>
+        return (
+            <TokenContext.Provider value={lastToken}>
+              <Maps />
+            </TokenContext.Provider>
         );
     }
   }
