@@ -1,10 +1,8 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 
-
 import ResizeObserver from 'resize-observer-polyfill';
 global.ResizeObserver = ResizeObserver;
-
 
 const inter = Inter({ subsets: ['latin'] })
 

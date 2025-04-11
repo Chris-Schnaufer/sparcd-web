@@ -123,9 +123,12 @@ export default function Home() {
   const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
   const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
   const [serverURL, setServerURL] = React.useState(utils.getServer());
+  const [userSettings, setUserSettings] =  React.useState(null);
   const [windowSize, setWindowSize] = React.useState({width:640, height:480});
 
   const loginValidStates = loginValid;
+  let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
+  let settingsRequestId = 0;        // Used to prevent sending multiple requests to server
   let curLoggedIn = loggedIn;
 
   handleSearch = handleSearch.bind(Home);
@@ -168,6 +171,9 @@ export default function Home() {
       if (lastLoginToken) {
         curLoggedIn = loginUserToken(lastLoginToken);
         setLoggedIn(curLoggedIn);
+        if (curLoggedIn) {
+          getUserSettings();
+        }
       }
       if (!lastLoginToken || !curLoggedIn) {
         loginStore.clearLoginToken();
@@ -193,14 +199,12 @@ export default function Home() {
 
   function restoreBreadcrumb(breadcrumb) {
     const curCrumbs = breadcrumbs;
-    curCrumbs.forEach((x) => console.log('RESTOREBREADCRUMBS',x));
     let curRestore = null;
     do {
       curRestore = curCrumbs.pop();
       if (curRestore && curRestore.name !== breadcrumb.name) {
       }
     } while (curRestore && curRestore.name !== breadcrumb.name);
-    console.log('       ',breadcrumb.name);
     setCurAction(breadcrumb.action);
     setCurActionData(breadcrumb.actionData);
     setEditing(breadcrumb.editing);
@@ -246,6 +250,7 @@ export default function Home() {
       'data': formData
     });
     console.log(resp);
+    Save User Settings
     */
 
     return crypto.randomUUID();
@@ -267,6 +272,7 @@ export default function Home() {
     console.log('LOGIN TOKEN', token);
     // TODO: make call
     // return commonLoginUser(formData);
+    // Save user settings
     return true;
   }
 
@@ -305,7 +311,7 @@ export default function Home() {
     // Get the information on the upload
     /* TODO: make call and wait for respone & return correct result
              need to handle null, 'invalid', and token values
-    const resp = await fetch(loginUrl, {
+    const resp = await fetch(uploadUrl, {
       'method': 'POST',
       'data': formData
     });
@@ -414,6 +420,54 @@ export default function Home() {
     setCurSearchHandler(() => searchHandler);
   }
 
+  function getUserSettings() {
+    const settingsUrl = serverURL + '/settings';
+    // Get the information on the upload
+    /* TODO: make call and wait for respone & return correct result
+             need to handle null, 'invalid', and token values
+    const resp = await fetch(settingsUrl, {
+      'method': 'GET',
+      'data': formData
+    });
+    console.log(resp);
+    S
+    */
+  }
+
+  function updateUserSettings(userSettings) {
+    const settingsUrl = serverURL + '/settings';
+    // Get the information on the upload
+    /* TODO: make call and wait for respone & return correct result
+             need to handle null, 'invalid', and token values
+    const resp = await fetch(settingsUrl, {
+      'method': 'POST',
+      'data': formData
+    });
+    console.log(resp);
+    */
+    setUserSettings(userSettings);
+  }
+
+  function handleSettings(userSettings) {
+    console.log('HANDLESETTINGS');
+    const mySettingsId = settingsRequestId = settingsRequestId+1;
+    const workingTimeoutId = settingsTimeoutId;
+    settingsTimeoutId = null;
+    if (workingTimeoutId != null) {
+      window.clearTimeout(workingTimeoutId);
+    }
+    window.setTimeout(() => {
+      // If we're still the only one trying to send settings, send them
+      if (settingsRequestId === mySettingsId) {
+        settingsTimeoutId = window.setTimeout(() =>
+                  {
+                    if (settingsRequestId === mySettingsId) updateUserSettings(userSettings)
+                  }
+        );
+      }
+    }, 500);
+  }
+
   // Get mobile device information if we don't have it yet
   if (mobileDevice == null && !mobileDeviceChecked) {
     setMobileDevice(navigator.userAgent.indexOf('Mobi') > -1);
@@ -425,7 +479,6 @@ export default function Home() {
     //const lastToken = loginStore.loadLoginToken();
     switch(action) {
       case UserActions.None:
-        console.log('NONE');
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
@@ -438,7 +491,6 @@ export default function Home() {
            </BaseURLContext.Provider>
         );
       case UserActions.Upload:
-        console.log('UPLOAD');
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
@@ -449,7 +501,6 @@ export default function Home() {
            </BaseURLContext.Provider>
         );
       case UserActions.UploadEdit:
-        console.log('UPLOAD EDIT');
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
@@ -462,7 +513,6 @@ export default function Home() {
            </BaseURLContext.Provider>
         );
       case UserActions.Collection:
-        console.log('COLLECTION');
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
@@ -492,14 +542,14 @@ export default function Home() {
     }
   }
 
-  console.log('REDRAW',curAction,curActionData,editing);
   const narrowWindow = isNarrow;
   return (
     <main className={styles.main} style={{position:'relative'}}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
           <NarrowWindowContext.Provider value={narrowWindow}>
-          <TitleBar search_title={curSearchTitle} onSearch={handleSearch} size={narrowWindow?"small":"normal"} 
+          <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
+                    size={narrowWindow?"small":"normal"} 
                     breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb}/>
           {!curLoggedIn ? 
              <LoginValidContext.Provider value={loginValidStates}>

@@ -7,10 +7,12 @@ import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import Settings from './Settings';
 import styles from './components.module.css'
 
 /**
@@ -21,9 +23,11 @@ import styles from './components.module.css'
  * @param {string} [size] Optionally one of "small" or "full"
  * @param {function} [onSearch] The function to call to perform a search
  * @param {function} [onBreadcrumb] The breadcrumb click handler
+ * @param {function} onSettings The settings click handler
  * @returns {object} The rendered UI
  */
-export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb}) {
+export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings}) {
+  const [showSettings, setShowSettings] = React.useState(false);
 
   /**
    * Handles the clicking of the search icon
@@ -49,8 +53,21 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
     }
   }
 
+  /**
+   * Handles the user requesting breadcrumb navigation
+   * @function
+   * @param {object} navItem The chosen breadcrumb navigation item
+   */
   function handleNav(navItem) {
     onBreadcrumb(navItem);
+  }
+
+  /**
+   * Handles the user requesting settings closure
+   * @function
+   */
+  function handleSettingsClose() {
+    setShowSettings(false);
   }
 
   const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};
@@ -72,25 +89,29 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
                 </Grid>
               </Grid>
               <Grid item size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
-                { search_title ?
-                  <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
-                            onKeyPress={handleSearchChange}
-                            slotProps={{
-                              input: {
-                                endAdornment:
-                                  <InputAdornment position="end">
-                                    <IconButton
-                                      aria-label="description for action"
-                                      onClick={clickHandler}
-                                    >
-                                      <SearchOutlinedIcon />
-                                    </IconButton>
-                                  </InputAdornment>
-                              },
-                            }}
-                 />
-                  : null
-                }
+                <Grid container direction="row">
+                  { search_title &&
+                    <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
+                              onKeyPress={handleSearchChange}
+                              slotProps={{
+                                input: {
+                                  endAdornment:
+                                    <InputAdornment position="end">
+                                      <IconButton
+                                        aria-label="description for action"
+                                        onClick={clickHandler}
+                                      >
+                                        <SearchOutlinedIcon />
+                                      </IconButton>
+                                    </InputAdornment>
+                                },
+                              }}
+                   />
+                  }
+                  <IconButton onClick={() => setShowSettings(true)}>
+                    <MenuOutlinedIcon />
+                  </IconButton>
+                </Grid>
               </Grid>
             </Grid>
           </Grid>
@@ -114,6 +135,8 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
           </Grid>
         </Grid>
       </Box>
+      {showSettings && onSettings != null && <Settings onChange={onSettings} onClose={handleSettingsClose} />
+      }
     </header>
     );
 }

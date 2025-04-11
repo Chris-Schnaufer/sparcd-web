@@ -8,7 +8,6 @@ import '@arcgis/map-components/dist/components/arcgis-legend';
 import '@arcgis/map-components/dist/components/arcgis-map';
 import '@arcgis/map-components/dist/components/arcgis-zoom';
 import Collection from "@arcgis/core/core/Collection";
-import Extent from "@arcgis/core/geometry/Extent";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import Graphic from "@arcgis/core/Graphic";
@@ -21,28 +20,33 @@ import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 
 import { LocationsInfoContext } from '../serverInfo'
 
-export default function MapsEsri({extent, center, mapName, mapChoices, onChange, top, width, height}) {
+/**
+ * Returns the UI for displaying an ESRI map
+ * @function
+ * @param {object} enter An X, Y value with the center of the area of interest
+ * @param {string} mapName The ESRI name of the map to display
+ * @param {array} mapChoices An array of available map display choice objects
+ * @param {function} onChange Handler for when the user changes the map to display
+ * @param {int} top The top position of the map element
+ * @param {int} width The width of the map element (assumed to start at left:0)
+ * @param {int} height The height of the map element
+ */
+export default function MapsEsri({center, mapName, mapChoices, onChange, top, width, height}) {
   const locationItems = React.useContext(LocationsInfoContext);
-  const mapRef = React.useRef();
-  const [configureReady, setConfigureReady] = React.useState(false);
-  const [layerCollection, setLayerCollection] = React.useState(null);
+  const [layerCollection, setLayerCollection] = React.useState(null); // The array of layers to display
 
-  let addLayerCount = 0;
-
+  // When the map div is available, setup the map
   React.useLayoutEffect(() => {
-    if (typeof window !== 'undefined')
-      window.setTimeout(() => setConfigureReady(true), 500);
-  }, [setConfigureReady]);
-
-  React.useLayoutEffect(() => { // NEW
     const mapEl = document.getElementById('viewDiv');
     if (mapEl) {
-      const layers = getLocationLayer();
-      const map = new Map({basemap:mapName, layers:layers});
+      const layers = getLocationLayer();                      // Displayed layers
+      const map = new Map({basemap:mapName, layers:layers});  // Create the map of desired ty[e]
 
-      let curMapName = mapChoices.find((item) => item.config.mapName === mapName);
-      curMapName = curMapName ? curMapName.value : mapChoices[0].value;
+      // Get the value of the selected map for initial choice on map chooser
+      const curMapName = mapChoices.find((item) => item.config.mapName === mapName);
+      const curMapValue = curMapName ? curMapName.value : mapChoices[0].value;
 
+      // Get the names of the maps and create the display control
       const collectionNames = mapChoices.map((item) => {return {label:item.name, value:item.value};});
       const valuePicker = new ValuePicker({
         visibleElements: {
@@ -55,15 +59,17 @@ export default function MapsEsri({extent, center, mapName, mapChoices, onChange,
           placeholder: "Map Type",
           items: collectionNames
         },
-        values: [curMapName],
+        values: [curMapValue],
         visible: true
       });
 
+      // Add a watcher for when the map choice changes
       reactiveUtils.watch(
         () => valuePicker.values,
         (values) => onChange(values[0])
       );
 
+      // Create the view onto the map
       const view = new MapView({
         map: map,
         container: 'viewDiv',
@@ -71,12 +77,16 @@ export default function MapsEsri({extent, center, mapName, mapChoices, onChange,
         zoom: 7
       });
 
-      // add the UI components to the view
+      // Add the map picker to the display
       view.ui.add(valuePicker, "top-right");
 
     }
   } ,[mapName]);
 
+  /**
+   * Generates the locations layer for display
+   * @function
+   */
   function getLocationLayer() {
     let curCollection = layerCollection || [];
     if (!layerCollection) {
@@ -136,6 +146,11 @@ export default function MapsEsri({extent, center, mapName, mapChoices, onChange,
     return curCollection;
   }
 
+  /**
+   * Handles the popover for locations
+   * @function
+   * @param {object} event The event data to check
+   */
   function onMouseOverPopup(event) { 
     // See: https://support.esri.com/en-us/knowledge-base/how-to-display-pop-ups-using-a-mouse-hover-in-arcgis-ap-000024297
     /*
@@ -158,8 +173,8 @@ export default function MapsEsri({extent, center, mapName, mapChoices, onChange,
     */
   }
 
-  const curExtent = new Extent({xmin:extent[0].x, xmax:extent[1].x, ymin:extent[1].y, ymax:extent[0].y, zoom:7});
-  return ( // NEW
+  // Return the UI
+  return (
     <React.Fragment>
       <div id="viewDiv" style={{width:width+'px', maxWidth:width+'px', height:height+'px', maxHeight:height+'px', position:'absolute', top:top+'px'}} >
       </div>

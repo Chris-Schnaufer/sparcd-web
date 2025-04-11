@@ -1862,6 +1862,12 @@ export const SpeciesInfoContext = createContext([
   }
 ].sort((a,b) => a.name.localeCompare(b.name)));
 
+/** React context for geographic coordinate choices */
+export const geographicCoordinates = [
+  {"name":"UTM", "value":"URL"},
+  {"name":"Latitude & Longitude", "value":"LATLON"},
+];
+
 /** React context for user login token */
 export const TokenContext = createContext(null);
 /** React context for running on a mobile device */

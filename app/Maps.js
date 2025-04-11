@@ -5,10 +5,9 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
-//import MapsEsri from './components/MapsEsri';
 import * as utils from './utils';
 
-
+// Lazy load the ESRI component because that's the way it needs to be
 const MapsEsriLazyload = React.lazy(() => import('./components/MapsEsri'));
 
 
@@ -17,7 +16,7 @@ const MapsEsriLazyload = React.lazy(() => import('./components/MapsEsri'));
  * @function
  * @returns {object} The UI for showing maps
  */
-export default function Queries() {
+export default function Maps() {
   const theme = useTheme();
   const [curMapChoice, setCurMapChoice] = React.useState(null); // The current map to display
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
@@ -28,6 +27,7 @@ export default function Queries() {
   const extent = [{x:-109.0, y:36.0}, {x:-115.0, y:30.0}];
   const center = {x:-110.9742, y:32.2540}
 
+  // All the ESRI map choices we're supporting
   const mapChoices = [
     {provider:'esri', name:'Esri World Street Map', value:'streets-vector', config:{mapName:'streets-vector'}},
     {provider:'esri', name:'Esri World Topo Map', value:'topo-vector', config:{mapName:'topo-vector'}},
@@ -36,9 +36,8 @@ export default function Queries() {
 
 /*
   OpenTopoMap("Open Topo Map", "https://opentopomap.org/about", new MapTileLayer("OpenTopoMap", "https://{c}.tile.opentopomap.org/{z}/{x}/{y}.png", 0, 17)),
-  EsriWorldStreetMap("Esri World Street Map", "https://www.esri.com/en-us/home", new MapTileLayer("EsriWorldStreetMap", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", 0, 19)),
-  EsriWorldTopoMap("Esri World Topo Map", "https://www.esri.com/en-us/home", new MapTileLayer("EsriWorldTopoMap", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", 0, 19)),
-  EsriWorldImagery("Esri World Imagery", "https://www.esri.com/en-us/home", new MapTileLayer("EsriWorldImagery", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 0, 19));
+
+  https://giuliacajati.medium.com/all-about-openstreetmap-using-react-js-c24fd0856aca
 */
 
   // Recalcuate available space in the window
@@ -85,11 +84,17 @@ export default function Queries() {
     setWorkspaceWidth(curSize.width);
   }
 
+  /**
+   * Handle the user choosing a different ESRI map to display
+   * @function
+   * @param {string} newMapValue The value associated with the new map
+   */
   function handleMapChanged(newMapValue) {
     const newChoice = mapChoices.find((item) => item.value === newMapValue);
     setCurMapChoice(newChoice);
   }
 
+  // Set the map to the default if one isn't specified
   if (!curMapChoice) {
     setCurMapChoice(mapChoices[0]);
   }
@@ -99,7 +104,7 @@ export default function Queries() {
   return (
     <Box id='maps-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
       {curMapChoice && curMapChoice.provider === 'esri' 
-          && <MapsEsriLazyload extent={extent} center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
+          && <MapsEsriLazyload center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
                                mapChoices={mapChoices} {...curMapChoice.config} onChange={handleMapChanged}
               />
       }
