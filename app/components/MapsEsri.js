@@ -9,13 +9,19 @@ import '@arcgis/map-components/dist/components/arcgis-map';
 import '@arcgis/map-components/dist/components/arcgis-zoom';
 import Collection from "@arcgis/core/core/Collection";
 import Extent from "@arcgis/core/geometry/Extent";
+import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import Graphic from "@arcgis/core/Graphic";
+import Map from "@arcgis/core/Map";
+import MapView from "@arcgis/core/views/MapView";
 import Point from "@arcgis/core/geometry/Point";
+import ValuePicker from "@arcgis/core/widgets/ValuePicker";
+import ValuePickerCombobox from "@arcgis/core/widgets/ValuePicker/ValuePickerCombobox";
+import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 
 import { LocationsInfoContext } from '../serverInfo'
 
-export default function MapsEsri({extent, mapName}) {
+export default function MapsEsri({extent, center, mapName, mapChoices, onChange, top, width, height}) {
   const locationItems = React.useContext(LocationsInfoContext);
   const mapRef = React.useRef();
   const [configureReady, setConfigureReady] = React.useState(false);
@@ -28,24 +34,48 @@ export default function MapsEsri({extent, mapName}) {
       window.setTimeout(() => setConfigureReady(true), 500);
   }, [setConfigureReady]);
 
-  React.useLayoutEffect(() => {
-    window.setTimeout(addLayer, 500);
-  }, [layerCollection]);
+  React.useLayoutEffect(() => { // NEW
+    const mapEl = document.getElementById('viewDiv');
+    if (mapEl) {
+      const layers = getLocationLayer();
+      const map = new Map({basemap:mapName, layers:layers});
 
-  function addLayer() {
-    const arcgisMap = document.querySelector("arcgis-map");
-    if (arcgisMap != null) {
-      console.log('MAP:', arcgisMap.view);
-      //arcgisMap.view.on("pointer-move", onMouseOverPopup);
-      const collection = getLocationLayer();
-      collection.forEach((layer) => arcgisMap.map.add(layer));
-    } else {
-      addLayerCount += 1;
-      if (addLayerCount < 20) {
-        window.setTimeout(addLayer, 500);
-      }
+      let curMapName = mapChoices.find((item) => item.config.mapName === mapName);
+      curMapName = curMapName ? curMapName.value : mapChoices[0].value;
+
+      const collectionNames = mapChoices.map((item) => {return {label:item.name, value:item.value};});
+      const valuePicker = new ValuePicker({
+        visibleElements: {
+          nextButton: false,
+          playButton: false,
+          previousButton: false
+        },
+        component: {
+          type: "combobox", // autocasts to ValuePickerCombobox
+          placeholder: "Map Type",
+          items: collectionNames
+        },
+        values: [curMapName],
+        visible: true
+      });
+
+      reactiveUtils.watch(
+        () => valuePicker.values,
+        (values) => onChange(values[0])
+      );
+
+      const view = new MapView({
+        map: map,
+        container: 'viewDiv',
+        center: center,
+        zoom: 7
+      });
+
+      // add the UI components to the view
+      view.ui.add(valuePicker, "top-right");
+
     }
-  }
+  } ,[mapName]);
 
   function getLocationLayer() {
     let curCollection = layerCollection || [];
@@ -108,24 +138,36 @@ export default function MapsEsri({extent, mapName}) {
 
   function onMouseOverPopup(event) { 
     // See: https://support.esri.com/en-us/knowledge-base/how-to-display-pop-ups-using-a-mouse-hover-in-arcgis-ap-000024297
+    /*
+         view.hitTest(event).then(function (response) { 
+           if (response.results.length) { 
+             var graphic = response.results.filter(function (result) { 
+               // check if the graphic belongs to the layer of interest 
+               return result.graphic.layer === featureLayer; 
+             })[0].graphic; 
+             view.popup.open({ 
+               location: graphic.geometry.centroid, 
+               features: [graphic] 
+             }); 
+           } else { 
+             view.popup.close(); 
+           } 
+         }); 
+       }); 
+     }); 
+    */
   }
 
-/*
-            <arcgis-legend position="bottom-left"></arcgis-legend>
-*/
-
   const curExtent = new Extent({xmin:extent[0].x, xmax:extent[1].x, ymin:extent[1].y, ymax:extent[0].y, zoom:7});
-  return (
+  return ( // NEW
     <React.Fragment>
-      { configureReady && 
-          <arcgis-map
-            basemap={mapName}
-            extent={curExtent}
-            onPointerMove={onMouseOverPopup}
-          >
-            <arcgis-zoom position="top-left"></arcgis-zoom>
-          </arcgis-map>
-      }
+      <div id="viewDiv" style={{width:width+'px', maxWidth:width+'px', height:height+'px', maxHeight:height+'px', position:'absolute', top:top+'px'}} >
+      </div>
+      <calcite-panel id="pickerContainer" title="Testing">
+        <div style={{padding:'12px', display:'flex', flexDirection:'column', gap:'12px'}} >
+          <div id="mapsValuePicker"></div>
+        </div>
+      </calcite-panel>
     </React.Fragment>
   );
 }

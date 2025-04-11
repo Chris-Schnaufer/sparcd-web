@@ -26,12 +26,12 @@ export default function Queries() {
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
   const extent = [{x:-109.0, y:36.0}, {x:-115.0, y:30.0}];
-  const center = [{x:(extent[0].x + extent[1].x) / 2.0, y:(extent[0].y + extent[1].y) / 2.0}]
+  const center = {x:-110.9742, y:32.2540}
 
   const mapChoices = [
-    {provider:'esri', name:'Esri World Street Map', config:{mapName:'streets-vector'}},
-    {provider:'esri', name:'Esri World Topo Map', config:{mapName:'topo-vector'}},
-    {provider:'esri', name:'Esri World Imagery', config:{mapName:'satellite'}},
+    {provider:'esri', name:'Esri World Street Map', value:'streets-vector', config:{mapName:'streets-vector'}},
+    {provider:'esri', name:'Esri World Topo Map', value:'topo-vector', config:{mapName:'topo-vector'}},
+    {provider:'esri', name:'Esri World Imagery', value:'satelliteå', config:{mapName:'satellite'}},
   ];
 
 /*
@@ -47,7 +47,7 @@ export default function Queries() {
     setWindowSize(newSize);
     calcTotalSize(newSize);
     setWorkspaceWidth(newSize.width);
-  }, [totalHeight]);
+  }, [totalHeight, workingTop, workspaceWidth]);
 
   // Adds a handler for when the window is resized, and automatically removes the handler
   React.useLayoutEffect(() => {
@@ -67,7 +67,7 @@ export default function Queries() {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, [totalHeight]);
+  }, [totalHeight, workingTop, workspaceWidth]);
 
   /**
    * Calculates the total UI size available for the workarea
@@ -75,7 +75,7 @@ export default function Queries() {
    * @param {object} curSize The total width and height of the window
    */
   function calcTotalSize(curSize) {
-    const elWorkspace = document.getElementById('queries-workspace-wrapper');
+    const elWorkspace = document.getElementById('maps-workspace-wrapper');
     if (elWorkspace) {
       const elWorkspaceSize = elWorkspace.getBoundingClientRect();
       setTotalHeight(elWorkspaceSize.height);
@@ -83,6 +83,11 @@ export default function Queries() {
     }
 
     setWorkspaceWidth(curSize.width);
+  }
+
+  function handleMapChanged(newMapValue) {
+    const newChoice = mapChoices.find((item) => item.value === newMapValue);
+    setCurMapChoice(newChoice);
   }
 
   if (!curMapChoice) {
@@ -93,7 +98,10 @@ export default function Queries() {
   const curHeight = totalHeight + 'px';
   return (
     <Box id='maps-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
-      {curMapChoice && curMapChoice.provider === 'esri' && <MapsEsriLazyload extent={extent} {...curMapChoice.config}/>
+      {curMapChoice && curMapChoice.provider === 'esri' 
+          && <MapsEsriLazyload extent={extent} center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
+                               mapChoices={mapChoices} {...curMapChoice.config} onChange={handleMapChanged}
+              />
       }
    </Box>
   );
