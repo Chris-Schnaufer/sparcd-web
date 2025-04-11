@@ -163,11 +163,6 @@ export default function MapsEsri({extent, center, mapName, mapChoices, onChange,
     <React.Fragment>
       <div id="viewDiv" style={{width:width+'px', maxWidth:width+'px', height:height+'px', maxHeight:height+'px', position:'absolute', top:top+'px'}} >
       </div>
-      <calcite-panel id="pickerContainer" title="Testing">
-        <div style={{padding:'12px', display:'flex', flexDirection:'column', gap:'12px'}} >
-          <div id="mapsValuePicker"></div>
-        </div>
-      </calcite-panel>
     </React.Fragment>
   );
 }
