@@ -1,9 +1,12 @@
 'use client'
 
 import * as React from 'react';
+import Grid from '@mui/material/Grid';
 import styles from './page.module.css';
 import { ThemeProvider } from "@mui/material/styles";
+import Typography from '@mui/material/Typography';
 
+import CircularProgress from '@mui/material/CircularProgress';
 import CollectionsManage from './CollectionsManage';
 import FooterBar from './components/FooterBar';
 import Landing from './Landing';
@@ -85,8 +88,11 @@ const loginStore = {
 
   loadLoginToken() {
     if (typeof window !== "undefined") {
-      return window.localStorage.getItem('login.token');
+      let curToken = window.localStorage.getItem('login.token');
+      return curToken ? curToken : null;
     }
+
+    return null;
   },
 
   saveLoginToken(token) {
@@ -97,7 +103,7 @@ const loginStore = {
 
   clearLoginToken(token) {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem('login.token', null);
+      window.localStorage.setItem('login.token', '');
     }
   }
 };
@@ -169,7 +175,7 @@ export default function Home() {
       const lastLoginToken = loginStore.loadLoginToken();
       setSavedTokenFetched(true);
       if (lastLoginToken) {
-        curLoggedIn = loginUserToken(lastLoginToken);
+        loginUserToken(lastLoginToken);
         setLoggedIn(curLoggedIn);
         if (curLoggedIn) {
           getUserSettings();
@@ -190,10 +196,11 @@ export default function Home() {
         setRemember(!!loInfo.remember);
       }
     }
-  }, []);
+  }, [savedTokenFetched, savedLoginFetched]);
 
   // Load the last token to make it available for rendering
   React.useLayoutEffect(() => {
+    const x = loginStore.loadLoginToken();
     setLastToken(loginStore.loadLoginToken());
   }, []);
 
@@ -243,14 +250,28 @@ export default function Home() {
 
   function commonLoginUser(formData) {
     const loginUrl = serverURL + '/login';
-    /* TODO: make call and wait for respone & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(loginUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    Save User Settings
+    /* TODO: make call and wait for response & return correct result
+             need to handle 404 and token values */
+    try {
+      const resp = fetch(loginUrl, {
+        credentials: 'include',
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+              console.log(resp);
+              if (resp.ok) {
+
+              } else {
+                throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
+              }
+          })
+        .catch(function(err) {
+          console.log('Error: ',err);
+      });
+    } catch (error) {
+      console.log('CATCH:', error);
+    }
+    /*Save User Settings
     */
 
     return crypto.randomUUID();
@@ -269,12 +290,12 @@ export default function Home() {
   function loginUserToken(token) {
     const formData = new FormData();
     formData.append('token', token);
-    console.log('LOGIN TOKEN', token);
-    // TODO: make call
-    // return commonLoginUser(formData);
-    // Save user settings
+    // Make call
+    return commonLoginUser(formData);
+    // TODO: Save user settings
+    //TODO: HERE
     return true;
-  }
+  }//
 
   function handleLogin(url, user, password, remember) {
     setDbUser(user);
@@ -449,7 +470,6 @@ export default function Home() {
   }
 
   function handleSettings(userSettings) {
-    console.log('HANDLESETTINGS');
     const mySettingsId = settingsRequestId = settingsRequestId+1;
     const workingTimeoutId = settingsTimeoutId;
     settingsTimeoutId = null;
@@ -476,7 +496,6 @@ export default function Home() {
 
   function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
-    //const lastToken = loginStore.loadLoginToken();
     switch(action) {
       case UserActions.None:
         return (
@@ -548,17 +567,30 @@ export default function Home() {
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
           <NarrowWindowContext.Provider value={narrowWindow}>
-          <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
-                    size={narrowWindow?"small":"normal"} 
-                    breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb}/>
-          {!curLoggedIn ? 
-             <LoginValidContext.Provider value={loginValidStates}>
-              <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} onLogin={handleLogin} />
-             </LoginValidContext.Provider>
-            :
-            renderAction(curAction, editing)
-          }
-          <FooterBar/>
+            <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
+                      size={narrowWindow?"small":"normal"} 
+                      breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb}/>
+            {!curLoggedIn ? 
+               <LoginValidContext.Provider value={loginValidStates}>
+                <Login prev_url={dbURL} prev_user={dbUser} prev_remember={remember} onLogin={handleLogin} />
+               </LoginValidContext.Provider>
+              :
+              renderAction(curAction, editing)
+            }
+            <FooterBar/>
+            <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center" something={lastToken}
+                  sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,
+                       visibility:lastToken ? 'visible':'hidden', display:lastToken ? 'inherit':'none'}}
+            >
+              <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+                <Grid container direction="column" alignItems="center" justifyContent="center" >
+                    <Typography gutterBottom variant="body2" color="lightgrey">
+                      Restoring previous session, please wait...
+                    </Typography>
+                    <CircularProgress variant="indeterminate" />
+                </Grid>
+              </div>
+            </Grid>
           </NarrowWindowContext.Provider>
         </MobileDeviceContext.Provider>
       </ThemeProvider>

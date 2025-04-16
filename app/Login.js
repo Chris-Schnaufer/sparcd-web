@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import styles from './page.module.css'
-import { useContext, useState } from 'react';
+import { useContext, useState, useLayoutEffect } from 'react';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
@@ -31,6 +31,14 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberChecked, setRememberChecked] = useState(!!prev_remember);
   const valuesValid = useContext(LoginValidContext);
+
+  useLayoutEffect(() => {
+    const focusId = !prev_url ? 'url_entry' : (!prev_user ? 'username_entry' : 'password_entry')
+    const el = document.getElementById(focusId);
+    if (el) {
+      el.focus();
+    }
+  }, [prev_url, prev_user]);
 
   /**
    * Handler that toggles the show password state
@@ -88,19 +96,19 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
     <div className={styles.login_wrapper}>
       <div className={styles.login_dialog_wrapper}>
         <div className={styles.login_dialog}>
-          <Image height='60' alt="Wildcats Research" src={wildcatResearch} placeholder="blur" />
+          <Image height='60' alt="Wildcats Research" src={wildcatResearch} placeholder='blur' />
           <div className={styles.login_dialog_items}>
             <Box
-              component="form"
+              component='form'
               sx={{ '& > :not(style)': { m: 1, width: '37ch' } }}
               noValidate
-              autoComplete="off"
+              autoComplete='off'
             >
               <TextField required 
-                    id="url_entry"
+                    id='url_entry'
                     label="Database URL"
                     defaultValue={prev_url}
-                    size="small"
+                    size='small'
                     error={!valuesValid.url}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
@@ -111,10 +119,10 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
                     }}
                     />
               <TextField required 
-                    id="username_entry"
+                    id='username_entry'
                     label="Username"
                     defaultValue={prev_user}
-                    size="small"
+                    size='small'
                     error={!valuesValid.user}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
@@ -125,10 +133,10 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
                     }}
                     />
               <TextField required 
-                    id="password_entry"
+                    id='password_entry'
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
-                    size="small"
+                    size='small'
                     error={!valuesValid.password}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
@@ -138,7 +146,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
                       },
                       input: {
                         endAdornment: 
-                          <InputAdornment position="end">
+                          <InputAdornment position='end'>
                             <IconButton
                               aria-label={
                                 showPassword ? 'hide the password' : 'display the password'
@@ -146,7 +154,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
                               onClick={handleClickShowPassword}
                               onMouseDown={handleMouseDownPassword}
                               onMouseUp={handleMouseUpPassword}
-                              edge="end"
+                              edge='end'
                             >
                               {showPassword ? <VisibilityOff /> : <Visibility />}
                             </IconButton>
@@ -158,13 +166,18 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
                       <FormControlLabel 
                         required 
                         size="small"
-                        control={<Checkbox id="remember_login_fields" checked={rememberChecked} onChange={rememberChanged} />}
-                        label={<span style={{ fontSize: 12, color: "rgba(0, 0, 0, 0.6)" }}>Remember URL and username</span>}
+                        control={<Checkbox id='remember_login_fields' checked={rememberChecked} onChange={rememberChanged} />}
+                        label={<span style={{ fontSize:12, color:'rgba(0, 0, 0, 0.6)' }}>Remember URL and username</span>}
                         />
                     </FormGroup>
 
             <div className={styles.login_dialog_login_button_wrap}>
-              <Button size="small" color="login_button" sx={{bgcolor: 'background.default'}} endIcon={<LoginIcon />} onClick={callLoginFunc}>Login</Button>
+              <Button size='small' color='login_button'
+                      sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
+                      onClick={callLoginFunc}
+              >
+                Login
+              </Button>
             </div>
             </Box>
           </div>
