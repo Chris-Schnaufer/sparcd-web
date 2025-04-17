@@ -98,7 +98,6 @@ def login_token():
         if not url or not user or not password:
             return "Not Found", 404
 
-    return json.dumps({'value':'ABCDE'})
     # Make sure we have the components we need for logging in
     if not url or not user or not password:
         return "Not Found", 404

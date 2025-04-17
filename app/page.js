@@ -110,6 +110,7 @@ const loginStore = {
 
 export default function Home() {
   const [breadcrumbs, setBreadcrumbs] = React.useState([]);
+  const [checkedToken, setCheckedToken] = React.useState(false);
   const [collectionInfo, setCollectionInfo] = React.useState(null);
   const [curSearchTitle, setCurSearchTitle] = React.useState(null);
   const [curAction, setCurAction] = React.useState(UserActions.None);
@@ -119,7 +120,7 @@ export default function Home() {
   const [dbURL, setDbURL] = React.useState('');
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
-  const [lastToken, setLastToken ] = React.useState(null);
+  const [lastToken, setLastToken] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
@@ -174,35 +175,42 @@ export default function Home() {
     if (!savedTokenFetched && !curLoggedIn) {
       const lastLoginToken = loginStore.loadLoginToken();
       setSavedTokenFetched(true);
+      setLastToken(lastLoginToken);
+      console.log('LAST LOGIN TOKEN',lastLoginToken);
       if (lastLoginToken) {
-        loginUserToken(lastLoginToken);
-        setLoggedIn(curLoggedIn);
-        if (curLoggedIn) {
-          getUserSettings();
-        }
-      }
-      if (!lastLoginToken || !curLoggedIn) {
-        loginStore.clearLoginToken();
+        console.log('LOGIN USING TOKEN');
+        loginUserToken(lastLoginToken,
+          () => {setCheckedToken(true);},
+          () => {
+            loginStore.clearLoginToken()
+            setLastToken(null);
+            setCheckedToken(true);
+            const loInfo = loginStore.loadLoginInfo();
+            setSavedLoginFetched(true);
+            console.log('TOKEN LOAD LOGIN',loInfo);
+            if (loInfo != null) {
+              setDbURL(loInfo.url);
+              setDbUser(loInfo.user);
+              setRemember(loInfo.remember === 'true');
+            }
+        });
+      } else {
+        setCheckedToken(true);
       }
     }
 
     // Load saved user information: if we haven't already and we're not logged in
     if (!savedLoginFetched && !curLoggedIn) {
       const loInfo = loginStore.loadLoginInfo();
+      console.log('LOAD LOGIN',loInfo);
       setSavedLoginFetched(true);
       if (loInfo != null) {
         setDbURL(loInfo.url);
         setDbUser(loInfo.user);
-        setRemember(!!loInfo.remember);
+        setRemember(loInfo.remember === 'true');
       }
     }
-  }, [savedTokenFetched, savedLoginFetched]);
-
-  // Load the last token to make it available for rendering
-  React.useLayoutEffect(() => {
-    const x = loginStore.loadLoginToken();
-    setLastToken(loginStore.loadLoginToken());
-  }, []);
+  }, [checkedToken, savedTokenFetched, savedLoginFetched]);
 
   function restoreBreadcrumb(breadcrumb) {
     const curCrumbs = breadcrumbs;
@@ -248,10 +256,8 @@ export default function Home() {
     setCollectionInfo(collectionInfo);
   }
 
-  function commonLoginUser(formData) {
+  function commonLoginUser(formData, onSuccess, onFailure) {
     const loginUrl = serverURL + '/login';
-    /* TODO: make call and wait for response & return correct result
-             need to handle 404 and token values */
     try {
       const resp = fetch(loginUrl, {
         credentials: 'include',
@@ -260,46 +266,57 @@ export default function Home() {
       }).then(async (resp) => {
               console.log(resp);
               if (resp.ok) {
-
+                return resp.json();
               } else {
                 throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
               }
           })
+        .then((respData) => {
+            // Save token and set status
+            const loginToken = respData['value'];
+            loginStore.saveLoginToken(loginToken);
+            setLoggedIn(true);
+            setLastToken(loginToken);
+            if (onSuccess && typeof(onSuccess) === 'function') {
+              onSuccess();
+            }
+            getUserSettings();
+        })
         .catch(function(err) {
           console.log('Error: ',err);
+          if (onFailure && typeof(onFailure) === 'function') {
+            onFailure();
+          }
       });
     } catch (error) {
-      console.log('CATCH:', error);
+      if (onFailure && typeof(onFailure) === 'function') {
+        onFailure();
+      }
     }
-    /*Save User Settings
-    */
-
-    return crypto.randomUUID();
   }
 
-  function loginUser(url, user, password) {
+  function loginUser(url, user, password, onSuccess, onFailure) {
     const formData = new FormData();
 
     formData.append('url', url);
     formData.append('user', user);
     formData.append('password', password);
 
-    return commonLoginUser(formData);
+    console.log('USERLOGIN');
+    commonLoginUser(formData, onSuccess, onFailure);
   }
 
-  function loginUserToken(token) {
+  function loginUserToken(token, onSuccess, onFailure) {
     const formData = new FormData();
     formData.append('token', token);
-    // Make call
-    return commonLoginUser(formData);
-    // TODO: Save user settings
-    //TODO: HERE
-    return true;
-  }//
+    console.log('LOGINUSERTOKEN');
+    commonLoginUser(formData, onSuccess, onFailure);
+  }
 
   function handleLogin(url, user, password, remember) {
     setDbUser(user);
     setDbURL(url);
+    console.log('HANDLELOGIN',remember);
     setRemember(remember);
     // Check parameters
     const validCheck = LoginCheck(url, user, password);
@@ -309,21 +326,19 @@ export default function Home() {
       // TODO: UI indication while logging in (throbber?)
 
       // Try to log user in
-      const login_token = loginUser(url, user, password);
-      // TODO: remove login this indication flag
-      setLoggedIn(login_token);
-      if (!!login_token) {
-        setLoggedIn(true);
-        loginStore.saveLoginToken(login_token);
-
+      loginUser(url, user, password, () => {
         // If log in successful then...
-        if (remember == true) {
+        if (remember === true) {
+          console.log('SAVELOGIN',remember);
           loginStore.saveLoginInfo(url, user, remember);
         } else {
           loginStore.clearLoginInfo();
         }
         // Load catalogs
-      }
+      }, () => {
+        // If log in fails
+        console.log('LOGIN BY USER FAILED');
+      });
     }
   }
 
@@ -561,6 +576,7 @@ export default function Home() {
     }
   }
 
+  console.log('REMEMBER', remember);
   const narrowWindow = isNarrow;
   return (
     <main className={styles.main} style={{position:'relative'}}>
@@ -580,7 +596,7 @@ export default function Home() {
             <FooterBar/>
             <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center" something={lastToken}
                   sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,
-                       visibility:lastToken ? 'visible':'hidden', display:lastToken ? 'inherit':'none'}}
+                       visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}
             >
               <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
                 <Grid container direction="column" alignItems="center" justifyContent="center" >

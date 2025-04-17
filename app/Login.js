@@ -29,7 +29,7 @@ import {LoginValidContext} from './checkLogin'
   */
 export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberChecked, setRememberChecked] = useState(!!prev_remember);
+  const [rememberChecked, setRememberChecked] = useState(prev_remember);
   const valuesValid = useContext(LoginValidContext);
 
   useLayoutEffect(() => {
@@ -91,6 +91,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
   }
 
   // TODO: Login button hover style change (change bg & font color)
+  console.log('REMEMBERLOGIN',rememberChecked);
   return (
     <div className={styles.login_background}>
     <div className={styles.login_wrapper}>
