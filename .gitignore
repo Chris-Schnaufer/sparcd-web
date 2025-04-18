@@ -134,3 +134,6 @@ __pycache__
 
 # flask
 flask_session
+
+# SQLite databases
+*.sqlite

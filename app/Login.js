@@ -38,7 +38,10 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
     if (el) {
       el.focus();
     }
-  }, [prev_url, prev_user]);
+    if (prev_remember !== rememberChecked) {
+      setRememberChecked(prev_remember);
+    }
+  }, [prev_url, prev_user, prev_remember]);
 
   /**
    * Handler that toggles the show password state
@@ -90,8 +93,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
     onLogin(url, user, password, remember);
   }
 
-  // TODO: Login button hover style change (change bg & font color)
-  console.log('REMEMBERLOGIN',rememberChecked);
+  // Return the UI
   return (
     <div className={styles.login_background}>
     <div className={styles.login_wrapper}>
