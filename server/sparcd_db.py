@@ -60,19 +60,24 @@ class SPARCdDatabase:
         """
         return self._conn is not None
 
-    def add_token(self, token: str, user: str, client_ip: str, user_agent: str) -> None:
-        """ Saves the token and associated user
+    def add_token(self, token: str, user: str, password: str, client_ip: str,
+                  user_agent: str, s3_url: str) -> None:
+        """ Saves the token and associated user information
         Arguments:
             token: the unique token to save
             user: the user associated with the token
+            password: the password associated with the user
+            client_ip: the IP address of the client
+            user_agent: a user agent value
+            s3_url: the URL of the s3 instance
         """
         if self._conn is None:
             raise RuntimeError('save_token: attempting to access database before connecting')
 
         cursor = self._conn.cursor()
-        query = 'INSERT INTO tokens(token, name, timestamp, client_ip, user_agent) ' \
-                'VALUES(?,?,strftime(\'%s\', \'now\'),?,?)'
-        cursor.execute(query, (token, user, client_ip, user_agent))
+        query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
+                'user_agent) VALUES(?,?,?,?,strftime(\'%s\', \'now\'),?,?)'
+        cursor.execute(query, (token, user, password, s3_url, client_ip, user_agent))
         self._conn.commit()
         cursor.close()
 
@@ -120,9 +125,9 @@ class SPARCdDatabase:
         cursor.execute('WITH ti AS (SELECT token, name, timestamp, client_ip, user_agent,' \
                           '(strftime("%s", "now")-timestamp)  AS elapsed_sec FROM TOKENS ' \
                           'WHERE token=(?)) '\
-                       'SELECT u.name, u.email, u.settings, u.administrator, ti.timestamp, ' \
-                          'ti.elapsed_sec, ti.client_ip, ti.user_agent FROM users u JOIN ti ' \
-                          'ON u.name = ti.name',
+                       'SELECT u.name, u.email, u.settings, u.administrator, u.s3_url, ' \
+                          'ti.timestamp, ti.elapsed_sec, ti.client_ip, ti.user_agent ' \
+                          'FROM users u JOIN ti ON u.name = ti.name',
                     (token,))
         res = cursor.fetchone()
         cursor.close()
@@ -130,7 +135,7 @@ class SPARCdDatabase:
         if res and len(res) >= 8:
             return {'name':res[0], 'email':res[1], 'settings':res[2], 'admin':res[3], \
                     'timestamp':res[4], 'elapsed_sec':res[5], 'client_ip':res[6], \
-                    'user_agent':res[7]}
+                    'user_agent':res[7], 'url':res[8]}
 
         return None
 

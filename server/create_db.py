@@ -77,8 +77,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'email TEXT NOT NULL, settings TEXT DEFAULT "{}", ' \
                             'administrator INT DEFAULT 0)',
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
-                            'token TEXT UNIQUE, timestamp INTEGER, client_ip TEXT, ' \
-                            'user_agent TEXT)'
+                            'password TEXT NOT NULL, s3_url TEXT NOT NULL, token TEXT UNIQUE, ' \
+                            'timestamp INTEGER, client_ip TEXT, user_agent TEXT)'
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator) values(?, ?, 1)'
     with sqlite3.connect(path) as conn:

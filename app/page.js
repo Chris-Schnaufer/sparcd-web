@@ -180,7 +180,10 @@ export default function Home() {
       setLastToken(lastLoginToken);
       if (lastLoginToken) {
         loginUserToken(lastLoginToken,
-          () => {setCheckedToken(true);},
+          () => {setCheckedToken(true);
+                 // Load collections
+                 loadCollections();
+                },
           () => {
             loginStore.clearLoginToken()
             setLastToken(null);
@@ -245,6 +248,40 @@ export default function Home() {
       console.log('Invalid current action specified', action);
     }
   }
+
+  /**
+   * Fetches the collections from the server
+   * @function
+   */
+  function loadCollections() {
+    const collectionUrl =  serverURL + '/collections&token=' + lastToken
+    try {
+      const resp = fetch(collectionUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
+              }
+          })
+        .then((respData) => {
+            // Save response data
+            
+        })
+        .catch(function(err) {
+          console.log('Error: ',err);
+          if (onFailure && typeof(onFailure) === 'function') {
+            onFailure();
+          }
+      });
+    } catch (error) {
+      if (onFailure && typeof(onFailure) === 'function') {
+        onFailure();
+      }
+    }
+  }
+
 
   function updateSandboxInfo(sandboxInfo) {
     setSandboxInfo(sandboxInfo);
@@ -335,7 +372,8 @@ export default function Home() {
         } else {
           loginStore.clearLoginInfo();
         }
-        // Load catalogs
+        // Load collections
+        loadCollections();
       }, () => {
         // If log in fails
         console.log('LOGIN BY USER FAILED');

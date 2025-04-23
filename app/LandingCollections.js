@@ -20,27 +20,48 @@ import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, TokenConte
  */
 export default function LandingCollections({onCollectionInfo, onChange}) {
   const theme = useTheme();
-  const mobileDevice = React.useContext(MobileDeviceContext);  // Are we on a mobile device (portrait mode)
-  const [selectedCollection, setSelectedCollection] = React.useState(null);
-  const [refreshingUploads, setRefreshingUploads] = React.useState(true);
-  const [collectionsList, setCollectionsList] = React.useState(null);
   const curCollectionsInfo = React.useContext(CollectionsInfoContext);
   const collectionToken = React.useContext(TokenContext);
-  const collectionUrl = React.useContext(BaseURLContext) + '/collections&' + collectionToken;
+  const baseUrl = React.useContext(BaseURLContext);
+  const mobileDevice = React.useContext(MobileDeviceContext);  // TODO: Are we on a mobile device (portrait mode)
+  const [collectionsList, setCollectionsList] = React.useState(null);
+  const [refreshingUploads, setRefreshingUploads] = React.useState(false);
+  const [selectedCollection, setSelectedCollection] = React.useState(null);
 
   /**
    * Fetches the collections from the server
    * @function
    */
   function getCollections() {
-    /* TODO: make call and wait for respone & return correct result
-             need to handle null, 'invalid', and sandbox items
-    const resp = await fetch(sandboxUrl, {
-      'method': 'POST'
-    });
-    console.log(resp);
-    */
-
+/*    const collectionUrl =  baseUrl + '/collections&' + collectionToken
+    try {
+      setRefreshingUploads(true);
+      const resp = fetch(collectionUrl, {
+        credentials: 'include',
+        method: 'GET'
+      }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
+              }
+          })
+        .then((respData) => {
+            // Save response data
+            setRefreshingUploads(false);
+        })
+        .catch(function(err) {
+          console.log('Error: ',err);
+          if (onFailure && typeof(onFailure) === 'function') {
+            onFailure();
+          }
+      });
+    } catch (error) {
+      if (onFailure && typeof(onFailure) === 'function') {
+        onFailure();
+      }
+    }
+*/
     return [{'name': 'foo',
              'organization': '! lovely collection',
              'email': 'foo@google.com',
@@ -146,14 +167,15 @@ export default function LandingCollections({onCollectionInfo, onChange}) {
   }
 
   // TODO: cache these
-  const collectionItems = curCollectionsInfo || getCollections();
-  const firstItem = collectionItems.length > 0 ? collectionItems[0] : null;
+  const collectionItems = curCollectionsInfo;// || getCollections();
+  const firstItem = collectionItems && collectionItems.length > 0 ? collectionItems[0] : null;
 
   // Set the upload info for the parent
-  React.useEffect(() => {
+/*  React.useEffect(() => {
       function setCollectionInfo() {onCollectionInfo(collectionItems);};
       setCollectionInfo();
     },[]);
+*/
 
   // Render the UI
   return (
@@ -161,7 +183,7 @@ export default function LandingCollections({onCollectionInfo, onChange}) {
       { firstItem ? (
         <React.Fragment>
           <Typography gutterBottom sx={{ ...theme.palette.landing_collections_refresh,
-                      visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+                      visibility:collectionItems?"visible":"hidden" }} >
             Refreshing...
           </Typography>
           <Box sx={{ ...theme.palette.landing_collections }} >

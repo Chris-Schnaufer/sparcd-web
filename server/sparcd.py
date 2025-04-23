@@ -5,19 +5,20 @@
 import datetime
 import hashlib
 import json
-from minio import Minio
-from minio.error import MinioException
 import os
 import sys
 import tempfile
-from urllib.parse import urlparse,  urlunparse
+from urllib.parse import urlparse
 import uuid
 from cachelib.file import FileSystemCache
+from minio import Minio
+from minio.error import MinioException
 from flask import Flask, abort, request, session
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
 from sparcd_db import SPARCdDatabase
+from s3_access import S3Connection
 
 # Environment variable name for database
 DB_ENV_NAME = 'SPARCD_DB'
@@ -62,7 +63,7 @@ del DB
 DB = None
 print(f'Using database at {DB_PATH_DEFAULT}')
 
-def web_to_minio_url(url: str) -> str:
+def web_to_s3_url(url: str) -> str:
     """ Takes a web URL and converts it to something Minio can handle: converts
         http and https to port numbers
     Arguments:
@@ -83,6 +84,32 @@ def web_to_minio_url(url: str) -> str:
         port = 443
 
     return parsed.hostname + port
+
+
+def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabase) -> bool:
+    """Checks the database for a token and then checks the validity
+    Arguments:
+        token: the token to check
+        client_ip: the client IP to check
+        user_agent: the user agent value to check
+        db: the database storing the token
+    Returns:
+        Returns True if the token is valid and False if not
+    """
+    # Get the user information using the token
+    db.reconnect()
+    login_info = db.get_token_user_info(token)
+    print('USER INFO',login_info)
+    if login_info is not None:
+        # Is the session still good
+        if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
+           login_info['client_ip'] == client_ip and login_info['user_agent'] == user_agent:
+            # Update to the newest timestamp
+            db.update_token_timestamp(token)
+            return True, login_info
+
+    return False, None
+
 
 @app.route('/login', methods = ['POST', 'GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -126,23 +153,17 @@ def login_token():
     if token is not None:
         # Checking the token for validity
         print('TOKEN SESSION', session.get('key'), token, session.get('last_access'))
-        # Get the username using the token
-        db.reconnect()
-        login_info = db.get_token_user_info(token)
-        print('LOGIN INFO',login_info)
-        if login_info is not None:
-            # Is the session still good
-            if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
-               login_info['client_ip'] == client_ip and login_info['user_agent'] == user_agent_hash:
-                curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
-                # Everything checks out
-                # Update our session information
-                session['key'] = token
-                session['last_access'] = curtime
-                db.update_token_timestamp(token)
-                return json.dumps({'value':token, 'name':login_info['name'],
-                                   'settings':login_info['settings'],
-                                   'admin':login_info['admin']})
+        # See if the session is still valid
+        token_valid, login_info = token_is_valid(token, client_ip, user_agent_hash, db)
+        if token_valid:
+            curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
+            # Everything checks out
+            # Update our session information
+            session['key'] = token
+            session['last_access'] = curtime
+            return json.dumps({'value':token, 'name':login_info['name'],
+                               'settings':login_info['settings'],
+                               'admin':login_info['admin']})
 
         # Delete the old token from the database
         print('DELETING OLD TOKEN', token)
@@ -157,13 +178,13 @@ def login_token():
     if not url or not user or not password:
         return "Not Found", 404
 
-    # Log onto MinIO to make sure the information is correct
+    # Log onto S3 to make sure the information is correct
     try:
-        minio_url = web_to_minio_url(url)
-        minio = Minio(minio_url, access_key=user, secret_key=password)
+        s3_url = web_to_s3_url(url)
+        minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
     except MinioException as ex:
-        print('MinIO exception caught:', ex)
+        print('S3 exception caught:', ex)
         return "Not Found", 404
 
     if not curtime:
@@ -172,8 +193,9 @@ def login_token():
     # Save information into the database
     new_key = uuid.uuid4().hex
     db.reconnect()
-    # TODO: ADD PASSWORD
-    db.add_token(new_key, user, client_ip, user_agent_hash)
+    # TODO: SECURE PASSWORD
+    db.add_token(token=new_key, user=user, password=password, client_ip=client_ip, \
+                    user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
 
     # We have a new login, save everything
@@ -187,3 +209,65 @@ def login_token():
     print(json.dumps({'value':session['key']}))
     return json.dumps({'value':session['key'], 'name':user_info['name'],
                        'settings':user_info['settings'], 'admin':user_info['admin']})
+
+
+@app.route('/collections', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def collections():
+    """Returns a token representing the login. No checks are made on the parameters
+    Arguments: (GET)
+        token - the session token
+    Return:
+        Returns the list of accessible collections
+    Notes:
+        If the token is invalid a 404 error is returned
+    """
+    db = SPARCdDatabase(DB_PATH_DEFAULT)
+
+    token = request.args.get('token')
+
+    print('COLLECTIONS', request)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.remote_addr))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+#    if not token_valid or not user_info:
+#        return "Not Found", 404
+
+    # Get the collection information from the server
+    s3_url = web_to_s3_url(user_info.url)
+    all_collections = S3Connection.get_collections(s3_url, user_info.name, user_info.password)
+
+    return_colls = []
+    for one_coll in all_collections:
+        cur_col = { 'name': one_coll['nameProperty'],
+                    'bucket': one_coll['bucket'],
+                    'organization': one_coll['organizationProperty'],
+                    'email': one_coll['contactInfoProperty'],
+                    'description': one_coll['descriptionProperty'],
+                    'id': one_coll['idProperty'],
+                    'uploads': []
+                  }
+        cur_uploads = []
+        for one_upload in cur_col['uploads']:
+            cur_uploads.append({'name': one_upload['name'],
+                                'description': one_upload['description'],
+                                'imagesCount': one_upload['imageCount'],
+                                'imagesWithSpeciesCount': one_upload['imagesWithSpecies'],
+                                'location': '',
+                                'edits': one_upload['editComments']
+                              })
+        cur_col['uploads'] = cur_uploads
+        return_colls.append(cur_col)
+
+    # Everything checks out
+    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
+    # Update our session information
+    session['last_access'] = curtime
+
+    # Return the collections
+    return json.dumps(return_colls)
