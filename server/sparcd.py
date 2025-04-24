@@ -8,9 +8,12 @@ import json
 import os
 import sys
 import tempfile
+import time
+from typing import Optional
 from urllib.parse import urlparse
 import uuid
 from cachelib.file import FileSystemCache
+import dateutil.parser
 from minio import Minio
 from minio.error import MinioException
 from flask import Flask, abort, request, session
@@ -34,6 +37,12 @@ DB_PATH_DEFAULT = os.environ.get(DB_ENV_NAME,  None)
 SESSION_PATH_DEFAULT = os.environ.get(SESSION_PATH_ENV_NAME, tempfile.gettempdir())
 # Working amount of time after last action before session is expired
 SESSION_EXPIRE_SECONDS = os.environ.get(SESSION_EXPIRE_ENV_NAME, SESSION_EXPIRE_DEFAULT_SEC)
+# Name of temporary collections file
+TEMP_COLLECTION_FILE_NAME = 'sparcd_coll.json'
+# Number of seconds to keep the temporary file around before it's invalid
+TEMP_COLLECTION_FILE_EXPIRE_SEC = 1 * 60 * 60
+# Maximum number of times to try updating the temporary collections file
+TEMP_COLLECTION_FILE_MAX_WRITE_TRIES = 20
 
 # Don't run if we don't have a database
 if not DB_PATH_DEFAULT or not os.path.exists(DB_PATH_DEFAULT):
@@ -79,11 +88,11 @@ def web_to_s3_url(url: str) -> str:
         return url
 
     parsed = urlparse(url)
-    port = 80
+    port = '80'
     if parsed.scheme.lower() == 'https':
-        port = 443
+        port = '443'
 
-    return parsed.hostname + port
+    return parsed.hostname + ':' + port
 
 
 def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabase) -> bool:
@@ -109,6 +118,135 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
             return True, login_info
 
     return False, None
+
+
+def get_upload_date(date_json: object) -> str:
+    """ Returns the date string from an upload's date JSON
+    Arguments:
+        date_json: the JSON containing the 'date' and 'time' objects
+    Returns:
+        Returns the formatted date and time, or an empty string if a problem is found
+    """
+    return_str = ''
+
+    if 'date' in date_json and date_json['date']:
+        cur_date = date_json['date']
+        if 'year' in cur_date and 'month' in cur_date and 'day' in cur_date:
+            return_str += str(cur_date['year']) + '-' + str(cur_date['month']) + \
+                          '-' + str(cur_date['day'])
+
+    if 'time' in date_json and date_json['time']:
+        cur_time = date_json['time']
+        if 'hour' in cur_time and 'second' in cur_time:
+            return_str += ' at ' + str(cur_time['hour']) + ':' + str(cur_time['second'])
+
+    return return_str
+
+
+def load_timed_temp_colls(user: str) -> Optional[list]:
+    """ Loads collection information from a temporary file
+    Arguments:
+        user: username to find permissions for
+    Return:
+        Returns the loaded collection data if valid, otherwise None is returned
+    """
+    # pylint: disable=broad-exception-caught
+    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    if not os.path.exists(coll_file_path):
+        return None
+
+    with open(coll_file_path, 'r', encoding='utf-8') as infile:
+        try:
+            loaded_colls = json.loads(infile.read())
+        except json.JSONDecodeError as ex:
+            infile.close()
+            print(f'WARN: Collections temporary file has invalid contents: {coll_file_path}')
+            print(ex)
+            print('      Removing invalid file')
+            try:
+                os.unlink(coll_file_path)
+            except Exception as ex_2:
+                print(f'Unable to remove bad temporary collections file: {coll_file_path}')
+                print(ex_2)
+            return None
+
+    # Check if the contents are too old
+    if not isinstance(loaded_colls, dict) or 'timestamp' not in loaded_colls or \
+                                                    not loaded_colls['timestamp']:
+        print(f'WARN: Collections temporary file has missing contents: {coll_file_path}')
+        print('      Removing invalid file')
+        try:
+            os.unlink(coll_file_path)
+        except Exception as ex:
+            print(f'Unable to remove invalid temporary collections file: {coll_file_path}')
+            print(ex)
+        return None
+
+    old_ts = dateutil.parser.isoparse(loaded_colls['timestamp'])
+    ts_diff = datetime.datetime.utcnow() - old_ts
+
+    if ts_diff.total_seconds() > TEMP_COLLECTION_FILE_EXPIRE_SEC:
+        print('HACK: EXPIRED TEMP FILE')
+        try:
+            os.unlink(coll_file_path)
+        except Exception as ex:
+            print(f'Unable to remove expired temporary collections file: {coll_file_path}')
+            print(ex)
+        return None
+
+    # Get this user's permissions
+    user_coll = []
+    for one_coll in loaded_colls['collections']:
+        new_coll = one_coll
+        new_coll['permissions'] = None
+        if 'all_permissions' in one_coll and one_coll['all_permissions']:
+            try:
+                for one_perm in one_coll['all_permissions']:
+                    if one_perm and 'usernameProperty' in one_perm and \
+                                one_perm['usernameProperty'] == user:
+                        new_coll['permissions'] = one_perm
+                        break
+            finally:
+                pass
+        user_coll.append(new_coll)
+
+    # Return the corrected collections
+    return user_coll
+
+
+def save_timed_temp_colls(colls: tuple) -> None:
+    """ Attempts to save the collections to a temporary file on disk
+    Arguments:
+        colls: the collection information to save
+    """
+    # pylint: disable=broad-exception-caught
+    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    if os.path.exists(coll_file_path):
+        try:
+            os.unlink(coll_file_path)
+        except Exception as ex:
+            print(f'Unable to remove old temporary collections file: {coll_file_path}')
+            print(ex)
+            print('Continuing to try updating the file')
+
+    attempts = 0
+    informed_exception = False
+    collection_info = {'timestamp':datetime.datetime.utcnow().isoformat(),
+                       'collections':colls
+                      }
+    while attempts < TEMP_COLLECTION_FILE_MAX_WRITE_TRIES:
+        try:
+            with open(coll_file_path, 'w', encoding='utf-8') as outfile:
+                outfile.write(json.dumps(collection_info))
+            attempts = TEMP_COLLECTION_FILE_MAX_WRITE_TRIES
+        except Exception as ex:
+            if not informed_exception:
+                print(f'Unable to open temporary collection file for writing: {coll_file_path}')
+                print(ex)
+                print(f'Will keep trying for up to {TEMP_COLLECTION_FILE_MAX_WRITE_TRIES} times')
+                informed_exception = True
+                time.sleep(1)
+            attempts = attempts + 1
 
 
 @app.route('/login', methods = ['POST', 'GET'])
@@ -226,21 +364,30 @@ def collections():
 
     token = request.args.get('token')
 
-    print('COLLECTIONS', request)
+    print(('COLLECTIONS', request), flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.remote_addr))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
+        return "Not Found 1", 404
     user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
-#    if not token_valid or not user_info:
-#        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Not Found 2", 404
+
+    # Check if we have a stored temporary file containing the collections information
+    # and return that
+    return_colls = load_timed_temp_colls(user_info['name'])
+    if return_colls:
+        return json.dumps(return_colls)
 
     # Get the collection information from the server
-    s3_url = web_to_s3_url(user_info.url)
-    all_collections = S3Connection.get_collections(s3_url, user_info.name, user_info.password)
+    s3_url = web_to_s3_url(user_info["url"])
+    print('GETTING COLLECTIONS',flush=True)
+    all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
+                                                                db.get_password(token))
+    print('   ',all_collections,flush=True)
 
     return_colls = []
     for one_coll in all_collections:
@@ -250,16 +397,20 @@ def collections():
                     'email': one_coll['contactInfoProperty'],
                     'description': one_coll['descriptionProperty'],
                     'id': one_coll['idProperty'],
+                    'permissions': one_coll['permissions'],
                     'uploads': []
                   }
         cur_uploads = []
-        for one_upload in cur_col['uploads']:
-            cur_uploads.append({'name': one_upload['name'],
-                                'description': one_upload['description'],
-                                'imagesCount': one_upload['imageCount'],
-                                'imagesWithSpeciesCount': one_upload['imagesWithSpecies'],
+        for one_upload in one_coll['uploads']:
+            print('UPLOAD',one_upload.keys(), one_upload, flush=True)
+            print('      ',one_upload['info'].keys(), one_upload['info'], flush=True)
+            cur_uploads.append({'name': one_upload['info']['uploadUser'] + ' on ' + \
+                                                get_upload_date(one_upload['info']['uploadDate']),
+                                'description': one_upload['info']['description'],
+                                'imagesCount': one_upload['info']['imageCount'],
+                                'imagesWithSpeciesCount': one_upload['info']['imagesWithSpecies'],
                                 'location': '',
-                                'edits': one_upload['editComments']
+                                'edits': one_upload['info']['editComments']
                               })
         cur_col['uploads'] = cur_uploads
         return_colls.append(cur_col)
@@ -268,6 +419,9 @@ def collections():
     curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
     # Update our session information
     session['last_access'] = curtime
+
+    # Save the collections temporarily
+    save_timed_temp_colls(return_colls)
 
     # Return the collections
     return json.dumps(return_colls)

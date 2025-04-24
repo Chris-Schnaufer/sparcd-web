@@ -19,12 +19,13 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext } from 
 /**
  * Returns the UI for the Landing page
  * @function
+ * @param {boolean} loadingCollections Set to true when collections are being loaded
  * @param {function} onUserAction Function to call when the user clicks an action element
  * @param {function} onSandboxUpdate Function to call when the sandbox information is updated
  * @param {function} onCollectionUpdate Function to call when the collection information is updated
  * @returns {object} The rendered UI
  */
-export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpdate}) {
+export default function Landing({loadingCollections, onUserAction, onSandboxUpdate, onCollectionUpdate}) {
   const theme = useTheme();
   const [haveNewUpload, setHaveNewUpload] = React.useState(false);
   const [selUploadInfo, setSelUploadInfo] = React.useState(null);
@@ -132,9 +133,9 @@ export default function Landing({onUserAction, onSandboxUpdate, onCollectionUpda
             <LandingCard title="Collections"
                          action={{'title':'Manage', 
                                   'onClick':() => {onUserAction(UserActions.Collection, selCollectionInfo, false, 'Home');},
-                                  'disabled': curCollectionInfo ? false : true}}
+                                  'disabled': curCollectionInfo || loadingCollections ? false : true}}
             >
-              <LandingCollections onCollectionInfo={updateCollectionInfo} onChange={setCollectionSelection} />
+              <LandingCollections loadingCollections={loadingCollections} onChange={setCollectionSelection} />
             </LandingCard>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md:6 }}>

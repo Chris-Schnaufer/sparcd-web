@@ -211,7 +211,7 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
                   <Box sx={{border:"1px solid black", width:'100%', minHeight:'4em', maxHeight:'4em', overflow:"scroll"}} >
                     {item.edits.map((editItem, idx) =>
                       <Typography variant="body2" key={"collection-upload-edits-" + idx} sx={{padding:"0 5px"}} >
-                        {editItem.name + ' ' + editItem.date}
+                        {editItem}
                       </Typography>
                     )}
                   </Box>
@@ -234,23 +234,18 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
                      margin: '0px'}}
         >
         { collectionsItems.map((item, idx) =>
-          <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }}>
+          <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
-                        sx={{minWidth:'200px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+                        sx={{minWidth:'400px', maxWidth:'400px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
                     <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
                       sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
                     >
                       <CardContent>
                         <Grid container direction="column" spacing={1}>
                           <Grid item>
-                            <Typography variant="body">
+                            <Typography variant="H6">
                               {item.name}
-                            </Typography>
-                          </Grid>
-                          <Grid item>
-                            <Typography variant="body">
-                              {item.organization}
                             </Typography>
                           </Grid>
                           <Grid item>
@@ -260,6 +255,11 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
                           </Grid>
                           <Grid item>
                             <Typography variant="body">
+                              {item.organization}
+                            </Typography>
+                          </Grid>
+                          <Grid item>
+                            <Typography variant="body" sx={{whiteSpace:"pre-wrap"}} >
                               {item.description}
                             </Typography>
                           </Grid>
@@ -268,8 +268,8 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
                           Uploads
                         </Typography>
                         <Box sx={{border:"1px solid black", width:"100%", minHeight:'3em', maxHeight:'3em', overflow:"scroll"}} >
-                          {item.uploads.map((uploadItem) =>
-                              <Grid container key={"upload-"+uploadItem.name} direction="column" spacing={1}>
+                          {item.uploads.map((uploadItem, uploadIdx) =>
+                              <Grid container key={'upload-'+uploadItem.name+'-'+uploadIdx} direction="column" spacing={1}>
                                 <Grid item>
                                   <Typography variant="body" sx={{padding:"0 5px"}}>
                                     {uploadItem.name}

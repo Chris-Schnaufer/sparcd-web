@@ -123,9 +123,9 @@ class SPARCdDatabase:
 
         cursor = self._conn.cursor()
         cursor.execute('WITH ti AS (SELECT token, name, timestamp, client_ip, user_agent,' \
-                          '(strftime("%s", "now")-timestamp)  AS elapsed_sec FROM TOKENS ' \
+                          '(strftime("%s", "now")-timestamp) AS elapsed_sec, s3_url FROM TOKENS ' \
                           'WHERE token=(?)) '\
-                       'SELECT u.name, u.email, u.settings, u.administrator, u.s3_url, ' \
+                       'SELECT u.name, u.email, u.settings, u.administrator, ti.s3_url, ' \
                           'ti.timestamp, ti.elapsed_sec, ti.client_ip, ti.user_agent ' \
                           'FROM users u JOIN ti ON u.name = ti.name',
                     (token,))
@@ -134,8 +134,8 @@ class SPARCdDatabase:
 
         if res and len(res) >= 8:
             return {'name':res[0], 'email':res[1], 'settings':res[2], 'admin':res[3], \
-                    'timestamp':res[4], 'elapsed_sec':res[5], 'client_ip':res[6], \
-                    'user_agent':res[7], 'url':res[8]}
+                    'url':res[4], 'timestamp':res[5], 'elapsed_sec':res[6], \
+                    'client_ip':res[7], 'user_agent':res[8]}
 
         return None
 
@@ -159,3 +159,24 @@ class SPARCdDatabase:
             return {'name': res[0], 'email':res[1], 'settings':res[2], 'admin':res[3]}
 
         return None
+
+    def get_password(self, token: str) -> str:
+        """ Returns the password associated with the token
+        Arguments:
+            token: the token to lookup
+        Return:
+            Returns the associated password, or an empty string if the token is not found
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to access database before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT password FROM tokens WHERE token=(?)', (token,))
+
+        res = cursor.fetchone()
+        cursor.close()
+
+        if res and len(res) >= 1:
+            return res[0]
+
+        return ''

@@ -89,7 +89,6 @@ const loginStore = {
   loadLoginToken() {
     if (typeof window !== "undefined") {
       let curToken = window.localStorage.getItem('login.token');
-      console.log('LAST LOGIN TOKEN',curToken)
       return curToken ? curToken : null;
     }
 
@@ -98,7 +97,6 @@ const loginStore = {
 
   saveLoginToken(token) {
     if (typeof window !== "undefined") {
-      console.log('SAVE LOGIN TOKEN',token)
       window.localStorage.setItem('login.token', "" + token);
     }
   },
@@ -123,6 +121,7 @@ export default function Home() {
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
   const [lastToken, setLastToken] = React.useState(null);
+  const [loadingCollections, setLoadingCollections] = React.useState(false);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
@@ -182,7 +181,7 @@ export default function Home() {
         loginUserToken(lastLoginToken,
           () => {setCheckedToken(true);
                  // Load collections
-                 loadCollections();
+                 window.setTimeout(() => loadCollections(lastLoginToken), 500);
                 },
           () => {
             loginStore.clearLoginToken()
@@ -253,30 +252,38 @@ export default function Home() {
    * Fetches the collections from the server
    * @function
    */
-  function loadCollections() {
-    const collectionUrl =  serverURL + '/collections&token=' + lastToken
+  function loadCollections(token) {
+    const cur_token = token || lastToken;
+    console.log('LOADCOLLECTIONS',cur_token,'TOKEN',token,'LASTTOKEN',lastToken)
+    setLoadingCollections(true);
+    const collectionUrl =  serverURL + '/collections?token=' + cur_token
     try {
       const resp = fetch(collectionUrl, {
         method: 'GET'
       }).then(async (resp) => {
-              if (resp.ok) {
-                return resp.json();
-              } else {
-                throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
-              }
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get collections: ${resp.status}`, {cause:resp});
+            }
           })
         .then((respData) => {
-            // Save response data
-            
+          // Save response data
+          setLoadingCollections(false);
+          const curCollections = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+          console.log(curCollections);
+          setCollectionInfo(curCollections);
         })
         .catch(function(err) {
           console.log('Error: ',err);
+          setLoadingCollections(false);
           if (onFailure && typeof(onFailure) === 'function') {
             onFailure();
           }
       });
     } catch (error) {
       if (onFailure && typeof(onFailure) === 'function') {
+        setLoadingCollections(false);
         onFailure();
       }
     }
@@ -299,11 +306,11 @@ export default function Home() {
         method: 'POST',
         body: formData
       }).then(async (resp) => {
-              if (resp.ok) {
-                return resp.json();
-              } else {
-                throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
-              }
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
+            }
           })
         .then((respData) => {
             // Save token and set status
@@ -321,7 +328,7 @@ export default function Home() {
             setLoggedIn(true);
             setLastToken(loginToken);
             if (onSuccess && typeof(onSuccess) === 'function') {
-              onSuccess();
+              onSuccess(loginToken);
             }
         })
         .catch(function(err) {
@@ -365,7 +372,7 @@ export default function Home() {
       // TODO: UI indication while logging in (throbber?)
 
       // Try to log user in
-      loginUser(url, user, password, () => {
+      loginUser(url, user, password, (new_token) => {
         // If log in successful then...
         if (remember === true) {
           loginStore.saveLoginInfo(url, user, remember);
@@ -373,7 +380,7 @@ export default function Home() {
           loginStore.clearLoginInfo();
         }
         // Load collections
-        loadCollections();
+        window.setTimeout(() => loadCollections(new_token), 500);
       }, () => {
         // If log in fails
         console.log('LOGIN BY USER FAILED');
@@ -557,7 +564,7 @@ export default function Home() {
              <TokenContext.Provider value={lastToken}>
               <CollectionsInfoContext.Provider value={collectionInfo}>
                 <SandboxInfoContext.Provider value={sandboxInfo}>
-                  <Landing onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
+                  <Landing loadingCollections={loadingCollections} onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
                 </SandboxInfoContext.Provider>
               </CollectionsInfoContext.Provider>
              </TokenContext.Provider>
