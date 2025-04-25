@@ -271,7 +271,6 @@ export default function Home() {
           // Save response data
           setLoadingCollections(false);
           const curCollections = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
-          console.log(curCollections);
           setCollectionInfo(curCollections);
         })
         .catch(function(err) {
@@ -597,8 +596,8 @@ export default function Home() {
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
               <CollectionsInfoContext.Provider value={collectionInfo}>
-                <CollectionsManage selectedCollection={curActionData} onEditUpload={editCollectionUpload} 
-                                   searchSetup={setupSearch} />
+                <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
+                                   onEditUpload={editCollectionUpload} searchSetup={setupSearch} />
               </CollectionsInfoContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>
@@ -639,7 +638,7 @@ export default function Home() {
               renderAction(curAction, editing)
             }
             <FooterBar/>
-            <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center" something={lastToken}
+            <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
                   sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,
                        visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}
             >

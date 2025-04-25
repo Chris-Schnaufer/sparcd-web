@@ -1,18 +1,17 @@
-'use client'
-
 /** @module CollectionsManage */
 
 import * as React from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
+import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
-import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
+import CircularProgress from '@mui/material/CircularProgress';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton'
@@ -31,13 +30,13 @@ import UploadSidebarItem from './components/UploadSidebarItem'
   * @param {function} searchSetup Call when settting up or clearing search elements
 * @returns {object} The rendered UI
  */
-export default function CollectionsManage({selectedCollection, onEditUpload, searchSetup}) {
+export default function CollectionsManage({loadingCollections, selectedCollection, onEditUpload, searchSetup}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
   const [expandedUpload, setExpandedUpload] = React.useState(false);
-  const [selectionIndex, setSelectionIndex] = React.useState(collectionsItems.findIndex((item) => item.name === selectedCollection));
+  const [selectionIndex, setSelectionIndex] = React.useState(-1);
   const [sidebarWidth, setSidebarWidth] =  React.useState(200);// Default value is recalculated at display time
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
   const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
@@ -52,6 +51,13 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
 
     return () => searchSetup();
   }, []);
+
+  // Initialize collections information
+  React.useEffect(() => {
+    if (collectionsItems && selectedCollection && (selectionIndex == -1 || selectionIndex >= collectionsItems.length)) {
+      setSelectionIndex(collectionsItems.findIndex((item) => item.name === selectedCollection));
+    }
+  }, [selectionIndex, collectionsItems]);
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -132,9 +138,11 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
    */
   function calcTotalSize(curSize) {
     const elWorkspace = document.getElementById('image-edit-workspace-wrapper');
+    const elFooter = document.getElementById('sparcd-footer');
     if (elWorkspace) {
       const elWorkspaceSize = elWorkspace.getBoundingClientRect();
-      setTotalHeight(elWorkspaceSize.height);
+      const elFooterSize = elFooter.getBoundingClientRect();
+      setTotalHeight(elWorkspaceSize.height - elFooterSize.height);
       setWorkingTop(0);
     }
 
@@ -147,18 +155,25 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
     setWorkspaceWidth(curSize.width - curSidebarWidth);
   }
 
+  // Check if we need to specify variables that aren't setup yet
+  let curSelectionIndex = selectionIndex;
+  if (curSelectionIndex == -1 && collectionsItems && selectedCollection) {
+    curSelectionIndex = collectionsItems.findIndex((item) => item.name === selectedCollection);
+    setSelectionIndex(curSelectionIndex);
+  }
+
   // Render the UI
   const curHeight = (totalHeight || 480) + 'px';
   const curStart = (workingTop || 25) + 'px';
-  const curSelectionIndex = selectionIndex;
-  const curCollection = collectionsItems[curSelectionIndex] || {uploads: []};
+  const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
   return (
     <Box id='image-edit-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative' }} >
-      <Grid id='collection-workspace-details' ref={sidebarRef} container direction="column" alignItems="start" justifyContent="start"
-            sx={{position:'absolute', top:'0px', width:'40vw', minHeight:curHeight, maxHeight:curHeight, right:'-0', backgroundColor:'white',
-                 borderLeft:'1px solid grey', overflow:'scroll'}}
+    <div/>
+      <Grid id='collection-workspace-details' ref={sidebarRef} container direction="row" alignItems="start" justifyContent="start"
+            style={{position:'absolute', top:'0px', width:'40vw', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
+                 backgroundColor:'white', borderLeft:'1px solid grey', overflow:'scroll'}}
       >
-        { curCollection.uploads.map((item, idx) =>
+        { curCollection && curCollection.uploads.map((item, idx) =>
           <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" sx={{minWidth:'100%', '&:hover':{backgroundColor:theme.palette.action.active} }}>
             <CardHeader title={
                               <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
@@ -233,7 +248,7 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
                      overflow:'scroll',
                      margin: '0px'}}
         >
-        { collectionsItems.map((item, idx) =>
+        { collectionsItems && collectionsItems.map((item, idx) =>
           <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
@@ -285,6 +300,23 @@ export default function CollectionsManage({selectedCollection, onEditUpload, sea
           </Grid>
         )}
       </Grid>
+      { loadingCollections && 
+          <Grid id="loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+          >
+            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center" >
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    Loading collections, please wait...
+                  </Typography>
+                  <CircularProgress variant="indeterminate" />
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    This may take a while
+                  </Typography>
+              </Grid>
+            </div>
+          </Grid>
+      }
     </Box>
   );
 }

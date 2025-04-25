@@ -1,6 +1,9 @@
 """This script contains the interface to an S3 instance
 """
 
+import csv
+import dataclasses
+from io import StringIO
 import json
 import os
 import tempfile
@@ -43,13 +46,13 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     user_collections = []
 
     # Loop through and get all the information for a collection
+    perms_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(perms_file[0])
     for one_bucket in buckets:
         collections_path = 'Collections'
         base_path = os.path.join(collections_path,  one_bucket[len(SPARCD_PREFIX):])
         permissions_path = os.path.join(base_path, 'permissions.json')
 
-        perms_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-        os.close(perms_file[0])
         perm_data = get_s3_file(minio, one_bucket, permissions_path, perms_file[1])
 
         if perm_data is not None:
@@ -65,7 +68,7 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
                                      'permissions': found_perm,
                                      'all_permissions': perms
                                     })
-        os.unlink(perms_file[1])
+    os.unlink(perms_file[1])
 
     return tuple(user_collections)
 
@@ -80,16 +83,15 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
     """
     user_collections = []
 
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
     for one_coll in collections:
         new_coll = one_coll
         coll_info_path = os.path.join(one_coll['base_path'], 'collection.json')
-        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-        os.close(temp_file[0])
         coll_data = get_s3_file(minio, one_coll['bucket'], coll_info_path, temp_file[1])
         if coll_data is not None:
             coll_info = json.loads(coll_data)
             new_coll = new_coll | coll_info
-        os.unlink(temp_file[1])
 
         # Get the uploads and their information
         coll_uploads = []
@@ -97,24 +99,38 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
         for one_obj in minio.list_objects(one_coll['bucket'], uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
                 # Get the data on this upload
+
+                # Upload information
                 upload_info_path = os.path.join(one_obj.object_name, 'UploadMeta.json')
-                temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-                os.close(temp_file[0])
                 coll_info_data = get_s3_file(minio, one_coll['bucket'], upload_info_path, \
                                              temp_file[1])
                 if coll_info_data is not None:
                     coll_info = json.loads(coll_info_data)
-                    coll_uploads.append({'path':one_obj.object_name, 'info':coll_info})
                 else:
                     print(f'Unable to get upload information: {upload_info_path}')
-                os.unlink(temp_file[1])
-        new_coll['uploads'] = coll_uploads
+                    continue
 
+                # Location data
+                upload_info_path = os.path.join(one_obj.object_name, 'deployments.csv')
+                csv_data = get_s3_file(minio, one_coll['bucket'], upload_info_path, \
+                                             temp_file[1])
+                if csv_data is not None:
+                    reader = csv.reader(StringIO(csv_data))
+                    csv_info = next(reader)
+                    coll_uploads.append({'path':one_obj.object_name, 'info':coll_info, \
+                                            'location':csv_info[1]})
+                else:
+                    print(f'Unable to get deployment information: {upload_info_path}')
+
+        new_coll['uploads'] = coll_uploads
         user_collections.append(new_coll)
+
+    os.unlink(temp_file[1])
 
     return user_collections
 
 
+@dataclasses.dataclass
 class S3Connection:
     """Functions handling access connections to an s3 instance
     """

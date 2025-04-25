@@ -384,10 +384,8 @@ def collections():
 
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])
-    print('GETTING COLLECTIONS',flush=True)
     all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
                                                                 db.get_password(token))
-    print('   ',all_collections,flush=True)
 
     return_colls = []
     for one_coll in all_collections:
@@ -402,14 +400,12 @@ def collections():
                   }
         cur_uploads = []
         for one_upload in one_coll['uploads']:
-            print('UPLOAD',one_upload.keys(), one_upload, flush=True)
-            print('      ',one_upload['info'].keys(), one_upload['info'], flush=True)
             cur_uploads.append({'name': one_upload['info']['uploadUser'] + ' on ' + \
                                                 get_upload_date(one_upload['info']['uploadDate']),
                                 'description': one_upload['info']['description'],
                                 'imagesCount': one_upload['info']['imageCount'],
                                 'imagesWithSpeciesCount': one_upload['info']['imagesWithSpecies'],
-                                'location': '',
+                                'location': one_upload['location'],
                                 'edits': one_upload['info']['editComments']
                               })
         cur_col['uploads'] = cur_uploads

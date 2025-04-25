@@ -132,7 +132,7 @@ export default function Landing({loadingCollections, onUserAction, onSandboxUpda
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Collections"
                          action={{'title':'Manage', 
-                                  'onClick':() => {onUserAction(UserActions.Collection, selCollectionInfo, false, 'Home');},
+                                  'onClick':() => onUserAction(UserActions.Collection, selCollectionInfo, false, 'Home'),
                                   'disabled': curCollectionInfo || loadingCollections ? false : true}}
             >
               <LandingCollections loadingCollections={loadingCollections} onChange={setCollectionSelection} />
