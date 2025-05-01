@@ -249,10 +249,10 @@ def save_timed_temp_colls(colls: tuple) -> None:
             attempts = attempts + 1
 
 
-@app.route('/login', methods = ['POST', 'GET'])
+@app.route('/login', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def login_token():
-    """Returns a token representing the login. No checks are made on the parameters
+    """ Returns a token representing the login. No checks are made on the parameters
     Arguments: (POST or GET)
         url - the S3 database URL
         user - the user name
@@ -352,29 +352,31 @@ def login_token():
 @app.route('/collections', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def collections():
-    """Returns a token representing the login. No checks are made on the parameters
+    """ Returns the list of collections and their uploads
     Arguments: (GET)
         token - the session token
     Return:
         Returns the list of accessible collections
     Notes:
-        If the token is invalid a 404 error is returned
+        If the token is invalid, or a problem occurs, a 404 error is returned
     """
     db = SPARCdDatabase(DB_PATH_DEFAULT)
 
     token = request.args.get('token')
+    if not token:
+        return "Not Found", 404
 
     print(('COLLECTIONS', request), flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.remote_addr))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found 1", 404
+        return "Not Found", 404
     user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
-        return "Not Found 2", 404
+        return "Not Found", 404
 
     # Check if we have a stored temporary file containing the collections information
     # and return that
@@ -421,3 +423,47 @@ def collections():
 
     # Return the collections
     return json.dumps(return_colls)
+
+
+
+@app.route('/upload', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def collections():
+    """ Returns the list of images from a collection's upload
+    Arguments: (GET)
+        token - the session token
+        id - the ID of the collection
+        up - the name of the upload
+    Return:
+        Returns the list of images for the collection's upload
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DB_PATH_DEFAULT)
+
+    token = request.args.get('token')
+    collection_id = request.args.get('id')
+    collection_upload = request.args.get('up')
+
+    if not token or not collection_id or not collection_upload:
+        return "Not Found", 404
+
+    print(('UPLOAD', request), flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.remote_addr))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Not Found", 404
+
+
+    # Get the collection information from the server
+    s3_url = web_to_s3_url(user_info["url"])
+    all_images = S3Connection.get_images(s3_url, user_info["name"], db.get_password(token), \
+                                            collection_id, collection_upload)
+   
+ 

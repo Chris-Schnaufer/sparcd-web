@@ -256,7 +256,7 @@ export default function Home() {
     const cur_token = token || lastToken;
     console.log('LOADCOLLECTIONS',cur_token,'TOKEN',token,'LASTTOKEN',lastToken)
     setLoadingCollections(true);
-    const collectionUrl =  serverURL + '/collections?token=' + cur_token
+    const collectionUrl =  serverURL + '/collections?token=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(collectionUrl, {
         method: 'GET'
@@ -388,17 +388,35 @@ export default function Home() {
   }
 
   function editCollectionUpload(collectionId, uploadName, breadcrumbName) {
-    const uploadUrl = serverURL + '/upload';
+    const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(cur_token) + 
+                                          '&id=' + encodeURIComponent(collectionId) + 
+                                          '&up=' + encodeURIComponent(uploadName);
     // Get the information on the upload
-    /* TODO: make call and wait for respone & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(uploadUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
-
+    try {
+      const resp = fetch(loginUrl, {
+        method: 'GET',
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to log in: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          setCurrentAction(UserActions.UploadEdit, respData, true, breadcrumbName);
+        })
+        .catch(function(err) {
+          console.log('Error: ',err);
+          if (onFailure && typeof(onFailure) === 'function') {
+            onFailure();
+          }
+      });
+    } catch (error) {
+      if (onFailure && typeof(onFailure) === 'function') {
+        onFailure();
+      }
+    }
+/*
     // Set the uploaded information
     let fakeLoadedData = sandboxInfo.find((item) => item.collectionId === collectionId && item.name === uploadName);
     if (!fakeLoadedData) {
@@ -476,6 +494,7 @@ export default function Home() {
                    }
     }
     setCurrentAction(UserActions.UploadEdit, fakeLoadedData, true, breadcrumbName);
+*/
   }
 
   function handleSearch(searchTerm) {
