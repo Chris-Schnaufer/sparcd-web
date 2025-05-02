@@ -10,43 +10,58 @@ import sys
 import tempfile
 import time
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote as urlquote
 import uuid
 from cachelib.file import FileSystemCache
 import dateutil.parser
+
+import requests
+from cryptography.fernet import Fernet
 from minio import Minio
 from minio.error import MinioException
-from flask import Flask, abort, request, session
+from flask import Flask, abort, request, session, url_for
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
 from sparcd_db import SPARCdDatabase
+from sparcd_utils import get_fernet_key_from_passcode
 from s3_access import S3Connection
 
 # Environment variable name for database
-DB_ENV_NAME = 'SPARCD_DB'
+ENV_NAME_DB = 'SPARCD_DB'
+# Environment variable name for passcode
+ENV_NAME_PASSCODE = 'SPARCD_CODE'
 # Environment variable name for session storage folder
-SESSION_PATH_ENV_NAME = 'SPARCD_SESSION_FOLDER'
+ENV_NAME_SESSION_PATH = 'SPARCD_SESSION_FOLDER'
 # Environment variable name for session expiration timeout
-SESSION_EXPIRE_ENV_NAME = 'SPARCD_SESSION_TIMEOUT'
+ENV_NAME_SESSION_EXPIRE = 'SPARCD_SESSION_TIMEOUT'
 # Default timeout in seconds
 SESSION_EXPIRE_DEFAULT_SEC = 10 * 60 * 60
 # Working database storage path
-DB_PATH_DEFAULT = os.environ.get(DB_ENV_NAME,  None)
+DEFAULT_DB_PATH = os.environ.get(ENV_NAME_DB,  None)
 # Working session storage path
-SESSION_PATH_DEFAULT = os.environ.get(SESSION_PATH_ENV_NAME, tempfile.gettempdir())
+DEFAULT_SESSION_PATH = os.environ.get(ENV_NAME_SESSION_PATH, tempfile.gettempdir())
+# Default timeout when requesting an image
+DEFAULT_IMAGE_FETCH_TIMEOUT_SEC = 10.0
+# Working passcode
+CURRENT_PASSCODE = os.environ.get(ENV_NAME_PASSCODE, None)
 # Working amount of time after last action before session is expired
-SESSION_EXPIRE_SECONDS = os.environ.get(SESSION_EXPIRE_ENV_NAME, SESSION_EXPIRE_DEFAULT_SEC)
+SESSION_EXPIRE_SECONDS = os.environ.get(ENV_NAME_SESSION_EXPIRE, SESSION_EXPIRE_DEFAULT_SEC)
 # Name of temporary collections file
 TEMP_COLLECTION_FILE_NAME = 'sparcd_coll.json'
 # Number of seconds to keep the temporary file around before it's invalid
-TEMP_COLLECTION_FILE_EXPIRE_SEC = 1 * 60 * 60
-# Maximum number of times to try updating the temporary collections file
-TEMP_COLLECTION_FILE_MAX_WRITE_TRIES = 20
+TEMP_FILE_EXPIRE_SEC = 1 * 60 * 60
+# Maximum number of times to try updating a temporary file
+TEMP_FILE_MAX_WRITE_TRIES = 7
 
-# Don't run if we don't have a database
-if not DB_PATH_DEFAULT or not os.path.exists(DB_PATH_DEFAULT):
-    sys.exit(f'Database not found. Set {DB_ENV_NAME} environment variable to a valid file')
+# Don't run if we don't have a database or passcode
+if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
+    sys.exit(f'Database not found. Set the {ENV_NAME_DB} environment variable to the full path ' \
+                'of a valid file')
+if not CURRENT_PASSCODE:
+    sys.exit(f'Passcode not found. Set the {ENV_NAME_PASSCODE} environment variable a strong ' \
+                'passcode (password)')
+WORKING_PASSCODE=get_fernet_key_from_passcode(CURRENT_PASSCODE)
 
 # Initialize server
 app = Flask(__name__)
@@ -60,17 +75,52 @@ app.config.update(
 )
 SESSION_TYPE = 'filesystem'
 SESSION_SERIALIZATION_FORMAT = 'json'
-SESSION_CACHELIB = FileSystemCache(threshold=500, cache_dir=SESSION_PATH_DEFAULT)
+SESSION_CACHELIB = FileSystemCache(threshold=500, cache_dir=DEFAULT_SESSION_PATH)
 app.config.from_object(__name__)
 Session(app)
 
 # Intialize the database connection
-DB = SPARCdDatabase(DB_PATH_DEFAULT)
+DB = SPARCdDatabase(DEFAULT_DB_PATH)
 DB.connect()
 # TODO: clean up old tokens
 del DB
 DB = None
-print(f'Using database at {DB_PATH_DEFAULT}')
+print(f'Using database at {DEFAULT_DB_PATH}')
+
+
+def do_encrypt(plain: str) -> Optional[str]:
+    """ Encrypts the plaintext string
+    Argurments:
+        plain: the string to convert
+    Return:
+        Returns the encrypted string. None is returned if the string is None
+    Notes:
+        The plain parameter is forced to a string before encryption (it should
+        already be a string)
+        The plain text is utf-8 encoded and the cipher is decoded to utf-8
+    """
+    if plain is None:
+        return None
+    engine = Fernet(WORKING_PASSCODE)
+    return engine.encrypt(str(plain).encode('utf-8')).decode('utf-8')
+
+
+def do_decrypt(cipher: str) -> Optional[str]:
+    """ Decrypts the cipher to plain text
+    Arguments:
+        cipher: the encrypted string
+    Return:
+        Returns the plain text as a string. None is returned if the cipher is None
+    Notes:
+        The plain parameter is forced to a string before encryption (it should
+        already be a string)
+        The cipher is utf-8 encoded and the plain text is decoded to utf-8
+    """
+    if cipher is None:
+        return None
+    engine = Fernet(WORKING_PASSCODE)
+    return engine.decrypt(cipher.encode('utf-8')).decode('utf-8')
+
 
 def web_to_s3_url(url: str) -> str:
     """ Takes a web URL and converts it to something Minio can handle: converts
@@ -99,7 +149,7 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     """Checks the database for a token and then checks the validity
     Arguments:
         token: the token to check
-        client_ip: the client IP to check
+        client_ip: the client IP to check (use '*' to skip IP check)
         user_agent: the user agent value to check
         db: the database storing the token
     Returns:
@@ -112,7 +162,8 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     if login_info is not None:
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
-           login_info['client_ip'] == client_ip and login_info['user_agent'] == user_agent:
+           client_ip in (login_info['client_ip'], '*') and \
+           login_info['user_agent'] == user_agent:
             # Update to the newest timestamp
             db.update_token_timestamp(token)
             return True, login_info
@@ -150,53 +201,14 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
     Return:
         Returns the loaded collection data if valid, otherwise None is returned
     """
-    # pylint: disable=broad-exception-caught
     coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
-    if not os.path.exists(coll_file_path):
-        return None
-
-    with open(coll_file_path, 'r', encoding='utf-8') as infile:
-        try:
-            loaded_colls = json.loads(infile.read())
-        except json.JSONDecodeError as ex:
-            infile.close()
-            print(f'WARN: Collections temporary file has invalid contents: {coll_file_path}')
-            print(ex)
-            print('      Removing invalid file')
-            try:
-                os.unlink(coll_file_path)
-            except Exception as ex_2:
-                print(f'Unable to remove bad temporary collections file: {coll_file_path}')
-                print(ex_2)
-            return None
-
-    # Check if the contents are too old
-    if not isinstance(loaded_colls, dict) or 'timestamp' not in loaded_colls or \
-                                                    not loaded_colls['timestamp']:
-        print(f'WARN: Collections temporary file has missing contents: {coll_file_path}')
-        print('      Removing invalid file')
-        try:
-            os.unlink(coll_file_path)
-        except Exception as ex:
-            print(f'Unable to remove invalid temporary collections file: {coll_file_path}')
-            print(ex)
-        return None
-
-    old_ts = dateutil.parser.isoparse(loaded_colls['timestamp'])
-    ts_diff = datetime.datetime.utcnow() - old_ts
-
-    if ts_diff.total_seconds() > TEMP_COLLECTION_FILE_EXPIRE_SEC:
-        print('HACK: EXPIRED TEMP FILE')
-        try:
-            os.unlink(coll_file_path)
-        except Exception as ex:
-            print(f'Unable to remove expired temporary collections file: {coll_file_path}')
-            print(ex)
+    loaded_colls = load_timed_info(coll_file_path)
+    if loaded_colls is None:
         return None
 
     # Get this user's permissions
     user_coll = []
-    for one_coll in loaded_colls['collections']:
+    for one_coll in loaded_colls:
         new_coll = one_coll
         new_coll['permissions'] = None
         if 'all_permissions' in one_coll and one_coll['all_permissions']:
@@ -214,6 +226,62 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
     return user_coll
 
 
+def load_timed_info(load_path: str):
+    """ Loads the timed data from the specified file
+    Arguments:
+        load_path: the path to load data from
+    Return:
+        The loaded data or None if a problem occurs
+    """
+    # pylint: disable=broad-exception-caught
+    loaded_data = None
+
+    if not os.path.exists(load_path):
+        return None
+
+    with open(load_path, 'r', encoding='utf-8') as infile:
+        try:
+            loaded_data = json.loads(infile.read())
+        except json.JSONDecodeError as ex:
+            infile.close()
+            print(f'WARN: Timed file has invalid contents: {load_path}')
+            print(ex)
+            print('      Removing invalid file')
+            try:
+                os.unlink(load_path)
+            except Exception as ex_2:
+                print(f'Unable to remove bad timed file: {load_path}')
+                print(ex_2)
+
+            return None
+
+    # Check if the contents are too old
+    if not isinstance(loaded_data, dict) or 'timestamp' not in loaded_data or \
+                                                    not loaded_data['timestamp']:
+        print(f'WARN: Timed file has missing contents: {load_path}')
+        print('      Removing invalid file')
+        try:
+            os.unlink(load_path)
+        except Exception as ex:
+            print(f'Unable to remove invalid timed file: {load_path}')
+            print(ex)
+        return None
+
+    old_ts = dateutil.parser.isoparse(loaded_data['timestamp'])
+    ts_diff = datetime.datetime.utcnow() - old_ts
+
+    if ts_diff.total_seconds() > TEMP_FILE_EXPIRE_SEC:
+        print(f'INFO: Expired timed file {load_path}')
+        try:
+            os.unlink(load_path)
+        except Exception as ex:
+            print(f'Unable to remove expired timed file: {load_path}')
+            print(ex)
+        return None
+
+    return loaded_data['data']
+
+
 def save_timed_temp_colls(colls: tuple) -> None:
     """ Attempts to save the collections to a temporary file on disk
     Arguments:
@@ -221,29 +289,42 @@ def save_timed_temp_colls(colls: tuple) -> None:
     """
     # pylint: disable=broad-exception-caught
     coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
-    if os.path.exists(coll_file_path):
+    save_timed_info(coll_file_path, colls)
+
+
+def save_timed_info(save_path: str, data) -> None:
+    """ Attempts to save information to a file with a timestamp
+    Arguments:
+        save_path: the path to the save file
+        data: the data to save with a timestamp
+    Note:
+        If the file is locked, this function sleeps for a second until
+        the max retries is reached
+    """
+    # pylint: disable=broad-exception-caught
+    if os.path.exists(save_path):
         try:
-            os.unlink(coll_file_path)
+            os.unlink(save_path)
         except Exception as ex:
-            print(f'Unable to remove old temporary collections file: {coll_file_path}')
+            print(f'Unable to remove old temporaryfile: {save_path}')
             print(ex)
             print('Continuing to try updating the file')
 
     attempts = 0
     informed_exception = False
-    collection_info = {'timestamp':datetime.datetime.utcnow().isoformat(),
-                       'collections':colls
-                      }
-    while attempts < TEMP_COLLECTION_FILE_MAX_WRITE_TRIES:
+    save_info = {'timestamp':datetime.datetime.utcnow().isoformat(),
+                 'data':data
+                }
+    while attempts < TEMP_FILE_MAX_WRITE_TRIES:
         try:
-            with open(coll_file_path, 'w', encoding='utf-8') as outfile:
-                outfile.write(json.dumps(collection_info))
-            attempts = TEMP_COLLECTION_FILE_MAX_WRITE_TRIES
+            with open(save_path, 'w', encoding='utf-8') as outfile:
+                outfile.write(json.dumps(save_info))
+            attempts = TEMP_FILE_MAX_WRITE_TRIES
         except Exception as ex:
             if not informed_exception:
-                print(f'Unable to open temporary collection file for writing: {coll_file_path}')
+                print(f'Unable to open temporary file for writing: {save_path}')
                 print(ex)
-                print(f'Will keep trying for up to {TEMP_COLLECTION_FILE_MAX_WRITE_TRIES} times')
+                print(f'Will keep trying for up to {TEMP_FILE_MAX_WRITE_TRIES} times')
                 informed_exception = True
                 time.sleep(1)
             attempts = attempts + 1
@@ -266,7 +347,7 @@ def login_token():
         is invalid/missing/expired, a new token is returned
     """
     curtime = None
-    db = SPARCdDatabase(DB_PATH_DEFAULT)
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
 
     print('LOGIN', request)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -290,8 +371,6 @@ def login_token():
     # If the token is here for checking, and we have session information, see if it's valid
     if token is not None:
         # Checking the token for validity
-        print('TOKEN SESSION', session.get('key'), token, session.get('last_access'))
-        # See if the session is still valid
         token_valid, login_info = token_is_valid(token, client_ip, user_agent_hash, db)
         if token_valid:
             curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
@@ -304,7 +383,6 @@ def login_token():
                                'admin':login_info['admin']})
 
         # Delete the old token from the database
-        print('DELETING OLD TOKEN', token)
         db.reconnect()
         db.remove_token(token)
 
@@ -331,8 +409,7 @@ def login_token():
     # Save information into the database
     new_key = uuid.uuid4().hex
     db.reconnect()
-    # TODO: SECURE PASSWORD
-    db.add_token(token=new_key, user=user, password=password, client_ip=client_ip, \
+    db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip, \
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
 
@@ -344,7 +421,6 @@ def login_token():
     # TODO: https://flask-session.readthedocs.io/en/latest/security.html#session-fixation
     #base.ServerSideSession.session_interface.regenerate(session)
 
-    print(json.dumps({'value':session['key']}))
     return json.dumps({'value':session['key'], 'name':user_info['name'],
                        'settings':user_info['settings'], 'admin':user_info['admin']})
 
@@ -360,7 +436,7 @@ def collections():
     Notes:
         If the token is invalid, or a problem occurs, a 404 error is returned
     """
-    db = SPARCdDatabase(DB_PATH_DEFAULT)
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
 
     token = request.args.get('token')
     if not token:
@@ -387,7 +463,7 @@ def collections():
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])
     all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
-                                                                db.get_password(token))
+                                                            do_decrypt(db.get_password(token)))
 
     return_colls = []
     for one_coll in all_collections:
@@ -408,7 +484,8 @@ def collections():
                                 'imagesCount': one_upload['info']['imageCount'],
                                 'imagesWithSpeciesCount': one_upload['info']['imagesWithSpecies'],
                                 'location': one_upload['location'],
-                                'edits': one_upload['info']['editComments']
+                                'edits': one_upload['info']['editComments'],
+                                'key': one_upload['key']
                               })
         cur_col['uploads'] = cur_uploads
         return_colls.append(cur_col)
@@ -425,10 +502,9 @@ def collections():
     return json.dumps(return_colls)
 
 
-
 @app.route('/upload', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
-def collections():
+def upload():
     """ Returns the list of images from a collection's upload
     Arguments: (GET)
         token - the session token
@@ -439,7 +515,7 @@ def collections():
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
-    db = SPARCdDatabase(DB_PATH_DEFAULT)
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
 
     token = request.args.get('token')
     collection_id = request.args.get('id')
@@ -448,7 +524,8 @@ def collections():
     if not token or not collection_id or not collection_upload:
         return "Not Found", 404
 
-    print(('UPLOAD', request), flush=True)
+    print('UPLOAD', request, flush=True)
+    app.config['SERVER_NAME'] = request.host
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.remote_addr))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
@@ -460,10 +537,95 @@ def collections():
     if not token_valid or not user_info:
         return "Not Found", 404
 
+    # Save path
+    save_path = os.path.join(tempfile.gettempdir(), 'sparcd_' + collection_id + '_' + \
+                                                                collection_upload + '.json')
 
-    # Get the collection information from the server
-    s3_url = web_to_s3_url(user_info["url"])
-    all_images = S3Connection.get_images(s3_url, user_info["name"], db.get_password(token), \
-                                            collection_id, collection_upload)
-   
- 
+    # Reload the saved information
+    all_images = None
+    if os.path.exists(save_path):
+        all_images = load_timed_info(save_path)
+        if all_images is not None:
+            all_images = [all_images[one_key] for one_key in all_images.keys()]
+
+    if all_images is None:
+        # Get the collection information from the server
+        s3_url = web_to_s3_url(user_info["url"])
+        all_images = S3Connection.get_images(s3_url, user_info["name"], \
+                                                do_decrypt(db.get_password(token)), \
+                                                collection_id, collection_upload)
+
+        # Save the images so we can reload them later
+        save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
+
+    # Everything checks out
+    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
+    # Update our session information
+    session['last_access'] = curtime
+
+    # Prepare the return data
+    for one_img in all_images:
+        one_img['url'] = url_for('image', _external=True,
+                                    i=do_encrypt(json.dumps({ 'k':one_img["key"],
+                                                              'p':save_path
+                                                             })))
+        del one_img['bucket']
+        del one_img['s3_path']
+        del one_img['s3_url']
+        del one_img['key']
+
+    return json.dumps(all_images)
+
+
+@app.route('/image', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def image():
+    """ Returns the image from the S3 storage
+    Arguments: (GET)
+        token - the session token
+        i - the key of the image
+    Return:
+        Returns the image
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+
+    try:
+        image_req = json.loads(do_decrypt(request.args.get('i')))
+    except json.JSONDecodeError:
+        image_req = None
+
+    # Check what we have from the requestor
+    if not token or not image_req or not isinstance(image_req, dict) or \
+                not all(one_key in image_req.keys() for one_key in ('k','p')):
+        return "Not Found", 404
+
+    image_key = image_req['k']
+    image_store_path = image_req['p']
+
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    # Allow a timely request from everywhere
+    token_valid, user_info = token_is_valid(token, '*', user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Not Found", 404
+
+    # Load the image data
+    image_data = load_timed_info(image_store_path)
+    if image_data is None or not isinstance(image_data, dict):
+        return "Not Found", 404
+
+    # Get the url from the key
+    if not image_key in image_data:
+        return "Not Found", 404
+
+    # Not to be confused with Flask's request
+    res = requests.get(image_data[image_key]['s3_url'],
+                       timeout=DEFAULT_IMAGE_FETCH_TIMEOUT_SEC,
+                       allow_redirects=False)
+    return res.content

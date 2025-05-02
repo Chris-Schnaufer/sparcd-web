@@ -94,7 +94,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
    */
   function handleEditUpload(event) {
     event.preventDefault();
-    onEditUpload(sandboxItems[selectionIndex].collectionId, sandboxItems[selectionIndex].name, "Uploads");
+    onEditUpload(sandboxItems[selectionIndex].collectionId, sandboxItems[selectionIndex].key, "Uploads");
   }
 
   /**

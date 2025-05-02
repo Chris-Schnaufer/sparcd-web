@@ -8,6 +8,7 @@ import json
 import os
 import tempfile
 from typing import Optional
+import uuid
 from minio import Minio, S3Error
 
 SPARCD_PREFIX='sparcd-'
@@ -122,8 +123,11 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                 if csv_data is not None:
                     reader = csv.reader(StringIO(csv_data))
                     csv_info = next(reader)
-                    coll_uploads.append({'path':one_obj.object_name, 'info':coll_info, \
-                                            'location':csv_info[1]})
+                    coll_uploads.append({'path':one_obj.object_name,
+                                         'info':coll_info, \
+                                         'location':csv_info[1],
+                                         'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
+                                        })
                 else:
                     print(f'Unable to get deployment information: {upload_info_path}')
 
@@ -147,7 +151,7 @@ def get_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
     images = []
     cur_paths = [upload_paths]
 
-    # Get the image names
+    # Get the image names and urls
     # pylint: disable=modified-iterating-list
     for cur_path in cur_paths:
         for one_obj in minio.list_objects(bucket, cur_path):
@@ -158,7 +162,12 @@ def get_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
                 _, file_name = os.path.split(one_obj.object_name)
                 name, ext = os.path.splitext(file_name)
                 if ext.lower().endswith('.jpg'):
-                    images.append({'name':name, 's3_path':one_obj.object_name})
+                    s3_url = minio.presigned_get_object(bucket, one_obj.object_name)
+                    images.append({'name':name,
+                                   'bucket':bucket, \
+                                   's3_path':one_obj.object_name,
+                                   's3_url':s3_url,
+                                   'key':uuid.uuid4().hex})
 
     return images
 
@@ -178,7 +187,7 @@ def get_common_name(csv_comment: str) -> Optional[str]:
     if '[' in csv_comment and ']' in csv_comment and 'COMMONNAME:' in csv_comment:
         lindex = csv_comment.find('[')
         rindex = csv_comment.find(']')
-        cindex = csv_comment.find['COMMONNAME:']
+        cindex = csv_comment.find('COMMONNAME:')
         if lindex < cindex < rindex:
             start_index = cindex + len('COMMONNAME:')
             common_name = csv_comment[start_index:rindex]
@@ -259,6 +268,8 @@ class S3Connection:
                         cur_img['species'] = []
                     cur_img['species'].append({'name':common_name, 'sci_name':csv_info[8], \
                                                'count':csv_info[9]})
+                else:
+                    print(f'Unable to find collection image: {csv_info[3]}')
         else:
             print(f'Unable to get observations information: {upload_info_path}')
 

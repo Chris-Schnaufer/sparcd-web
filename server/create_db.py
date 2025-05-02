@@ -79,17 +79,6 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'password TEXT NOT NULL, s3_url TEXT NOT NULL, token TEXT UNIQUE, ' \
                             'timestamp INTEGER, client_ip TEXT, user_agent TEXT)',
-             'CREATE TABLE coll_upload(id INTEGER PRIMARY KEY ASC, timestamp INTEGER, ' \
-                            'collection_id TEXT NOT NULL, upload_name TEXT NOT NULL)',
-             'CREATE UNIQUE INDEX coll_upload_index ON coll_upload(collection_id,upload_name)',
-             'CREATE TABLE upload_img(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
-                            'path TEXT NOT NULL, coll_upload_ref_id INTEGER NOT NULL, ' \
-                            'FOREIGN KEY(coll_upload_ref_id) REFERENCES coll_upload(id))',
-             'CREATE UNIQUE INDEX upload_img_index ON upload_img(name,upload_ref_id)',
-             'CREATE TABLE img_species(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
-                            'count INTEGER NOT NULL, image_ref_id INTEGER, ' \
-                            'FOREIGN KEY(image_ref_id) REFERENCES upload_img(id))',
-             'CREATE INDEX img_species_index ON img_species(image_ref_id)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator) values(?, ?, 1)'
 

@@ -254,7 +254,7 @@ export default function Home() {
    */
   function loadCollections(token) {
     const cur_token = token || lastToken;
-    console.log('LOADCOLLECTIONS',cur_token,'TOKEN',token,'LASTTOKEN',lastToken)
+    console.log('LOADCOLLECTIONS')
     setLoadingCollections(true);
     const collectionUrl =  serverURL + '/collections?token=' + encodeURIComponent(cur_token)
     try {
@@ -271,20 +271,16 @@ export default function Home() {
           // Save response data
           setLoadingCollections(false);
           const curCollections = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+          console.log('COLLECTIONS',curCollections);
           setCollectionInfo(curCollections);
         })
         .catch(function(err) {
           console.log('Error: ',err);
           setLoadingCollections(false);
-          if (onFailure && typeof(onFailure) === 'function') {
-            onFailure();
-          }
       });
     } catch (error) {
-      if (onFailure && typeof(onFailure) === 'function') {
-        setLoadingCollections(false);
-        onFailure();
-      }
+      console.log('Error: ',error);
+      setLoadingCollections(false);
     }
   }
 
@@ -387,13 +383,13 @@ export default function Home() {
     }
   }
 
-  function editCollectionUpload(collectionId, uploadName, breadcrumbName) {
-    const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(cur_token) + 
+  function editCollectionUpload(collectionId, uploadId, breadcrumbName) {
+    const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(lastToken) + 
                                           '&id=' + encodeURIComponent(collectionId) + 
-                                          '&up=' + encodeURIComponent(uploadName);
+                                          '&up=' + encodeURIComponent(uploadId);
     // Get the information on the upload
     try {
-      const resp = fetch(loginUrl, {
+      const resp = fetch(uploadUrl, {
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -403,18 +399,28 @@ export default function Home() {
             }
           })
         .then((respData) => {
-          setCurrentAction(UserActions.UploadEdit, respData, true, breadcrumbName);
+          const curCollection = collectionInfo.find((item) => item.id === collectionId);
+          if (curCollection) {
+            const curUpload = curCollection.uploads.find((item) => item.key === uploadId);
+            if (curUpload) {
+              // Add our token in
+              const cur_images = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
+              setCurrentAction(UserActions.UploadEdit, 
+                               {collectionId, name:curUpload.name, location:curUpload.location, images:cur_images},
+                               true,
+                               breadcrumbName);
+            } else {
+              console.log('ERROR: unable to find upload ID', uploadId, 'for collection ID', collectionId);
+            }
+          } else {
+            console.log('ERROR: unable to find collection ID', collectionId);
+          }
         })
         .catch(function(err) {
           console.log('Error: ',err);
-          if (onFailure && typeof(onFailure) === 'function') {
-            onFailure();
-          }
       });
     } catch (error) {
-      if (onFailure && typeof(onFailure) === 'function') {
-        onFailure();
-      }
+      console.log('Error: ',error);
     }
 /*
     // Set the uploaded information

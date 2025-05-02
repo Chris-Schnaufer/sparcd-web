@@ -520,7 +520,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         </Grid>
       </Grid>
       { curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 
-        <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="start"
+        <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
                        'maxHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
@@ -538,7 +538,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         : null
       }
       { curEditState == editingStates.editImage ?
-        <Grid id='image-edit-workspace' container direction="column" alignItems="center" justifyContent="center"
+        <Grid id='image-edit-edit' container direction="column" alignItems="center" justifyContent="center"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
                        'top':(curStart)+'px', 
@@ -548,7 +548,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             <ImageEdit id={navigationRedraw}
                        url={curImageEdit.url}
                        name={curImageEdit.name}
-                       parentX={workplaceStartX} parentId='image-edit-workspace'
+                       parentX={workplaceStartX} parentId='image-edit-edit'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
                        onClose={() => {setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}
@@ -563,7 +563,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         : null
       }
       { editingLocation ? 
-          <Grid id='image-edit-workspace' container spacing={0} direction="column" alignItems="center" justifyContent="center"
+          <Grid id='image-edit-location' container spacing={0} direction="column" alignItems="center" justifyContent="center"
                 style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 
                         'top':(curStart+sidebarHeightTop)+'px',
                          'left':workplaceStartX+'px','minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px', 'width':workspaceWidth+'px',

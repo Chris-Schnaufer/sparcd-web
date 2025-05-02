@@ -168,10 +168,11 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
   return (
     <Box id='image-edit-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative' }} >
-    <div/>
-      <Grid id='collection-workspace-details' ref={sidebarRef} container direction="row" alignItems="start" justifyContent="start"
-            style={{position:'absolute', top:'0px', width:'40vw', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
-                 backgroundColor:'white', borderLeft:'1px solid grey', overflow:'scroll'}}
+      <div style={{position:'absolute', top:'0px', width:'40vw', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
+                   backgroundColor:'white', borderLeft:'1px solid grey', overflow:'scroll'}}
+      >
+      <Grid id='collection-workspace-details' ref={sidebarRef} container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
+            
       >
         { curCollection && curCollection.uploads.map((item, idx) =>
           <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" sx={{minWidth:'100%', '&:hover':{backgroundColor:theme.palette.action.active} }}>
@@ -184,7 +185,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                                 </Grid>
                                 <Grid item sx={{marginLeft:'auto'}}>
                                   <Tooltip title="Edit this upload">
-                                    <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.name, "Collections")}>
+                                    <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.key, "Collections")}>
                                       <BorderColorOutlinedIcon fontSize="small"/>
                                     </IconButton>
                                   </Tooltip>
@@ -236,6 +237,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
           </Card>
         )}
       </Grid>
+      </div>
       <Grid id='collection-workspace' container direction="row" alignItems="start" justifyContent="start"
             columnSpacing={2}
             rowSpacing={1}
