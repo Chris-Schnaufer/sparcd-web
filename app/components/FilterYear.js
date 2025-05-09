@@ -27,8 +27,8 @@ import FilterCard from './FilterCard'
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterYearFormData(data, formData) {
-  formData.append('yearStart', data.start + '');
-  formData.append('yearEnd', data.end + '');
+  formData.append('years', JSON.stringify({'yearStart':data.start + '',
+                                          'yearEnd':data.end + ''}));
   return formData;
 }
 

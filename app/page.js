@@ -143,6 +143,9 @@ export default function Home() {
   setupSearch = setupSearch.bind(Home);
   restoreBreadcrumb = restoreBreadcrumb.bind(Home);
 
+  // TODO: load locations dynamically
+  // TODO: load species dynamically
+
   // TODO: change dependencies to Theme & use @media to adjust
   // Sets the narrow flag when the window is less than 600 pixels
   React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
@@ -422,85 +425,6 @@ export default function Home() {
     } catch (error) {
       console.log('Error: ',error);
     }
-/*
-    // Set the uploaded information
-    let fakeLoadedData = sandboxInfo.find((item) => item.collectionId === collectionId && item.name === uploadName);
-    if (!fakeLoadedData) {
-      const curCollection = collectionInfo.find((item) => item.id === collectionId);
-      if (curCollection) {
-        const curUpload = curCollection.uploads.find((item) => item.name === uploadName);
-        if (curUpload) {
-          fakeLoadedData = {collectionId, name:curUpload.name, location:curUpload.location,
-             'images': [{'name':'image1111', 'url': '../IMAG0120.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
-                        {'name':'image0002', 'url': '../IMAG0120.JPG', 'species': [{'name':'dog','count':'1'}]},
-                        {'name':'image0004', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0005', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0006', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0007', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0008', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0009', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0010', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0011', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0012', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0013', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0014', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0015', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0016', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0017', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0018', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0019', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0020', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0021', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0022', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0023', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0024', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0025', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0026', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0027', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0028', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0029', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0030', 'url': '../IMAG0120.JPG', 'species': []},
-                      ]
-                   }
-        }
-      }
-    }
-    if (!fakeLoadedData) {
-      fakeLoadedData = {collectionId, name:uploadName, 'location':'CAN06', 
-             'images': [{'name':'image3333', 'url': '../IMAG0120.JPG', 'species': [{'name':'cat','count':'2'},{'name':'deer','count':'0'}]},
-                        {'name':'image0002', 'url': '../IMAG0120.JPG', 'species': [{'name':'dog','count':'1'}]},
-                        {'name':'image0004', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0005', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0006', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0007', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0008', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0009', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0010', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0011', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0012', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0013', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0014', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0015', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0016', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0017', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0018', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0019', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0020', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0021', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0022', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0023', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0024', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0025', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0026', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0027', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0028', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0029', 'url': '../IMAG0120.JPG', 'species': []},
-                        {'name':'image0030', 'url': '../IMAG0120.JPG', 'species': []},
-                      ]
-                   }
-    }
-    setCurrentAction(UserActions.UploadEdit, fakeLoadedData, true, breadcrumbName);
-*/
   }
 
   function handleSearch(searchTerm) {

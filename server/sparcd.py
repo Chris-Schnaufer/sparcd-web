@@ -27,6 +27,9 @@ from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
 from s3_access import S3Connection
 
+# Our prefix
+SPARCD_PREFIX = 'sparcd_'
+
 # Environment variable name for database
 ENV_NAME_DB = 'SPARCD_DB'
 # Environment variable name for passcode
@@ -48,11 +51,19 @@ CURRENT_PASSCODE = os.environ.get(ENV_NAME_PASSCODE, None)
 # Working amount of time after last action before session is expired
 SESSION_EXPIRE_SECONDS = os.environ.get(ENV_NAME_SESSION_EXPIRE, SESSION_EXPIRE_DEFAULT_SEC)
 # Name of temporary collections file
-TEMP_COLLECTION_FILE_NAME = 'sparcd_coll.json'
+TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
 # Number of seconds to keep the temporary file around before it's invalid
 TEMP_FILE_EXPIRE_SEC = 1 * 60 * 60
 # Maximum number of times to try updating a temporary file
 TEMP_FILE_MAX_WRITE_TRIES = 7
+# Collection table timeout length
+TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
+# Uploads table timeout length
+TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
+
+# List of known query form variable keys
+KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','locations',
+                    'month','species','startDate','years']
 
 # Don't run if we don't have a database or passcode
 if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
@@ -452,7 +463,7 @@ def collections():
 
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
-        return "Not Found", 404
+        return "Unauthorized", 401
 
     # Check if we have a stored temporary file containing the collections information
     # and return that
@@ -535,10 +546,10 @@ def upload():
 
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
-        return "Not Found", 404
+        return "Unauthorized", 401
 
     # Save path
-    save_path = os.path.join(tempfile.gettempdir(), 'sparcd_' + collection_id + '_' + \
+    save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + collection_id + '_' + \
                                                                 collection_upload + '.json')
 
     # Reload the saved information
@@ -613,7 +624,7 @@ def image():
     # Allow a timely request from everywhere
     token_valid, user_info = token_is_valid(token, '*', user_agent_hash, db)
     if not token_valid or not user_info:
-        return "Not Found", 404
+        return "Unauthorized", 401
 
     # Load the image data
     image_data = load_timed_info(image_store_path)
@@ -629,3 +640,132 @@ def image():
                        timeout=DEFAULT_IMAGE_FETCH_TIMEOUT_SEC,
                        allow_redirects=False)
     return res.content
+
+
+@app.route('/query', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def query():
+    """ Returns a token representing the login. No checks are made on the parameters
+    Arguments: (POST or GET)
+        url - the S3 database URL
+        user - the user name
+        password - the user credentials
+        token - the token to check for
+    Return:
+        Returns the session key and associated user information
+    Notes:
+        All parameters can be specified. If a token is specified, it's checked
+        for expiration first. If valid login information is specified, and the token
+        is invalid/missing/expired, a new token is returned
+    """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+
+    print('QUERY', request)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.remote_addr))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    have_error = False
+    filters = []
+    token = None
+    for key, value in request.form.items(multi=True):
+        match key:
+            case 'collections' | 'dayofweek' | 'elevations' | 'hour' | 'locations' | \
+                 'month' | 'species' | 'years':
+                try:
+                    filters.append((key, json.loads(value)))
+                except json.JSONDecodeError:
+                    print(f'Error: bad query data for key: {key}')
+                    have_error = True
+                    break
+            case 'endDate' | 'startDate':
+                filters.append((key, datetime.datetime.fromisoformat(value)))
+                break
+            case 'token':
+                token = value
+                break
+            case _:
+                print(f'Error: unknown query key detected: {key}')
+                have_error = True
+
+    # Check what we have from the requestor
+    if not token or have_error:
+        print('INVALID TOKEN OR QUERY:',token,have_error)
+        return "Not Found", 404
+    if not filters:
+        print('NO FILTERS SPECIFIED')
+        return "Not Found", 404
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.remote_addr))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    # Allow a timely request from everywhere
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    s3_url = web_to_s3_url(user_info["url"])
+
+    # Get collections from the database
+    coll_info = db.get_collections(TIMEOUT_COLLECTIONS_SEC)
+    if coll_info is None or not coll_info:
+        all_collections = S3Connection.list_collections(s3_url, user_info["name"], \
+                                                            do_decrypt(db.get_password(token)))
+        coll_info = [{'name':one_coll['bucket'], 'json':one_coll} \
+                                                            for one_coll in all_collections]
+        if not db.save_collections([{'name':one_coll['bucket'], 'json':json.dumps(one_coll)} \
+                                                            for one_coll in all_collections]):
+            print('Warning: Unable to save collections to the database')
+    else:
+        coll_info = [{'name':one_coll['name'],'json':json.loads(one_coll['json'])} \
+                                                            for one_coll in coll_info]
+
+    # Filter collections
+    cur_coll = coll_info
+    for one_filter in filters:
+        if one_filter[0] == 'collections':
+            cur_coll = [coll for coll in cur_coll if coll['name'] in one_filter[1]]
+
+    # Get uploads information to further filter images
+    all_results = []
+    for one_coll in cur_coll:
+        cur_bucket = one_coll['json']['bucketProperty']
+        print('HACK:BEFORE UPLOADS FETCH',cur_bucket)
+        uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
+        if uploads_info is not None and uploads_info:
+            uploads_info = [{'bucket':cur_bucket,       \
+                             'name':one_upload['name'],                     \
+                             'info':json.loads(one_upload['json'])}         \
+                                    for one_upload in uploads_info]
+        else:
+            uploads_info = S3Connection.list_uploads(s3_url, \
+                                                user_info["name"], \
+                                                do_decrypt(db.get_password(token)), \
+                                                cur_bucket)
+#            print('HACK:UPLOAD:',type(uploads_info),len(uploads_info),flush=True)
+            if uploads_info:
+                print('            ',type(uploads_info[0]),flush=True)
+                print('            ',uploads_info[0],flush=True)
+            uploads_info = [{'bucket':cur_bucket,
+                             'name':one_upload['name'],
+                             'info':one_upload,
+                             'json':json.dumps(one_upload)
+                            } for one_upload in uploads_info]
+            db.save_uploads(one_coll['json']['bucket'], uploads_info)
+
+        if uploads_info:
+            print(json.dumps(uploads_info[0]))
+#            cur_results = filter_uploads(uploads_info, filters)
+#           if cur_results:
+#                all_results = all_results + cur_results
+
+    # Format and return the results
+#    return json.dumps(query_output(all_results))
+    return "Success!"

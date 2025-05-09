@@ -3,6 +3,7 @@
 
 import logging
 import sqlite3
+from time import sleep
 from typing import Optional
 
 class SPARCdDatabase:
@@ -76,7 +77,7 @@ class SPARCdDatabase:
 
         cursor = self._conn.cursor()
         query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
-                'user_agent) VALUES(?,?,?,?,strftime(\'%s\', \'now\'),?,?)'
+                'user_agent) VALUES(?,?,?,?,strftime("%s", "now"),?,?)'
         cursor.execute(query, (token, user, password, s3_url, client_ip, user_agent))
         self._conn.commit()
         cursor.close()
@@ -91,7 +92,7 @@ class SPARCdDatabase:
                                         'connecting')
 
         cursor = self._conn.cursor()
-        query = 'UPDATE tokens SET timestamp=strftime(\'%s\', \'now\') WHERE token=?'
+        query = 'UPDATE tokens SET timestamp=strftime("%s", "now") WHERE token=?'
         cursor.execute(query, (token,))
         self._conn.commit()
         cursor.close()
@@ -180,3 +181,203 @@ class SPARCdDatabase:
             return res[0]
 
         return ''
+
+    def get_collections(self, timeout_sec:int) -> Optional[list]:
+        """ Returns the collection information stored in the database
+        Arguments:
+            timeout_sec: the amount of time before the table entries can be
+                         considered expired
+        Returns:
+            Returns the collections or None if there are no collections
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to access database before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
+                       'from table_timeout where name="collections" ORDER BY ' \
+                       'elapsed_sec DESC LIMIT 1')
+
+        res = cursor.fetchone()
+        if not res or len(res) < 1 or int(res[0]) >= timeout_sec:
+            return None
+
+        cursor.execute('SELECT name, json FROM collections')
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return None
+
+        return [{'name':row[0], 'json':row[1]} for row in res]
+
+    def save_collections(self, collections: tuple) -> bool:
+        """ Saves the collections to the database
+        Arguments:
+            collections: a tuple of dicts containing the collection name and data json
+        Return:
+            Returns True if data is saved, and False if something went wrong
+        """
+        # TODO: have a hash value to check to see if record JSON has changed
+        if self._conn is None:
+            raise RuntimeError('Attempting to access database before connecting')
+
+        cursor = self._conn.cursor()
+
+        tries = 0
+        while tries < 10:
+            try:
+                print('HACK:COLL: DELETE',tries)
+                cursor.execute('DELETE FROM collections')
+                break
+            except sqlite3.Error as ex:
+                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
+                    tries = tries + 1
+                    sleep(1)
+                else:
+                    print(f'Save collections clearing sqlite error detected: {ex.sqlite_errorcode}')
+                    print('    Not processing request further: delete')
+                    print('   ',ex)
+                    tries = 10
+        if tries >= 10:
+            self._conn.rollback()
+            cursor.close()
+            return False
+
+        tries = 0
+        for one_coll in collections:
+            try:
+                print('HACK:COLL: INSERT: ',one_coll['name'])
+                cursor.execute('INSERT INTO collections(name,json) values(?, ?)', \
+                                                (one_coll['name'], one_coll['json']))
+                tries += 1
+            except sqlite3.Error as ex:
+                print(f'Unable to update collections: {ex.sqlite_errorcode} {one_coll}')
+                break
+
+        if tries < len(collections):
+            self._conn.rollback()
+            cursor.close()
+            return False
+
+        # Update the timeout table for collections and do some cleanup if needed
+        print('HACK:COLL: TIMEOUT TABLE')
+        cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name="collections"')
+        res = cursor.fetchone()
+
+        count = int(res[0]) if res and len(res) > 0 else 0
+        if count > 1:
+            # Remove multiple old entries
+            cursor.execute('DELETE FROM table_timeout WHERE name="collections"')
+            count = 0
+        if count <= 0:
+            cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
+                                'VALUES ("collections",strftime("%s", "now"))')
+        else:
+            cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
+                                'WHERE name="collections')
+
+        print('HACKL:COLL: COMMIT')
+        self._conn.commit()
+        cursor.close()
+
+        return True
+
+    def get_uploads(self, bucket: str, timeout_sec: int) -> Optional[tuple]:
+        """ Returns the uploads for this collection from the database
+        Arguments:
+            timeout_sec: the amount of time before the table entries can be
+                         considered expired
+            The bucket to get uploads for
+        Return:
+            Returns the loaded tuple of upload names and data
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to access database before connecting')
+
+        # Check for expired collection uploads
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT (strftime("%s", "now")-timestamp) AS elapsed_sec from ' \
+                       'table_timeout where name=(?) ORDER BY elapsed_sec DESC LIMIT 1', \
+                       (bucket,))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 1 or int(res[0]) >= timeout_sec:
+            return None
+
+        cursor.execute('SELECT name,json FROM uploads WHERE collection=(?)', (bucket,))
+        res = cursor.fetchall()
+
+        if not res or len(res) < 1:
+            return None
+
+        return [{'name':row[0], 'json':row[1]} for row in res]
+
+    def save_uploads(self, bucket: str, uploads: tuple) -> bool:
+        """ Save the upload information into the table
+        Arguments:
+            bucket: the bucket name to save the uploads under
+            uploads: the uploads to save containing the collection name,
+                upload name, and associated JSON
+        Return:
+            Returns True if the data was saved and False if something went wrong
+        """
+        # TODO: have a hash value to check to see if record JSON has changed
+        if self._conn is None:
+            raise RuntimeError('Attempting to access database before connecting')
+
+        cursor = self._conn.cursor()
+
+        tries = 0
+        while tries < 10:
+            try:
+                cursor.execute('DELETE FROM uploads where collection=(?)', (bucket,))
+                break
+            except sqlite3.Error as ex:
+                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
+                    tries += 1
+                    sleep(1)
+                else:
+                    print(f'Save uploads delete sqlite error detected: {ex.sqlite_errorcode}')
+                    print('    Not processing request further: delete')
+                    print('   ',ex)
+                    tries = 10
+        if tries >= 10:
+            cursor.execute('ROLLBACK TRANSACTION')
+            cursor.close()
+            return False
+
+        tries = 0
+        for one_upload in uploads:
+            try:
+                cursor.execute('INSERT INTO uploads(collection,name,json) values(?,?,?)', \
+                                        (bucket, one_upload['name'], one_upload['json']))
+                tries += 1
+            except sqlite3.Error as ex:
+                print(f'Unable to update collections: {ex.sqlite_errorcode} {one_upload}')
+                break
+
+        if tries < len(uploads):
+            cursor.execute('ROLLBACK TRANSACTION')
+            cursor.close()
+            return False
+
+        # Update the timeout table for collections and do some cleanup if needed
+        cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name=(?)', (bucket,))
+        res = cursor.fetchone()
+
+        count = int(res[0]) if res and len(res) > 0 else 0
+        if count > 1:
+            # Remove multiple old entries
+            cursor.execute('DELETE FROM table_timeout WHEREname=(?)', (bucket,))
+            count = 0
+        if count <= 0:
+            cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
+                                'VALUES (?,strftime("%s", "now"))', (bucket,))
+        else:
+            cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
+                                'WHERE name=(?)', (bucket,))
+
+        cursor.execute('COMMIT TRANSACTION')
+        cursor.close()
+
+        return True

@@ -39,6 +39,7 @@ import FilterYear, { FilterYearFormData } from './components/FilterYear';
 import * as utils from './utils'
 
 import { resp } from './queryresult'; //TODO: remove when obtaining real data
+import { LocationsInfoContext, TokenContext } from './serverInfo'
 
 /**
  * Provides the UI for queries
@@ -48,6 +49,8 @@ import { resp } from './queryresult'; //TODO: remove when obtaining real data
 export default function Queries() {
   const theme = useTheme();
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
+  const locationItems = React.useContext(LocationsInfoContext);
+  const queryToken = React.useContext(TokenContext);
   const [activeTab, setActiveTab] = React.useState(0);
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [filterSelected, setFilterSelected] = React.useState(false); // Indicates a new filter is selected
@@ -252,7 +255,7 @@ export default function Queries() {
           FilterSpeciesFormData(filter.data, formData);
           break;
         case 'Location Filter':
-          FilterLocationsFormData(filter.data, formData);
+          FilterLocationsFormData(filter.data, formData, locationItems);
           break;
         case 'Elevation Filter':
           FilterElevationsFormData(filter.data, formData);
@@ -289,19 +292,37 @@ export default function Queries() {
    * @function
    */
   function handleQuery() {
-    const uploadUrl = serverURL + '/query';
+    const queryUrl = serverURL + '/query';
     const formData = getQueryFormData(filters);
 
-    // Get the information on the upload
-    /* TODO: make call and wait for respone & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(loginUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
-    setQueryResults(resp);
+    formData.append('token', queryToken);
+
+    console.log('QUERY');
+    for (const i of formData.keys()) console.log(i);
+    for (const i of formData.values()) console.log(i);
+
+    // Make the query
+    try {
+      const resp = fetch(queryUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+          if (resp.ok) {
+            return resp.json();
+          } else {
+            throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
+          }
+        })
+        .then((respData) => {
+          console.log('QUERY:',respData);
+          setQueryResults(respData);
+        })
+        .catch(function(err) {
+          console.log('Error: ',err);
+        });
+    } catch (error) {
+      console.log('Error: ',error);
+    }
   }
 
   /**

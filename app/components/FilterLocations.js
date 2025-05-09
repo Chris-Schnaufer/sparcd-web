@@ -28,8 +28,9 @@ import FilterCard from './FilterCard'
  * @param {object} data The saved data to add to the form
  * @param {object} formData The FormData to add the fields to
  */
-export function FilterLocationsFormData(data, formData) {
-  formData.append('locations', JSON.stringify(data));
+export function FilterLocationsFormData(data, formData, locationItems) {
+  const id_data = locationItems.filter((item) => data.includes(item['nameProperty']))
+  formData.append('locations', JSON.stringify(id_data.map((item) => item['idProperty'])));
 }
 
 /**
@@ -113,7 +114,8 @@ export default function FilterLocations({data, onClose, onChange}) {
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
-      const filtered = locationItems.filter((item) => item.nameProperty.toUpperCase().includes(ucSearch) || item.idProperty.toUpperCase().includes(ucSearch));
+      const filtered = locationItems.filter((item) => item.nameProperty.toUpperCase().includes(ucSearch) || 
+                                                      item.idProperty.toUpperCase().includes(ucSearch));
       setDisplayedLocations(filtered);
     } else {
       setDisplayedLocations(locationItems);

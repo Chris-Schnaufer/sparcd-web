@@ -44,7 +44,7 @@ export default function FilterCollections({data, onClose, onChange}) {
   const theme = useTheme();
   const collectionItems = React.useContext(CollectionsInfoContext);
   const [displayedCollections, setDisplayedCollections] = React.useState(collectionItems); // The visible collections
-  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.name)); // The user's selections
+  const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.bucket)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
   // Set the initial data if we don't have any
@@ -59,7 +59,7 @@ export default function FilterCollections({data, onClose, onChange}) {
    * @function
    */
   function handleSelectAll() {
-    const curCollections = displayedCollections.map((item) => item.name);
+    const curCollections = displayedCollections.map((item) => item.bucket);
     const newCollections = curCollections.filter((item) => selectedCollections.findIndex((selItem) => selItem === item) < 0);
     const updatedSelections = [...selectedCollections, ...newCollections];
     setSelectedCollections(updatedSelections);
@@ -114,7 +114,7 @@ export default function FilterCollections({data, onClose, onChange}) {
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
-      setDisplayedCollections(collectionItems.filter((item) => item.name.toUpperCase().includes(ucSearch)));
+      setDisplayedCollections(collectionItems.filter((item) => item.bucket.toUpperCase().includes(ucSearch)));
     } else {
       setDisplayedCollections(collectionItems);
     }
@@ -150,8 +150,8 @@ export default function FilterCollections({data, onClose, onChange}) {
           { displayedCollections.map((item) => 
               <FormControlLabel key={'filter-collections-' + item.name}
                                 control={<Checkbox size="small" 
-                                                   checked={selectedCollections.findIndex((curCollections) => curCollections===item.name) > -1 ? true : false}
-                                                   onChange={(event) => handleCheckboxChange(event,item.name)}
+                                                   checked={selectedCollections.findIndex((curCollections) => curCollections===item.bucket) > -1 ? true : false}
+                                                   onChange={(event) => handleCheckboxChange(event,item.bucket)}
                                           />} 
                                 label={<Typography variant="body2">{item.name}</Typography>} />
             )

@@ -79,6 +79,12 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'password TEXT NOT NULL, s3_url TEXT NOT NULL, token TEXT UNIQUE, ' \
                             'timestamp INTEGER, client_ip TEXT, user_agent TEXT)',
+             'CREATE TABLE table_timeout(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
+                            'timestamp INTEGER)',
+             'CREATE TABLE collections(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
+                            'json TEXT NOT NULL)',
+             'CREATE TABLE uploads(id INTEGER PRIMARY KEY ASC, collection TEXT NOT NULL, ' \
+                            'name TEXT NOT NULL, json TEXT NOT NULL)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator) values(?, ?, 1)'
 
