@@ -749,23 +749,23 @@ def query():
                                                 user_info["name"], \
                                                 do_decrypt(db.get_password(token)), \
                                                 cur_bucket)
-#            print('HACK:UPLOAD:',type(uploads_info),len(uploads_info),flush=True)
-            if uploads_info:
+            print('HACK:UPLOAD:',type(uploads_info),len(uploads_info),flush=True)
+            if len(uploads_info) > 0:
                 print('            ',type(uploads_info[0]),flush=True)
                 print('            ',uploads_info[0],flush=True)
-            uploads_info = [{'bucket':cur_bucket,
-                             'name':one_upload['name'],
-                             'info':one_upload,
-                             'json':json.dumps(one_upload)
-                            } for one_upload in uploads_info]
-            db.save_uploads(one_coll['json']['bucket'], uploads_info)
+                uploads_info = [{'bucket':cur_bucket,
+                                 'name':one_upload['name'],
+                                 'info':one_upload,
+                                 'json':json.dumps(one_upload)
+                                } for one_upload in uploads_info]
+                db.save_uploads(one_coll['json']['bucket'], uploads_info)
 
-        if uploads_info:
+        # Filter on current uploads
+        if len(uploads_info) > 0:
             print(json.dumps(uploads_info[0]))
-#            cur_results = filter_uploads(uploads_info, filters)
-#           if cur_results:
-#                all_results = all_results + cur_results
+            cur_results = filter_uploads(uploads_info, filters)
+           if cur_results:
+                all_results = all_results + cur_results
 
     # Format and return the results
-#    return json.dumps(query_output(all_results))
-    return "Success!"
+    return json.dumps(query_output(all_results))

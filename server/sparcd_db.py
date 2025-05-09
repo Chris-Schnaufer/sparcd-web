@@ -274,7 +274,7 @@ class SPARCdDatabase:
                                 'VALUES ("collections",strftime("%s", "now"))')
         else:
             cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
-                                'WHERE name="collections')
+                                'WHERE name="collections"')
 
         print('HACKL:COLL: COMMIT')
         self._conn.commit()

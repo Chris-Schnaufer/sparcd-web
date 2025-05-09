@@ -23,7 +23,7 @@ import FilterCard from './FilterCard'
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterDateFormData(fieldName, data, formData) {
-  formData.append(fieldName, data.$d);
+  formData.append(fieldName, (new Date(data.$d)).toISOString());
 }
 
 /**

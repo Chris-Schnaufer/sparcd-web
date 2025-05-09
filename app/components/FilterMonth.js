@@ -37,6 +37,22 @@ const monthNames = [
   'DECEMBER'
 ];
 
+// The values of the month names
+const monthValues = [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12
+];
+
 /**
  * Adds month information to form data
  * @function
@@ -44,7 +60,7 @@ const monthNames = [
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterMonthFormData(data, formData) {
-  formData.append('month', JSON.stringify(data));
+  formData.append('month', JSON.stringify(data.map((item) => monthValues[monthNames.findIndex((name) => name == item)])));
 }
 
 /**

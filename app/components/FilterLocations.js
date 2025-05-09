@@ -27,6 +27,7 @@ import FilterCard from './FilterCard'
  * @function
  * @param {object} data The saved data to add to the form
  * @param {object} formData The FormData to add the fields to
+ * @param {array} locationsItems The complete list of locations used for mapping
  */
 export function FilterLocationsFormData(data, formData, locationItems) {
   const id_data = locationItems.filter((item) => data.includes(item['nameProperty']))

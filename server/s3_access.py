@@ -52,20 +52,20 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     user_collections = []
 
     # Loop through and get all the information for a collection
-    perms_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-    os.close(perms_file[0])
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
     for one_bucket in buckets:
         collections_path = 'Collections'
         base_path = os.path.join(collections_path, one_bucket[len(SPARCD_PREFIX):])
 
         coll_info_path = os.path.join(base_path, 'collection.json')
-        coll_data = get_s3_file(minio, one_bucket, coll_info_path, perms_file[1])
+        coll_data = get_s3_file(minio, one_bucket, coll_info_path, temp_file[1])
         if coll_data is None or not coll_data:
             continue
         coll_data = json.loads(coll_data)
 
         permissions_path = os.path.join(base_path, 'permissions.json')
-        perm_data = get_s3_file(minio, one_bucket, permissions_path, perms_file[1])
+        perm_data = get_s3_file(minio, one_bucket, permissions_path, temp_file[1])
 
         if perm_data is not None:
             perms = json.loads(perm_data)
@@ -81,7 +81,7 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
                               'all_permissions': perms
                              })
             user_collections.append(coll_data)
-    os.unlink(perms_file[1])
+    os.unlink(temp_file[1])
 
     return tuple(user_collections)
 
@@ -124,12 +124,15 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                                              temp_file[1])
                 if csv_data is not None:
                     reader = csv.reader(StringIO(csv_data))
-                    csv_info = next(reader)
-                    coll_uploads.append({'path':one_obj.object_name,
-                                         'info':coll_info, \
-                                         'location':csv_info[1],
-                                         'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
-                                        })
+                    for csv_info in reader:
+                        if csv_info and len(csv_info) >= 23:
+                            coll_uploads.append({'path':one_obj.object_name,
+                                                 'info':coll_info, \
+                                                 'location':csv_info[1],
+                                                 'elevation':csv_info[12]
+                                                 'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
+                                                })
+                            break
                 else:
                     print(f'Unable to get deployment information: {upload_info_path}')
 
@@ -349,9 +352,11 @@ class S3Connection:
                 csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
                 if csv_data is not None:
                     reader = csv.reader(StringIO(csv_data))
-                    csv_info = next(reader)
-                    if len(csv_info) >= 1:
-                        meta_info_data['loc'] = csv_info[1]
+                    for csv_info in reader:
+                        if len(csv_info) >= 23:
+                            meta_info_data['loc'] = csv_info[1]
+                            meta_info_data['elevation'] =  csv_info[12]
+                            break
                 else:
                     print(f'Unable to get deployment information: {upload_info_path}')
                     continue

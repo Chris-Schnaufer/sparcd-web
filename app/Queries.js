@@ -39,7 +39,7 @@ import FilterYear, { FilterYearFormData } from './components/FilterYear';
 import * as utils from './utils'
 
 import { resp } from './queryresult'; //TODO: remove when obtaining real data
-import { LocationsInfoContext, TokenContext } from './serverInfo'
+import { LocationsInfoContext, SpeciesInfoContext, TokenContext } from './serverInfo'
 
 /**
  * Provides the UI for queries
@@ -51,6 +51,7 @@ export default function Queries() {
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const locationItems = React.useContext(LocationsInfoContext);
   const queryToken = React.useContext(TokenContext);
+  const speciesItems = React.useContext(SpeciesInfoContext);
   const [activeTab, setActiveTab] = React.useState(0);
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [filterSelected, setFilterSelected] = React.useState(false); // Indicates a new filter is selected
@@ -252,7 +253,7 @@ export default function Queries() {
       const filter = queryFilters[filterIdx];
       switch(filter.type) {
         case 'Species Filter':
-          FilterSpeciesFormData(filter.data, formData);
+          FilterSpeciesFormData(filter.data, formData, speciesItems);
           break;
         case 'Location Filter':
           FilterLocationsFormData(filter.data, formData, locationItems);
@@ -314,6 +315,7 @@ export default function Queries() {
           }
         })
         .then((respData) => {
+          // TODO: handle no results
           console.log('QUERY:',respData);
           setQueryResults(respData);
         })

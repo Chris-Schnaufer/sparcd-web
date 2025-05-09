@@ -32,6 +32,17 @@ const dayNames = [
   'SUNDAY'
 ];
 
+// Values associated with the day
+const dayValues = [
+  1,    // MONDAY
+  2,    // TUESDAY
+  3,    // WEDNESDAY
+  4,    // THURSDAY
+  5,    // FRIDAY
+  6,    // SATURDAY
+  0     // SUNDAY
+]
+
 /**
  * Adds day of the week information to form data
  * @function
@@ -39,7 +50,7 @@ const dayNames = [
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterDayOfWeekFormData(data, formData) {
-  formData.append('dayofweek', JSON.stringify(data));
+  formData.append('dayofweek', JSON.stringify(data.map((item) => dayValues[dayNames.findIndex((name) => name == item)])));
 }
 
 /**

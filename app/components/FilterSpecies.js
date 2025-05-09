@@ -19,17 +19,18 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { SpeciesInfoContext } from '../serverInfo'
 import FilterCard from './FilterCard'
+import { SpeciesInfoContext } from '../serverInfo'
 
 /**
  * Adds species information to form data
  * @function
  * @param {object} data The saved data to add to the form
  * @param {object} formData The FormData to add the fields to
+ * @param {array} speciesItems The complete list of species for mapping
  */
-export function FilterSpeciesFormData(data, formData) {
-  formData.append('species', JSON.stringify(data));
+export function FilterSpeciesFormData(data, formData, speciesItems) {
+  formData.append('species', JSON.stringify(data.map((item) => speciesItems[speciesItems.findIndex((species) => species.name == item)].scientificName)));
 }
 
 /**

@@ -56,7 +56,7 @@ const hoursNames = [
  * @param {object} formData The FormData to add the fields to
  */
 export function FilterHourFormData(data, formData) {
-  formData.append('hour', JSON.stringify(data));
+  formData.append('hour', JSON.stringify(data.map((item) => parseInt(item))));
 }
 
 /**
