@@ -767,5 +767,36 @@ def query():
            if cur_results:
                 all_results = all_results + cur_results
 
+    # Get some sorted lists of images, species, locations
+    all_locations = []
+    all_species = {}
+    sorted_images = []
+    for one_result in all_results:
+        if not one_result['loc'] in all_locations:
+            all_locations.append(one_result['loc'])
+        if one_result['images']:
+            # Add the images, with location, to the list of all images
+            sorted_images = [**sorted_images,
+                             **[{'loc':one_result['loc']}|one_image for one_image in one_result['images']]]
+
+    all_results['locations'] = sorted(all_locations)
+    all_results['sorted_images_dt'] = sorted(sorted_images, key=lambda cur_img: cur_img['image_dt'])
+
+    # Handle species differently since the first and last image is needed
+    for one_image in sorted_images:
+        for one_species in one_image['species']:
+            if not one_species['sci_name'] in all_species:
+                all_species{one_species['name']: {'first_image':one_image, \
+                                                  'last_image':one_image,
+                                                  'sci_name':one_species['sci_name']
+                                                 }}
+            else:
+                # Update the last image for the species if it's later than the current last image
+                if one_image['image_dt'] > all_species[one_species['name']]['last_image']['image_dt']:
+                    all_species[one_species['name']]['last_image'] = one_image['image_dt']
+
+    all_results['species'] = sorted([{'name':key} | all_species[key] for key in all_species.keys()], \
+                                                             key=lambda cur_species: cur_species['name'])
+
     # Format and return the results
-    return json.dumps(query_output(all_results))
+    return json.dumps(query_output(all_results)) # TODO: add query interval

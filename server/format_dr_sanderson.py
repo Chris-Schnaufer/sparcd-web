@@ -15,18 +15,26 @@ def elapsed_time_formatter(start: datetime.datetime, end: datetime.datetime) -> 
     return "ELAPSED TIME " + "%10.3f ".format((end-start).total_seconds()) + "SECONDS" +
             os.linesep
 
-def get_dr_sanderson_output(results: tuple, all_locations:tuple, all_species:tuple) -> str:
+def get_dr_sanderson_output(results: tuple, all_locations:tuple, all_species:tuple,
+                            interval_minutes: int=60) -> str:
     """ Converts the results to Dr Sanderson results
     Arguments:
         results: the results to search through
         all_locations: all available locations
         all_species: all available species
+        interval_minutes: the interval between images to be considered the same period (in minutes)
     Return:
         Returns the result text
     """
     if not results:
         return "No images found under directory"
 
+    # Sort the result images by location, species, and timestamp
+    sorted_results = sorted(results, key=lambda: item: item['loc'])
+    for one_result in sorted_results:
+        sorted_images = sorted(one_result['images']) # BETTER WiTH A DB SORT?
+
+    # Get the unique location information with one entry for unknown
     cur_locations = {}
     have_unknown = False
     for one_result in results:
@@ -40,6 +48,7 @@ def get_dr_sanderson_output(results: tuple, all_locations:tuple, all_species:tup
     if have_unknown:
         cur_locations['unknown'] = True
 
+    # Get the unique species information with one entry for unknown
     cur_species = {}
     have_unknown = False
     for one_result in results:
@@ -57,7 +66,7 @@ def get_dr_sanderson_output(results: tuple, all_locations:tuple, all_species:tup
     start_time = datetime.datetime.now()
     return  HeaderFormatter.printLocations(results, cur_locations) +
             HeaderFormatter.printSpecies(results, cur_species) +
-            HeaderFormatter.printImageAnalysisHeader(results, cur_locations, all_species) +
+            HeaderFormatter.printImageAnalysisHeader(results, cur_locations, all_species, interval_minutes) +
             FirstLastSpeciesFormatter.printDaysInCameraTrap(results, cur_locations, all_species) +
             FirstLastSpeciesFormatter.printFirstPicOfEachSpecies(results, all_locations, all_species) +
             FirstLastSpeciesFormatter.printLastPicOfEachSpecies(results, all_locations, all_species) +

@@ -86,8 +86,6 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                 cur_uploads = filter_elevation(cur_uploads, json.loads(one_filter[1]))
 
     # Determine if we'll need image datetime objects
-    need_dt = any([one_filter for one_filter in filters if one_filter[0] in \
-                        ['dayofweek','hour','month','years','enddata','startdate']])
     need_gmt_dt = any([one_filter for one_filter in filters if one_filter[0] in \
                         ['enddata','startdate']])
 
@@ -111,8 +109,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
             image_dt = None
             image_gmt_dt = None
             try:
-                if need_dt:
-                  image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
+                image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
                 if need_gmt_dt:
                     image_gmt_dt = datetime.datetime.utcfromtimestamp(image_dt.timestamp())
             except Exception:
@@ -161,6 +158,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
 
             # Return it if it's not excluded
             if not excluded:
+                one_image['image_dt'] = image_dt
                 cur_images.append(one_image)
 
         if len(cur_images) > 0:
@@ -169,17 +167,19 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     return cur_uploads
 
 
-def query_output(results: tuple) -> tuple:
+def query_output(results: tuple, interval_minutes: int=60) -> tuple:
     """ Formats the results into something that can be returned to the caller
     Arguments:
         results: the results of the filter_uploads function
+        interval_minutes: the interval between images to be considered the same period (in minutes)
     Return:
         Returns a tuple containing the formatted results
     """
     if not results:
         return tuple()
 
-    return ('DrSandersonOutput': get_dr_sanderson_output(results, all_locations, all_species),
+    return ('DrSandersonOutput': get_dr_sanderson_output(results, all_locations, all_species, \
+                                                            interval_minutes),
             'DrSandersonAllPictures': get_dr_sanderson_pictures(results),
             'csvRaw': get_csv_raw(results),
             'csvLocation': get_csv_location(results),
