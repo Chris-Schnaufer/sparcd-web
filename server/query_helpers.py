@@ -4,6 +4,8 @@ import datetime
 import json
 from typing import Optional
 
+from format_dr_sanderson import get_dr_sanderson_output
+from results import Results
 
 def filter_elevation(uploads: tuple, elevation_filter: dict) -> list:
     """ Returns the uploads that match the filter
@@ -27,26 +29,21 @@ def filter_elevation(uploads: tuple, elevation_filter: dict) -> list:
         case '=':
             return [one_upload for one_upload in uploads if \
                                 float(one_upload['info']['elevation']) == cur_elevation]
-            break
         case '<':
             return [one_upload for one_upload in uploads if \
                                 float(one_upload['info']['elevation']) < cur_elevation]
-            break
         case '>':
             return [one_upload for one_upload in uploads if \
                                 float(one_upload['info']['elevation']) > cur_elevation]
-            break
         case '<=':
             return [one_upload for one_upload in uploads if \
                                 float(one_upload['info']['elevation']) <= cur_elevation]
-            break
         case '>=':
-            break
             return [one_upload for one_upload in uploads if \
                                 float(one_upload['info']['elevation']) >= cur_elevation]
         case _:
             raise ValueError('Invalid elevation filter comparison specified: ' \
-                             f'{elevation_filter['type']}')
+                             f'{elevation_filter["type"]}')
 
 
 def get_filter_dt(filter_name: str, filters: tuple) -> Optional[datetime.datetime]:
@@ -58,7 +55,7 @@ def get_filter_dt(filter_name: str, filters: tuple) -> Optional[datetime.datetim
         The timestamp as a datetime object, or None if the filter or timestamp is 
         missing or invalid
     """
-    found_filter = [one_filter for filters if one_filter[0] == filter_name]
+    found_filter = [one_filter for one_filter in filters if one_filter[0] == filter_name]
     if len(found_filter) > 0:
         return datetime.datetime.fromisoformat(found_filter[0][1])
 
@@ -86,8 +83,8 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                 cur_uploads = filter_elevation(cur_uploads, json.loads(one_filter[1]))
 
     # Determine if we'll need image datetime objects
-    need_gmt_dt = any([one_filter for one_filter in filters if one_filter[0] in \
-                        ['enddata','startdate']])
+    need_gmt_dt = any(one_filter for one_filter in filters if one_filter[0] in \
+                        ['enddata','startdate'])
 
     # Filter at the image level
     filtering_names = [one_filter[1] for one_filter in filters]
@@ -98,7 +95,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
         end_date_ts = None if 'endDate' not in filtering_names else \
                                                         get_filter_dt('endDate', filters)
     except Exception as ex:
-        print(f'Invalid start or end filter date')
+        print('Invalid start or end filter date')
         print(ex)
         raise ex
 
@@ -108,6 +105,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
             excluded = False
             image_dt = None
             image_gmt_dt = None
+            # pylint: disable=broad-exception-caught
             try:
                 image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
                 if need_gmt_dt:
@@ -139,11 +137,12 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                                 found = True
 
                         if not found:
-                            exclude = True
+                            excluded = True
                     case 'years':
                         if years_filter is None:
                             years_filter = json.loads(one_filter[1])
-                        if not years_filter['yearStart'] <= image_dt.year <= yearsFilter['yearEnd']:
+                        if not years_filter['yearStart'] <= image_dt.year <= \
+                                                                            years_filter['yearEnd']:
                             excluded = True
                     case 'endDate': # Need to compare against GMT of filter
                         if image_gmt_dt > end_date_ts:
@@ -167,19 +166,17 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     return cur_uploads
 
 
-def query_output(results: tuple, interval_minutes: int=60) -> tuple:
+def query_output(results: Results) -> tuple:
     """ Formats the results into something that can be returned to the caller
     Arguments:
-        results: the results of the filter_uploads function
-        interval_minutes: the interval between images to be considered the same period (in minutes)
+        results: the results class containing the results of the filter_uploads function
     Return:
         Returns a tuple containing the formatted results
     """
     if not results:
         return tuple()
 
-    return ('DrSandersonOutput': get_dr_sanderson_output(results, all_locations, all_species, \
-                                                            interval_minutes),
+    return {'DrSandersonOutput': get_dr_sanderson_output(results),
             'DrSandersonAllPictures': get_dr_sanderson_pictures(results),
             'csvRaw': get_csv_raw(results),
             'csvLocation': get_csv_location(results),
@@ -199,7 +196,8 @@ def query_output(results: tuple, interval_minutes: int=60) -> tuple:
                 },
             # Display column information
             'columns': {
-                'DrSandersonAllPictures': {'location':'Location','species':'Species','image':'Image'},
+                'DrSandersonAllPictures': {'location':'Location','species':'Species',\
+                                           'image':'Image'},
                 'csvRaw': {'image':'Image',
                            'date':'Date',
                            'location':{'title':'Location','locName':'Name','locId':'ID', \
@@ -207,12 +205,13 @@ def query_output(results: tuple, interval_minutes: int=60) -> tuple:
                                         'locY':'Northing','locElevation':'Elevation'
                                     },
                             'species':{'title':'Species',
-                                     'common1':'Common Name','scientific1':'Scientific Name','count1':'Count',
-                                     'common2':'Common Name','scientific2':'Scientific Name','count2':'Count'},
+                                     'common1':'Common Name','scientific1':'Scientific Name',\
+                                     'count1':'Count','common2':'Common Name',\
+                                     'scientific2':'Scientific Name','count2':'Count'},
                         },
-                'csvLocation': {'name':'Name','id':'ID', 'utmZone':'UTM Zone', 'x':'Easting', 'y':'Northing',\
-                                'elevation':'Elevation'},
+                'csvLocation': {'name':'Name','id':'ID', 'utmZone':'UTM Zone', 'x':'Easting', \
+                                'y':'Northing', 'elevation':'Elevation'},
                 'csvSpecies': {'common':'Common Name', 'scientific':'Scientific Name'},
                 'imageDownloads': {'name':'Name'}
-      }
-           )
+            }
+          }

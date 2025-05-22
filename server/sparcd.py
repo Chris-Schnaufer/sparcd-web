@@ -23,6 +23,8 @@ from flask import Flask, abort, request, session, url_for
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
+from results import Results
+import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
 from s3_access import S3Connection
@@ -52,6 +54,10 @@ CURRENT_PASSCODE = os.environ.get(ENV_NAME_PASSCODE, None)
 SESSION_EXPIRE_SECONDS = os.environ.get(ENV_NAME_SESSION_EXPIRE, SESSION_EXPIRE_DEFAULT_SEC)
 # Name of temporary collections file
 TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
+# Name of temporary species file
+TEMP_SPECIES_FILE_NAME = SPARCD_PREFIX + 'species.json'
+# Name of temporary species file
+TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
 # Number of seconds to keep the temporary file around before it's invalid
 TEMP_FILE_EXPIRE_SEC = 1 * 60 * 60
 # Maximum number of times to try updating a temporary file
@@ -339,6 +345,40 @@ def save_timed_info(save_path: str, data) -> None:
                 informed_exception = True
                 time.sleep(1)
             attempts = attempts + 1
+
+
+def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, password: str):
+    """ Attempts to load the configuration information from either the timed_file or download it
+        from S3. If downloaded from S3, it's saved as a timed file
+    Arguments:
+        sparcd_file: the name of the sparcd configuration file
+        timed_file: the name of the timed file to attempt loading from
+        url: the URL to the S3 store
+        user: the S3 username
+        password: the S3 password
+    Return:
+        Returns the loaded configuration information or None if there's a
+        problem
+    """
+    config_file_path = os.path.join(tempfile.gettempdir(), timed_file)
+    loaded_config = load_timed_info(config_file_path)
+    if loaded_config:
+        return loaded_config
+
+    # Try to get the configuration information from S3
+    loaded_config = S3Connection.get_configuration(sparcd_file, url, user, password)
+    if loaded_config is None:
+        return None
+
+    try:
+        loaded_config = json.loads(loaded_config)
+        save_timed_info(config_file_path, loaded_config)
+    except ValueError as ex:
+        print(f'Invalid JSON from configuration file {sparcd_file}')
+        print(ex)
+        loaded_config = None
+
+    return loaded_config
 
 
 @app.route('/login', methods = ['POST'])
@@ -764,39 +804,17 @@ def query():
         if len(uploads_info) > 0:
             print(json.dumps(uploads_info[0]))
             cur_results = filter_uploads(uploads_info, filters)
-           if cur_results:
+            if cur_results:
                 all_results = all_results + cur_results
 
+    # Get the species and locations
+    species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+    locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+
     # Get some sorted lists of images, species, locations
-    all_locations = []
-    all_species = {}
-    sorted_images = []
-    for one_result in all_results:
-        if not one_result['loc'] in all_locations:
-            all_locations.append(one_result['loc'])
-        if one_result['images']:
-            # Add the images, with location, to the list of all images
-            sorted_images = [**sorted_images,
-                             **[{'loc':one_result['loc']}|one_image for one_image in one_result['images']]]
-
-    all_results['locations'] = sorted(all_locations)
-    all_results['sorted_images_dt'] = sorted(sorted_images, key=lambda cur_img: cur_img['image_dt'])
-
-    # Handle species differently since the first and last image is needed
-    for one_image in sorted_images:
-        for one_species in one_image['species']:
-            if not one_species['sci_name'] in all_species:
-                all_species{one_species['name']: {'first_image':one_image, \
-                                                  'last_image':one_image,
-                                                  'sci_name':one_species['sci_name']
-                                                 }}
-            else:
-                # Update the last image for the species if it's later than the current last image
-                if one_image['image_dt'] > all_species[one_species['name']]['last_image']['image_dt']:
-                    all_species[one_species['name']]['last_image'] = one_image['image_dt']
-
-    all_results['species'] = sorted([{'name':key} | all_species[key] for key in all_species.keys()], \
-                                                             key=lambda cur_species: cur_species['name'])
+    results = Results(all_results, species, locations, 0) # TODO: add query interval
 
     # Format and return the results
-    return json.dumps(query_output(all_results)) # TODO: add query interval
+    return json.dumps(query_helpers.query_output(results))

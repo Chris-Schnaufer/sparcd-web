@@ -3,77 +3,8 @@
 import dataclasses
 import os
 
-def activity_for_image_list(results: tuple) -> int:
-    """ Returns the number of distinct actions from the result set. Images MUST first be
-    filtered by location and species to achieve a total accumulation
-    Arguments:
-        results: the results to analyze
-    Returrns:
-        The number of distinct actions found
-    Notes:
-        Actions are calculated when the time between two images is greater 
-        than one hour
-    """
-    activities = 0
-
-    prev_dt = None
-
-    # Loop through the results and look at all the images
-    for one_image in results['sorted_images_dt']:
-        # Make sure we have what we need
-        if not 'image_dt' in one_image or not one_image['image_dt']:
-            continue
-
-        # Get our first timestamp
-        if prev_dt is None:
-            activities += 1
-            prev_dt = one_image['image_dt']
-            continue
-
-        # Compare minute difference in time to the limit (1 hour)
-        if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 >= 60:
-            activities += 1
-            prev_dt = one_image['image_dt']
-            continue
-
-    return activities
-
-
-def period_for_image_list(results: tuple, interval_minutes: int) -> int:
-    """ Returns the number of distinct periods from the result set. Images MUST first be
-    filtered by location and species to achieve a total accumulation
-    Arguments:
-        results: the results to analyze
-        interval_minutes: the interval between images to be considered the same period (in minutes)
-    Returrns:
-        The number of distinct periods found
-    Notes:
-        Perriods are calculated when the time between two images is greater 
-        than one hour
-    """
-    periods = 0
-
-    prev_dt = None
-
-    # Loop through the results and look at all the images
-    for one_image in results['sorted_images_dt']:
-        # Make sure we have what we need
-        if not 'image_dt' in one_image or not one_image['image_dt']:
-            continue
-
-        # Get our first timestamp
-        if prev_dt is None:
-            periods += 1
-            prev_dt = one_image['image_dt']
-            continue
-
-        # Compare minute difference in time to the limit (1 hour)
-        if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 <= interval_minutes:
-            periods += 1
-            prev_dt = one_image['image_dt']
-            continue
-
-    return periods
+from analysis import Analysis
+from ..results import Results
 
 
 # pylint: disable=consider-using-f-string
@@ -83,35 +14,33 @@ class HeaderFormatter:
     """
 
     @staticmethod
-    def print_locations(res_locations: tuple) -> str:
+    def print_locations(results: Results) -> str:
         """ Formats the locations header information
         Arguments:
-            res_locations: all distinct result locations
+            results: the query result
         Return:
             Returns the location header text
         """
-        loc_names = [res_locations[one_key]['nameProperty'] if one_key != "unknown" else "Unkown" \
-                                                                for one_key in res_locations.keys()]
+        loc_names = [one_location['nameProperty'] for one_location in results.get_locations()]
 
-        return "LOCATIONS " + str(len(res_locations.keys())) + os.linesep + \
+        return "LOCATIONS " + str(len(results.get_locations())) + os.linesep + \
             ", ".join(loc_names) + os.linesep + os.linesep
 
     @staticmethod
-    def print_species(res_species: tuple) -> str:
+    def print_species(results: Results) -> str:
         """ Formats the species header information
         Arguments:
-            res_species: all distinct result species information
+            results: the query result
         Return:
             Returns the species header text
         """
-        species_names = [res_species[one_key]['name'] if one_key != "unknown" else "Unknown" \
-                                                                for one_key in res_species.keys()]
+        species_names = [one_species['name'] for one_species in results.get_species()]
 
-        return "SPECIES " + str(len(res_species.keys())) + os.linesep + \
+        return "SPECIES " + str(len(results.get_species())) + os.linesep + \
             ", ".join(species_names) + os.linesep + os.linesep
 
     @staticmethod
-    def print_image_analysis_header(results: tuple, interval_minutes: int) -> str:
+    def print_image_analysis_header(results: tuple) -> str:
         """ Formats the image analysis header information
         Arguments:
             results: the results to search through
@@ -121,12 +50,12 @@ class HeaderFormatter:
             Returns the image analysis text
         """
         total_images = len(results['sorted_images_dt'])
-        total_period = period_for_image_list(results, interval_minutes)
+        total_period = Analysis.period_for_image_list(results)
 
         return "FOR ALL SPECIES AT ALL LOCATIONS " + os.linesep + \
             "Number of pictures processed = " + str(total_images) + os.linesep + \
             "Number of pictures used in activity calculation = " + \
-                                activity_for_image_list(results) + os.linesep + \
+                                Analysis.activity_for_image_list(results) + os.linesep + \
             "Number of independent pictures used in analysis = " + \
                                 total_period + os.linesep + \
             "Number of sequential pictures of same species at same location within a PERIOD = " + \

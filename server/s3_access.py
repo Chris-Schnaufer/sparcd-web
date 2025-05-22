@@ -13,6 +13,11 @@ from minio import Minio, S3Error
 
 SPARCD_PREFIX='sparcd-'
 
+BUCKET_PREFIX = SPARCD_PREFIX
+SETTINGS_BUCKET_PREFIX = BUCKET_PREFIX + 'settings'
+SETTINGS_BUCKET_LEGACY = 'sparcd'
+SETTINGS_FOLDER = 'Settings'
+
 DEPLOYMENT_CSV_FILE_NAME = 'deployments.csv'
 MEDIA_CSV_FILE_NAME = 'media.csv'
 OBSERVATIONS_CSV_FILE_NAME = 'observations.csv'
@@ -126,12 +131,13 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                     reader = csv.reader(StringIO(csv_data))
                     for csv_info in reader:
                         if csv_info and len(csv_info) >= 23:
-                            coll_uploads.append({'path':one_obj.object_name,
-                                                 'info':coll_info, \
-                                                 'location':csv_info[1],
-                                                 'elevation':csv_info[12]
-                                                 'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
-                                                })
+                            coll_uploads.append({
+                                         'path':one_obj.object_name,
+                                         'info':coll_info,
+                                         'location':csv_info[1],
+                                         'elevation':csv_info[12],
+                                         'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
+                                        })
                             break
                 else:
                     print(f'Unable to get deployment information: {upload_info_path}')
@@ -389,3 +395,37 @@ class S3Connection:
         os.unlink(temp_file[1])
 
         return coll_uploads
+
+    @staticmethod
+    def get_configuration(filename: str, url: str, user: str, password: str):
+        """ Returns the configuration contained in the file
+        Arguments:
+            filename: the name of the configuration to download
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        # Find the name of our settings bucket
+        settings_bucket = None
+        for one_bucket in minio.list_buckets():
+            if one_bucket.name == SETTINGS_BUCKET_LEGACY:
+                settings_bucket = one_bucket.name
+                break
+            if one_bucket.name.startswith(SETTINGS_BUCKET_PREFIX):
+                settings_bucket = one_bucket.name
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+
+        file_path = os.path.join(SETTINGS_FOLDER, filename)
+        config_data = None
+        try:
+            config_data = get_s3_file(minio, settings_bucket, file_path, temp_file)
+        except S3Error as ex:
+            print(f'Unable to get configuration file {filename} from {settings_bucket}')
+            print(ex)
+        finally:
+            os.unlink(temp_file[1])
+
+        return config_data

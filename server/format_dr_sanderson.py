@@ -3,6 +3,9 @@
 import datetime
 import os
 
+from header_formatter import HeaderFormatter
+from results import Results
+
 def elapsed_time_formatter(start: datetime.datetime, end: datetime.datetime) -> str:
     """ Formats the elapsed time output
     Arguments:
@@ -15,58 +18,20 @@ def elapsed_time_formatter(start: datetime.datetime, end: datetime.datetime) -> 
     return "ELAPSED TIME " + "%10.3f ".format((end-start).total_seconds()) + "SECONDS" +
             os.linesep
 
-def get_dr_sanderson_output(results: tuple, all_locations:tuple, all_species:tuple,
-                            interval_minutes: int=60) -> str:
+def get_dr_sanderson_output(results: Results) -> str:
     """ Converts the results to Dr Sanderson results
     Arguments:
-        results: the results to search through
-        all_locations: all available locations
-        all_species: all available species
-        interval_minutes: the interval between images to be considered the same period (in minutes)
+        results: contains the results of the query
     Return:
         Returns the result text
     """
     if not results:
         return "No images found under directory"
 
-    # Sort the result images by location, species, and timestamp
-    sorted_results = sorted(results, key=lambda: item: item['loc'])
-    for one_result in sorted_results:
-        sorted_images = sorted(one_result['images']) # BETTER WiTH A DB SORT?
-
-    # Get the unique location information with one entry for unknown
-    cur_locations = {}
-    have_unknown = False
-    for one_result in results:
-        test_value = one_result[0]['loc']
-        if not test_value in cur_locations:
-            found_items = [one_loc for all_locations if one_loc['idProperty'] == test_value]
-            if found_items and len(found_items) > 0:
-                cur_locations[test_value] = found_items[0]
-            else:
-                have_unknown = True
-    if have_unknown:
-        cur_locations['unknown'] = True
-
-    # Get the unique species information with one entry for unknown
-    cur_species = {}
-    have_unknown = False
-    for one_result in results:
-        for one_image in one_result[1]:
-            test_value = one_image['species']['sci_name']
-            if not test_value in cur_species:
-                found_items = [one_species for all_species if one_species['scientificName'] == test_value]
-                if found_items and len(found_items) > 0:
-                    cur_species[test_value] = found_items[0]
-                else:
-                    have_unknown = True
-    if have_unknown:
-        cur_species['unknown'] = True
-
     start_time = datetime.datetime.now()
-    return  HeaderFormatter.printLocations(results, cur_locations) +
-            HeaderFormatter.printSpecies(results, cur_species) +
-            HeaderFormatter.printImageAnalysisHeader(results, cur_locations, all_species, interval_minutes) +
+    return  HeaderFormatter.printLocations(results) +
+            HeaderFormatter.printSpecies(results) +
+            HeaderFormatter.printImageAnalysisHeader(results) +
             FirstLastSpeciesFormatter.printDaysInCameraTrap(results, cur_locations, all_species) +
             FirstLastSpeciesFormatter.printFirstPicOfEachSpecies(results, all_locations, all_species) +
             FirstLastSpeciesFormatter.printLastPicOfEachSpecies(results, all_locations, all_species) +
