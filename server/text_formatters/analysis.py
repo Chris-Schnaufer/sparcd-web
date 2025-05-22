@@ -1,8 +1,10 @@
 """ Contains analysis functions for formatting """
 
+import dataclasses
+import datetime
 import math
 
-import MoonCalculator
+from moon_calculator import MoonCalculator
 
 # The number of seconds in a day as a float to capture fractions of days
 SECONDS_IN_DAY = 60.0 * 60.0 * 24.0
@@ -42,7 +44,7 @@ class Analysis:
         return math.ceil((end_dt - start_dt).total_seconds() / SECONDS_IN_DAY)
 
     @staticmethod
-    def activityForImageList(results: tuple) -> int:
+    def activity_for_image_list(results: tuple) -> int:
         """ Returns the number of distinct actions from the result set. Images MUST first be
         filtered by location and species to achieve a total accumulation
         Arguments:
@@ -79,12 +81,13 @@ class Analysis:
 
 
     @staticmethod
-    def periodForImageList(results: tuple, interval_minutes: int) -> int:
+    def period_for_image_list(results: tuple, interval_minutes: int) -> int:
         """ Returns the number of distinct periods from the result set. Images MUST first be
         filtered by location and species to achieve a total accumulation
         Arguments:
             results: the results to analyze
-            interval_minutes: the interval between images to be considered the same period (in minutes)
+            interval_minutes: the interval between images to be considered the same period
+                            (in minutes)
         Returns:
             The number of distinct periods found
         Notes:
@@ -116,13 +119,14 @@ class Analysis:
         return periods
 
     @staticmethod
-    def abundanceForImageList(results: tuple,  species: tuple, interval_minutes: int) -> int:
+    def abundance_for_image_list(results: tuple,  species: tuple, interval_minutes: int) -> int:
         """ Get the abundance value for a list of images. Images MUST first be filtered by
             location and species to achieve a total accumulation
         Arguments:
             results: the results to analyze
             species: the list of species
-            interval_minutes: the interval between images to be considered the same period (in minutes)
+            interval_minutes: the interval between images to be considered the same period
+                            (in minutes)
         Returns:
             The number of distinct periods found
         Notes:
@@ -131,33 +135,35 @@ class Analysis:
         """
         abundance = 0
 
-        species_names = [one_species['sci_name'] for one_species in species]
+        species_names = [one_species['sci_name'] for one_species in species] \
+                                                        if species is not None else []
 
         last_image_dt = results['sorted_images_dt'][0]['image_dt']
-        maxAnimalsInEvent = 0
+        max_animals_in_event = 0
         for one_image in results['sorted_images_dt']:
-            difference_minutes = math.ceil((one_image['image_dt'] - last_image_dt).total_seconds() / 60.0)
+            difference_minutes = math.ceil((one_image['image_dt'] - last_image_dt).\
+                                                                        total_seconds() / 60.0)
 
             # If the current image is further away than the event interval, add the current max
             # number of animals to the total
-            if (differenceMinutes >= eventInterval)
-                abundance = abundance + maxAnimalsInEvent
-                maxAnimalsInEvent = 0
+            if difference_minutes >= interval_minutes:
+                abundance = abundance + max_animals_in_event
+                max_animals_in_event = 0
 
             # The max number of animals is the max number of animals in this image or the max number
             # of animals in the last image
             for one_species in one_image['species']:
-                if speciesFilter is None || one_species['sci_name'] in species_names:
-                    maxAnimalsInEvent = math.max(maxAnimalsInEvent, one_species['count']);
+                if species is None or one_species['sci_name'] in species_names:
+                    max_animals_in_event = max(max_animals_in_event, one_species['count'])
 
-            last_image_dt = one_image['image_dt'];
+            last_image_dt = one_image['image_dt']
 
-        abundance = abundance + maxAnimalsInEvent;
+        abundance = abundance + max_animals_in_event
 
-        return abundance;
+        return abundance
 
     @staticmethod
-    def locationsForImageList(images: tuple) -> tuple:
+    def locations_for_image_list(images: tuple) -> tuple:
         """ Returns a list of locations that the image list contains
         Arguments:
             images: the tuple of images to search
@@ -165,10 +171,11 @@ class Analysis:
             Returns the tuple consisting of the unique locations
         """
 
-        return tuple(set([tem['loc'] for item in images]))
+        # pylint: disable=consider-using-set-comprehension
+        return tuple(set([item['loc'] for item in images]))
 
     @staticmethod
-    def getFullMoons(first: datetime, last: datetime) -> tuple:
+    def get_full_moons(first: datetime, last: datetime) -> tuple:
         """ Returns the full moon dates that fall between the first and last dates, inclusive
         Arguments:
             first: the starting datetime to get the full moon for
@@ -182,21 +189,22 @@ class Analysis:
         while cur_date <= last:
             # Localize the timestamps based upon either the server, the browser, or a user choice
             # TODO: Localize date before getting Julian date
-            julian_date = MoonCalculator.getJulian(cur_date)
+            julian_date = MoonCalculator.get_julian(cur_date)
 
-            phases = MoonCalculator.getPhase(julian_date)
-            full_moon = MoonCalculator.getLunation(julian_date, phases[MoonCalculator.MOONPHASE], 180)
-            full_millis = MoonCalculator.toMillisFromJulian(full_moon)
+            phases = MoonCalculator.get_phase(julian_date)
+            full_moon = MoonCalculator.get_lunation(julian_date, phases[MoonCalculator.MOONPHASE], \
+                                                                                                180)
+            full_millis = MoonCalculator.to_millis_from_julian(full_moon)
 
             # TODO: convert next date to localized timestamp
             next_full_moon_date = datetime.datetime.fromtimestamp(full_millis / 1000.0)
-            fullMoons.append(next_full_moon_date)
+            full_moons.append(next_full_moon_date)
             cur_date = next_full_moon_date + datetime.timedelta(days=20)
 
         return full_moons
 
     @staticmethod
-    def getNewMoons(first: datetime, last: datetime) -> tuple:
+    def get_new_moons(first: datetime, last: datetime) -> tuple:
         """ Returns the new moon dates that fall between the first and last dates, inclusive
         Arguments:
             first: the starting datetime to get the new moon for
@@ -207,18 +215,18 @@ class Analysis:
         new_moons = []
 
         cur_date = first
-        while (first2.isBefore(last2))
+        while cur_date.isBefore(last):
             # Localize the timestamps based upon either the server, the browser, or a user choice
             # TODO: Localize date before getting Julian date
-            julian_date = MoonCalculator.getJulian(cur_date);
+            julian_date = MoonCalculator.get_julian(cur_date)
 
-            phases = MoonCalculator.getPhase(julian_date)
-            new_moon = MoonCalculator.getLunation(julian_date, phases[MoonCalculator.MOONPHASE], 0)
-            new_millis = MoonCalculator.toMillisFromJulian(new_moon)
+            phases = MoonCalculator.get_phase(julian_date)
+            new_moon = MoonCalculator.get_lunation(julian_date, phases[MoonCalculator.MOONPHASE], 0)
+            new_millis = MoonCalculator.to_millis_from_julian(new_moon)
 
             # TODO: convert next date to localized timestamp
             next_new_moon_date = datetime.datetime.fromtimestamp(new_millis / 1000.0)
-            new_moons.append(nextNewMoonDate)
-            cur_date = nextNewMoonDate + datetime.timedelta(days=20)
+            new_moons.append(next_new_moon_date)
+            cur_date = next_new_moon_date + datetime.timedelta(days=20)
 
         return new_moons

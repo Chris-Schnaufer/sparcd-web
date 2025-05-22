@@ -1,8 +1,9 @@
 """ Formats header information """
 
+import dataclasses
 import os
 
-def activityForImageList(results: tuple) -> int:
+def activity_for_image_list(results: tuple) -> int:
     """ Returns the number of distinct actions from the result set. Images MUST first be
     filtered by location and species to achieve a total accumulation
     Arguments:
@@ -38,7 +39,7 @@ def activityForImageList(results: tuple) -> int:
     return activities
 
 
-def periodForImageList(results: tuple, interval_minutes: int) -> int:
+def period_for_image_list(results: tuple, interval_minutes: int) -> int:
     """ Returns the number of distinct periods from the result set. Images MUST first be
     filtered by location and species to achieve a total accumulation
     Arguments:
@@ -75,58 +76,57 @@ def periodForImageList(results: tuple, interval_minutes: int) -> int:
     return periods
 
 
+# pylint: disable=consider-using-f-string
 @dataclasses.dataclass
 class HeaderFormatter:
     """ Formats search results headers
     """
 
     @staticmethod
-    def printLocations(results: tuple, res_locations: tuple) -> str:
+    def print_locations(res_locations: tuple) -> str:
         """ Formats the locations header information
         Arguments:
-            results: the results to search through
             res_locations: all distinct result locations
         Return:
             Returns the location header text
         """
-        loc_names = [res_locations[one_key]['nameProperty'] for one_key in res_locations.keys() \
-                                                    if one_key != "unknown" else "Unkown"]
+        loc_names = [res_locations[one_key]['nameProperty'] if one_key != "unknown" else "Unkown" \
+                                                                for one_key in res_locations.keys()]
 
         return "LOCATIONS " + str(len(res_locations.keys())) + os.linesep + \
             ", ".join(loc_names) + os.linesep + os.linesep
 
     @staticmethod
-    def printSpecies(results: tuple, res_species: tuple) -> str:
+    def print_species(res_species: tuple) -> str:
         """ Formats the species header information
         Arguments:
-            results: the results to search through
             res_species: all distinct result species information
         Return:
             Returns the species header text
         """
-        species_names = [res_species[one_key]['name'] for one_key in res_species.keys() \
-                                                    if one_key != "unknown" else "Unknown"]
+        species_names = [res_species[one_key]['name'] if one_key != "unknown" else "Unknown" \
+                                                                for one_key in res_species.keys()]
 
         return "SPECIES " + str(len(res_species.keys())) + os.linesep + \
             ", ".join(species_names) + os.linesep + os.linesep
 
     @staticmethod
-    def printImageAnalysisHeader(results: tuple, res_locations: tuple, res_species: tuple) -> str:
+    def print_image_analysis_header(results: tuple, interval_minutes: int) -> str:
         """ Formats the image analysis header information
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
+            interval_minutes: the interval between images to be considered the same period
+                                (in minutes)
         Return:
             Returns the image analysis text
         """
         total_images = len(results['sorted_images_dt'])
-        total_period = periodForImageList(results)
+        total_period = period_for_image_list(results, interval_minutes)
 
         return "FOR ALL SPECIES AT ALL LOCATIONS " + os.linesep + \
             "Number of pictures processed = " + str(total_images) + os.linesep + \
             "Number of pictures used in activity calculation = " + \
-                                activityForImageList(results) + os.linesep + \
+                                activity_for_image_list(results) + os.linesep + \
             "Number of independent pictures used in analysis = " + \
                                 total_period + os.linesep + \
             "Number of sequential pictures of same species at same location within a PERIOD = " + \
