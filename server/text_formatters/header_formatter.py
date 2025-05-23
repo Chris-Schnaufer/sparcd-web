@@ -3,8 +3,8 @@
 import dataclasses
 import os
 
-from analysis import Analysis
-from ..results import Results
+from .analysis import Analysis
+from .results import Results
 
 
 # pylint: disable=consider-using-f-string
@@ -50,12 +50,21 @@ class HeaderFormatter:
             Returns the image analysis text
         """
         total_images = len(results['sorted_images_dt'])
-        total_period = Analysis.period_for_image_list(results)
+        total_activity = 0
+        total_period = 0
+        for species in results.get_species():
+            species_images = results.get_species_images(species['scientificName'])
+            for location in results.get_locations:
+                species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
+                total_activity += Analysis.activity_for_image_list(species_location_images)
+                total_period += Analysis.period_for_image_list(species_location_images, \
+                                                                            results.get_interval())
 
         return "FOR ALL SPECIES AT ALL LOCATIONS " + os.linesep + \
             "Number of pictures processed = " + str(total_images) + os.linesep + \
-            "Number of pictures used in activity calculation = " + \
-                                Analysis.activity_for_image_list(results) + os.linesep + \
+            "Number of pictures used in activity calculation = " + str(total_activity) + \
+                                                                                    os.linesep + \
             "Number of independent pictures used in analysis = " + \
                                 total_period + os.linesep + \
             "Number of sequential pictures of same species at same location within a PERIOD = " + \

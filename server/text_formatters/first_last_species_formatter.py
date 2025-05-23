@@ -3,7 +3,8 @@
 import dataclasses
 import os
 
-from analysis import Analysis
+from .analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -12,15 +13,15 @@ class FirstLastSpeciesFormatter:
     """
 
     @staticmethod
-    def print_days_in_camera_trap(results: tuple) -> str:
+    def print_days_in_camera_trap(results: Results) -> str:
         """ Formats the daty in the camera trap
         Arguments:
             results: the results to search through
         Return:
             Returns the image analysis text
         """
-        first_dt = results[0]['image_dt']
-        last_dt = results[len(results)-1]['image_dt']
+        first_dt = results.get_first_image()['image_dt']
+        last_dt = results.get_last_image()['image_dt']
 
         return  "NUMBER OF DAYS IN CAMERA TRAP PROGRAM = " + \
                         Analysis.get_days_span(last_dt, first_dt) + \
@@ -32,14 +33,11 @@ class FirstLastSpeciesFormatter:
                 os.linesep
 
     @staticmethod
-    def print_first_pic_of_each_species(results: tuple, res_locations: tuple, res_species: tuple) \
-                                                                                            -> str:
+    def print_first_pic_of_each_species(results: Results) -> str:
         """ For each species to be analyzed, the day of the study, and the year, month, day,
         hour, minute, and location where the species was first recorded
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
@@ -49,12 +47,14 @@ class FirstLastSpeciesFormatter:
 
         cur_location = None
         format_location = ''
-        for one_species in res_species:
+        for one_species in results.get_species():
             # Some upfront preparation
             first_dt = one_species['first_image']['image_dt']
+
+            # Look up the name of the location using the site ID
             if one_species['first_image']['loc'] != cur_location:
                 cur_location = one_species['first_image']['loc']
-                format_location = next([one_loc for one_loc in res_locations if \
+                format_location = next([one_loc for one_loc in results.get_locations() if \
                                         one_loc['idProperty'] == one_species['first_image']['loc']])
                 if format_location:
                     format_location = cur_location['name']
@@ -66,7 +66,7 @@ class FirstLastSpeciesFormatter:
                              format(
                                 one_species['name'], \
                                 Analysis.get_days_span(first_dt, \
-                                                    results['sorted_images_dt'][0]['image_dt']), \
+                                                    results.get_first_image()['image_dt']), \
                                 first_dt.year, first_dt.month, first_dt.day, first_dt.hour, \
                                 first_dt.min, first_dt.sec, \
                                 format_location) + \
@@ -75,14 +75,11 @@ class FirstLastSpeciesFormatter:
         return result + os.linesep
 
     @staticmethod
-    def print_last_pic_of_each_species(results: tuple, res_locations: tuple, res_species: tuple) \
-                                                                                            -> str:
+    def print_last_pic_of_each_species(results: Results) -> str:
         """ FFor each species to be analyzed, the day of the study, and the year, month, day, hour, 
         minute, and location where the species was last recorded
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
@@ -93,13 +90,15 @@ class FirstLastSpeciesFormatter:
 
         cur_location = None
         format_location = ''
-        for one_species in res_species:
+        for one_species in results.get_species():
             # Some upfront preparation
             first_dt = one_species['first_image']['image_dt']
             last_dt = one_species['last_image']['image_dt']
+
+            # Look up the location name by site ID
             if one_species['last_image']['loc'] != cur_location:
                 cur_location = one_species['last_image']['loc']
-                format_location = next([one_loc for one_loc in res_locations if \
+                format_location = next([one_loc for one_loc in results.get_locations() if \
                                         one_loc['idProperty'] == one_species['last_image']['loc']])
                 if format_location:
                     format_location = cur_location['name']
@@ -110,46 +109,33 @@ class FirstLastSpeciesFormatter:
             result += '{:<28s} {:4d}  {:4d} {:4d} {:4d} {:3d} {:5d} {:6d}   {:<28s} {:4d}'.\
                              format(
                                 one_species['name'], \
-                                Analysis.get_days_span(first_dt, \
-                                    results['sorted_images_dt'][0]['image_dt']), \
-                                first_dt.year, first_dt.month, first_dt.day, first_dt.hour, \
-                                first_dt.min, first_dt.sec, format_location, \
-                                Analysis.get_days_span(last_dt, first_dt)) + \
+                                Analysis.get_days_span(last_dt, \
+                                    results.get_first_image()['image_dt']), \
+                                last_dt.year, last_dt.month, last_dt.day, last_dt.hour, \
+                                last_dt.min, last_dt.sec, format_location, \
+                                Analysis.get_days_span(first_dt, last_dt)) + \
                              os.linesep
 
         return result + os.linesep
 
     @staticmethod
-    def print_species_accumulation_curve(results: tuple, res_species: tuple) -> str:
+    def print_species_accumulation_curve(results: tuple) -> str:
         """ The day of the study that a new species was recorded, the total number of new species
             records, and the name of the species that was (were) recorded
         Arguments:
             results: the results to search through
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
-        first_res_image = results['sorted_images_dt'][0]
-
-        species_first_image = []
-        for one_species in res_species:
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                Analysis.image_has_species(one_image, one_species['sci_name'])]
-            if species_images:
-                species_first_image.append(one_species, species_images[0])
-
-        species_first_image = sorted(species_first_image, lambda item: item[1]['image_dt'])
-
         result = 'SPECIES ACCUMULATION CURVE' + os.linesep + \
                  '  DAY    NUMBER    SPECIES' + os.linesep
 
-        index = 1
-        for one_set in species_first_image:
+        for index, one_species in enumerate(results.get_species()):
             result += '{:5d}     {:3d}      {:s}'.format( \
-                    Analysis.get_days_span(one_set[1]['image_dt'], first_res_image['image_dt']), \
-                    index, \
-                    one_set[0]['name']) + \
+                    Analysis.get_days_span(one_species['first_image']['image_dt'], \
+                                                        results.get_first_image()['image_dt']), \
+                    index + 1, \
+                    one_species['name']) + \
                 os.linesep
-            index += 1
 
         return result + os.linesep

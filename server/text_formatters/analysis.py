@@ -4,8 +4,7 @@ import dataclasses
 import datetime
 import math
 
-from ..results import Results
-from moon_calculator import MoonCalculator
+from .moon_calculator import MoonCalculator
 
 # The number of seconds in a day as a float to capture fractions of days
 SECONDS_IN_DAY = 60.0 * 60.0 * 24.0
@@ -42,14 +41,14 @@ class Analysis:
             The number of days between the timestamps as an integer. Will return a 
             negative number of end_dt is earlier than start_dt
         """
-        return math.ceil((end_dt - start_dt).total_seconds() / SECONDS_IN_DAY)
+        return math.ceil(abs((end_dt - start_dt).total_seconds()) / SECONDS_IN_DAY)
 
     @staticmethod
-    def activity_for_image_list(results: Results) -> int:
+    def activity_for_image_list(images: tuple) -> int:
         """ Returns the number of distinct actions from the result set. Images MUST first be
         filtered by location and species to achieve a total accumulation
         Arguments:
-            results: the results to analyze
+            images: the tuple of images to process
         Returrns:
             The number of distinct actions found
         Notes:
@@ -61,7 +60,7 @@ class Analysis:
         prev_dt = None
 
         # Loop through the results and look at all the images
-        for one_image in results.get_images():
+        for one_image in images:
             # Make sure we have what we need
             if not 'image_dt' in one_image or not one_image['image_dt']:
                 continue
@@ -82,11 +81,12 @@ class Analysis:
 
 
     @staticmethod
-    def period_for_image_list(results: Results) -> int:
+    def period_for_image_list(images: tuple, interval_minutes: int) -> int:
         """ Returns the number of distinct periods from the result set. Images MUST first be
         filtered by location and species to achieve a total accumulation
         Arguments:
-            results: the results to analyze
+            images: the tuple of images to process
+            interval_minutes: the number of minutes before a new event is considered
         Returns:
             The number of distinct periods found
         Notes:
@@ -98,7 +98,7 @@ class Analysis:
         prev_dt = None
 
         # Loop through the results and look at all the images
-        for one_image in results.get_images():
+        for one_image in images:
             # Make sure we have what we need
             if not 'image_dt' in one_image or not one_image['image_dt']:
                 continue
@@ -110,8 +110,7 @@ class Analysis:
                 continue
 
             # Compare minute difference in time to the limit (1 hour)
-            if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 <= \
-                                                                            results.get_interval():
+            if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 <= interval_minutes:
                 periods += 1
                 prev_dt = one_image['image_dt']
                 continue
@@ -119,11 +118,13 @@ class Analysis:
         return periods
 
     @staticmethod
-    def abundance_for_image_list(results: Results, species_filter: str=None) -> int:
+    def abundance_for_image_list(images: tuple, interval_minutes: int, species_filter: str=None) \
+                                                                                            -> int:
         """ Get the abundance value for a list of images. Images MUST first be filtered by
             location and species to achieve a total accumulation
         Arguments:
-            results: the results to analyze
+            images: the tuple of images to process
+            interval_minutes: the number of minutes before a new event is considered
             species_filter: optional name of a specific species to look for
         Returns:
             The number of distinct periods found
@@ -133,18 +134,15 @@ class Analysis:
         """
         abundance = 0
 
-        species_names = [one_species['scientificName'] for one_species in results.get_species()] \
-                                                        if results.get_species() is not None else []
-
-        last_image_dt = results.get_images()[0]['image_dt']
+        last_image_dt = images[0]['image_dt']
         max_animals_in_event = 0
-        for one_image in results.get_images():
+        for one_image in images:
             difference_minutes = math.ceil((one_image['image_dt'] - last_image_dt).\
                                                                         total_seconds() / 60.0)
 
             # If the current image is further away than the event interval, add the current max
             # number of animals to the total
-            if difference_minutes >= results.get_interval():
+            if difference_minutes >= interval_minutes:
                 abundance = abundance + max_animals_in_event
                 max_animals_in_event = 0
 
@@ -159,18 +157,6 @@ class Analysis:
         abundance = abundance + max_animals_in_event
 
         return abundance
-
-    @staticmethod
-    def locations_for_image_list(images: tuple) -> tuple:
-        """ Returns a list of locations that the image list contains
-        Arguments:
-            images: the tuple of images to search
-        Return:
-            Returns the tuple consisting of the unique locations
-        """
-
-        # pylint: disable=consider-using-set-comprehension
-        return tuple(set([item['loc'] for item in images]))
 
     @staticmethod
     def get_full_moons(first: datetime, last: datetime) -> tuple:

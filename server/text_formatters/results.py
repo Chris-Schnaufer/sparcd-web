@@ -1,5 +1,7 @@
 """ Contains the results of a query """
 
+from typing import Optional
+
 from text_formatters.analysis import Analysis
 
 # The default interval value
@@ -7,6 +9,7 @@ DEFAULT_INTERVAL_MIN=0
 
 class Results:
     """ Contains the results of a query """
+    # pylint: disable=too-many-instance-attributes
     # All the known locations
     _all_locations = None
     # All the known species
@@ -21,10 +24,14 @@ class Results:
     _results = None
     # Sorted unique species by nane
     _species = None
-    # Images sorted by year
-    _year_images = None
     # Sorted unique year
     _years = None
+    # Images sorted by location
+    _location_images = None
+    # Images sorted by species
+    _species_images = None
+    # Images sorted by year
+    _year_images = None
 
     def __init__(self, results: tuple, all_species: tuple, all_locations: tuple, \
                                                     interval_minutes: int=DEFAULT_INTERVAL_MIN):
@@ -35,6 +42,12 @@ class Results:
             all_species: all the known species
             interval_minutes: the number of minutes between images to discard
         """
+        # Disabling this because we don't want to assign to class instance until all
+        # the processing is done
+        # pylint: disable=too-many-locals
+
+        # We do this assignment so that it can be seen that the initializer was called even if a
+        # problem ocurrs
         self._all_locations = all_locations
         self._all_species = all_species
 
@@ -49,7 +62,7 @@ class Results:
             return
 
         try:
-            all_images, all_locations, all_years, all_species = self._initialize(results, \
+            cur_images, cur_locations, cur_years, cur_species = self._initialize(results, \
                                                                         all_locations, all_species)
         except KeyError as ex:
             print('Invalid results specified', flush=True)
@@ -58,18 +71,24 @@ class Results:
 
         # Sort images by year
         year_images = [] * len(self._years)
-        for one_image in all_images:
-            cur_index = all_years.index(one_image['image_dt'].year)
+        for one_image in cur_images:
+            cur_index = cur_years.index(one_image['image_dt'].year)
             year_images[cur_index].append(one_image)
+
+        # Get pre-filtered lists of images
+        by_location, by_species, by_year = self._prefilter(cur_images, cur_locations, cur_species, \
+                                                                                        cur_years)
 
         # We are initialized, set our results
         self._results = results
-        self._images = all_images
-        self._locations = all_locations
-        self._species = all_species
-        self._year_images = year_images
-        self._years = all_years
+        self._images = cur_images
+        self._locations = cur_locations
+        self._species = cur_species
+        self._years = cur_years
         self._interval_minutes = interval_minutes
+        self._location_images = by_location
+        self._species_images = by_species
+        self._year_images = by_year
 
     def _initialize(self, results: tuple, all_locations: tuple, all_species: tuple) -> tuple:
         """ Returns the image, locations, years, and species of the search results
@@ -82,16 +101,17 @@ class Results:
             (sorted by nane), unique years (sorted by year), and unique species (sorted by name)
             of the search results
         """
-        all_images = []
+        # pylint: disable=too-many-branches
+        sorted_images = []
         for one_result in results:
             if one_result['images']:
                 # Add the images, with location, to the list of all images
-                all_images.extend([{'loc':one_result['loc']} | one_image for one_image in \
+                sorted_images.extend([{'loc':one_result['loc']} | one_image for one_image in \
                                                                             one_result['images']])
-        sorted_images = sorted(all_images, key=lambda cur_img: cur_img['image_dt'])
+        sorted_images = sorted(sorted_images, key=lambda cur_img: cur_img['image_dt'])
 
         # Get all the locations and check for an unknown
-        sorted_locations = sorted(set(map(lambda cur_img: cur_img['loc'], all_images)))
+        sorted_locations = sorted(set(map(lambda cur_img: cur_img['loc'], sorted_images)))
         have_unknown = False
         mapped_values = []
         for test_value in sorted_locations: # TODO: Handle only active locations
@@ -147,6 +167,32 @@ class Results:
         sorted_years = sorted(set(map(lambda item: item['image_dt'].year, sorted_images)))
 
         return (sorted_images, sorted_locations, sorted_years, sorted_species)
+
+    def _prefilter(self, images: tuple, locations: tuple, species: tuple, years: tuple) -> tuple:
+        """ Performs prefiltering of the images by various values
+        Arguments:
+            images: the images to filter
+            locations: the list of unique locations to filter on
+            species: the list of unique species to filter on
+            years: the list of unique years to filter on
+        Return:
+            Returns a tuple of dicts with the values (such as location ID) as keys with the matching
+            images in a tuple. Image tuples may contain duplicate image entries across different
+            keys
+            e.g.: ((location image dict), (species image dict), (year image dict))
+        """
+        locations_filtered = [{one_location['idProperty']: []} for one_location in locations]
+        species_filtered = [{one_species['scientificName']:[]} for one_species in species]
+        years_filtered = [{one_year: []} for one_year in years]
+
+        # Loop through the images and add them to the correct buckets
+        for one_image in images:
+            locations_filtered[one_image['loc']].append(one_image)
+            for one_species in one_image['species']:
+                species_filtered[one_image['sci_name']].append(one_image)
+            years_filtered[one_image['image_dt'].year].append(one_image)
+
+        return locations_filtered, species_filtered, years_filtered
 
     def get_interval(self) -> int:
         """ Returns the image interval in seconds """
@@ -206,26 +252,109 @@ class Results:
 
         raise RuntimeError('Call made to Results.get_all_species after bad initialization')
 
+    def get_location_images(self, location_id: str) -> tuple:
+        """ Returns the list of images filtered by species name
+        Arguments:
+            location_id: the id of the location
+        Return:
+            A tuple containing the images for that location
+        """
+        if self._location_images:
+            if location_id in self._location_images:
+                return self._location_images[location_id]
+            return ()
+
+        raise RuntimeError('Call made to Results.get_location_images after bad initialization')
+
+    def get_species_images(self, species_sci_name: str) -> tuple:
+        """ Returns the list of images filtered by species name
+        Arguments:
+            species_sci_name: the scientific species name
+        Return:
+            A tuple containing the images for that species
+        """
+        if self._species_images:
+            if species_sci_name in self._species_images:
+                return self._species_images[species_sci_name]
+            return ()
+
+        raise RuntimeError('Call made to Results.get_species_images after bad initialization')
+
     def get_year_images(self, year: int) -> tuple:
         """ Returns the list of images for a specific year
         Arguments:
-            The year to return
+            year: the year to return
         Returns:
             Returns the tuple of images for the specified year. An empty tuple is returned if the
             year doesn't have any images associated with it
         """
-        if self._years is None or self._year_images is None:
-            raise RuntimeError('Call made to Results.get_year_images after bad initialization')
+        if self._year_images:
+            if year in self._year_images:
+                return self._year_images[year]
+            return ()
 
-        result = ()
-        try:
-            cur_index = self._years.index(year)
-            if cur_index < len(self._year_images):
-                result = self._year_images[cur_index]
-        except ValueError:
-            pass
+        raise RuntimeError('Call made to Results.get_year_images after bad initialization')
 
-        return result
+    def get_first_image(self) -> Optional[dict]:
+        """ Returns the first image in the timestamp sorted result set
+        Return:
+            Returns the first image in the result set
+        """
+        if self._images:
+            if len(self._images) > 0:
+                return self._images[0]
+            return None
+
+        raise RuntimeError('Call made to Results.get_first_image after bad initialization')
+
+    def get_last_image(self) -> Optional[dict]:
+        """ Returns the last image in the timestamp sorted result set
+        Return:
+            Returns the last image in the result set
+        """
+        if self._images:
+            if len(self._images) > 0:
+                return self._images[len(self._images) - 1]
+            return None
+
+        raise RuntimeError('Call made to Results.get_last_image after bad initialization')
+
+    def get_first_year(self) -> Optional[int]:
+        """ Returns the first unique year
+        Return:
+            Returns the first year from the result set
+        """
+        if self._years:
+            if len(self._years) > 0:
+                return self._years[0]
+            return None
+
+        raise RuntimeError('Call made to Results.get_first_year after bad initialization')
+
+    def get_last_year(self) -> Optional[int]:
+        """ Returns the last unique year
+        Return:
+            Returns the last unique year from the result set
+        """
+        if self._years:
+            if len(self._years) > 0:
+                return self._years[len(self._years) - 1]
+            return None
+
+        raise RuntimeError('Call made to Results.get_last_year after bad initialization')
+
+    def filter_hours(self, images: tuple, hour_start: int, hour_end: int) -> tuple:
+        """ Filters the images by hour range (not including ending hour)
+        Arguments:
+            images: the tuple of images to search through
+            hour_start: the starting hour value (hours start at 0)
+            hour_end: the ending hour value (hours start at 0)
+        Return:
+            A tuple containing the images for that hour range
+        """
+        return [one_image for one_image in images if \
+                                            one_image['image_dt'].hour >= hour_start and \
+                                            one_image['image_dt'].hour < hour_end]
 
     def filter_month(self, images: tuple, month: int) -> tuple:
         """ Filters the images by image month
@@ -257,3 +386,14 @@ class Results:
         """
         return [one_image for one_image in images if \
                                             Analysis.image_has_species(one_image, species_sci_name)]
+
+    def locations_for_image_list(images: tuple) -> tuple:
+        """ Returns a list of locations that the image list contains
+        Arguments:
+            images: the tuple of images to search
+        Return:
+            Returns the tuple consisting of the unique locations
+        """
+
+        # pylint: disable=consider-using-set-comprehension
+        return tuple(set([item['loc'] for item in images]))

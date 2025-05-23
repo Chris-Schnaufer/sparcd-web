@@ -4,7 +4,8 @@ import dataclasses
 import os
 import sys
 
-from analysis import Analysis
+from .analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -13,61 +14,61 @@ class LocationStatFormatter:
     """
 
     @staticmethod
-    def print_percent_of_species_in_loc(results: tuple, res_locations: tuple, res_species: tuple, \
-                                   interval_minutes: int) -> str:
+    def print_percent_of_species_in_loc(results: Results) -> str:
         """ A species-location table showing the total number of independent pictures, and percent
             of the total for each location for each species analyzed. The total number of
             independent pictures for all species is given for each location
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
-            interval_minutes: the interval between images to be considered the same period
-                                (in minutes)
         Return:
             Returns the image analysis text
         """
         result = 'FOR EACH LOCATION TOTAL NUMBER AND PERCENT OF EACH SPECIES' + os.linesep
         result += '  Use independent picture' + os.linesep
 
-        for location in res_locations:
+        for location in results.get_locations():
             result += '{:31s} '.format(location['name'])
         result += os.linesep
         result += 'Species'
-        for location in res_locations:
+        for location in results.get_locations():
             result += '                   Total Percent'
         result += os.linesep
 
+        # We just want images that have a species and ignore ones that don't
         have_species_images = [one_image for one_image in results['sorted_images_dt'] if \
                                                     'species' in one_image and one_image['species']]
-        for species in res_species:
-            result += '{:<26s}'.format(species['sci_name'])
-            for location in res_locations:
-                location_images = [one_image for one_image in have_species_images if \
-                                                        one_image['loc'] == location['idProperty']]
-                total_period = Analysis.period_for_image_list(location_images, interval_minutes)
-                location_species_images = [one_image for one_image in location_images if \
-                                    Analysis.image_has_species(one_image, species['sci_name'])]
-                period = Analysis.period_for_image_list(location_species_images, interval_minutes)
+        # Loop thrrough the species
+        for species in results.get_species():
+            result += '{:<26s}'.format(species['scientificName'])
+            for location in results.get_locations():
+                have_location_images = results.filter_location(have_species_images, \
+                                                                            location['idProperty'])
+                total_period = Analysis.period_for_image_list(have_location_images, \
+                                                                            results.get_interval())
+                location_species_images = results.filter_species( \
+                                            results.get_location_images(location['idProperty']), \
+                                            species['scientificName'])
+                period = Analysis.period_for_image_list(location_species_images, \
+                                                                            results.get_interval())
                 result += '{:5d} {:7.2f}                   '.format(period, \
-                                                            (period / float(total_period)) * 100.0)
+                                                    (float(period) / float(total_period)) * 100.0)
             result += os.linesep
 
         result += 'Total pictures            '
 
-        for location in res_locations:
+        for location in results.get_locations():
             location_images = [one_image for one_image in results['sorted_images_dt'] if \
                                                         one_image['loc'] == location['idProperty']]
             result += '{:5d}  100.00                   '.format(\
-                                Analysis.period_for_image_list(location_images, interval_minutes))
+                                Analysis.period_for_image_list(location_images, \
+                                                                            results.get_interval()))
 
         result += os.linesep + os.linesep
 
         return result
 
     @staticmethod
-    def print_species_by_month_by_loc_by_year(results: tuple, res_locations: tuple, \
-                                              res_species: tuple, interval_minutes: int) -> str:
+    def print_species_by_month_by_loc_by_year(results: Results) -> str:
         """ For each year, for each location, a species-month table shows the number of independent
             records for each species. For each location and species the total number of independent
             records for all months is given in the last column (Total). The total number of pictures
@@ -76,43 +77,36 @@ class LocationStatFormatter:
             each month (Total/(Total effort)) is given. This is followed by a summary for all years
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
-            interval_minutes: the interval between images to be considered the same period
-                                (in minutes)
         Return:
             Returns the image analysis text
         """
         result = 'FOR EACH LOCATION AND MONTH TOTAL NUMBER EACH SPECIES' + os.linesep
         result += '  Use independent picture' + os.linesep
 
-        sorted_years = sorted(set(map(lambda item: item['image_dt'].year, \
-                                                                    results['sorted_images_dt'])))
-        for year in sorted_years:
+        for year in results.get_years():
             result += str(year) + os.linesep
 
-            for location in res_locations:
-                year_location_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                                one_image['image_dt'].year == year and \
-                                                one_image['loc'] == location['idProperty']]
+            for location in results.get_locations():
+                year_location_images = results.filter_location(results.get_year_images(year), \
+                                                                location['idProperty'])
                 if year_location_images:
                     result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
                               'Sep    Oct    Nov    Dec   Total'.format(location['name'])
                     # All species
-                    for species in res_species:
+                    for species in results.species():
                         total_pics = 0
-                        year_locations_species_images = [one_image for one_image in \
-                                        year_location_images if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+                        year_locations_species_images = results.filter_species(\
+                                                                        year_location_images, \
+                                                                        species['scientificName'])
                         if year_locations_species_images:
                             result += '{:<28s}'.format(species['name'])
                             # Months 0-12
                             for one_month in range(0, 12):
-                                yls_month_images = [one_image for one_image in \
-                                                        year_locations_species_images if \
-                                                        one_image['image_dt'].month == one_month]
+                                yls_month_images = results.filter_month(\
+                                                                    year_locations_species_images. \
+                                                                    one_month)
                                 period = Analysis.period_for_image_list(yls_month_images, \
-                                                                                interval_minutes)
+                                                                            results.get_interval())
                                 result += '{:5d}  '.format(period)
                                 total_pics = total_pics + period
 
@@ -121,11 +115,10 @@ class LocationStatFormatter:
                     result += 'Total pictures              '
                     total_pics = 0
                     for one_month in range(0, 12):
-                        year_location_month_images = [one_image for one_image in \
-                                                        year_location_images if \
-                                                        one_image['image_dt'].month == one_month]
+                        year_location_month_images = results.filter_month(year_location_images, \
+                                                                                        one_month)
                         period = Analysis.period_for_image_list(year_location_month_images, \
-                                                                                interval_minutes)
+                                                                            results.get_interval())
                         result += '{:5d}  '.format(period)
                         total_pics = total_pics + period
 
@@ -151,16 +144,15 @@ class LocationStatFormatter:
                             effort = 31
 
                         result += '{:5d}  '.format(effort)
-                        total_effort = total_effort + effort
+                        total_effort += effort
                     result += '{:5d}  '.format(total_effort) + os.linesep
 
                     result += 'Total/Total effort          '
                     for one_month in range(0, 12):
-                        year_location_month_images = [one_image for one_image in \
-                                                        year_location_images if \
-                                                        one_image['image_dt'].month == one_month]
+                        year_location_month_images = results.filter_month(year_location_images, \
+                                                                                        one_month)
                         period = Analysis.period_for_image_list(year_location_month_images, \
-                                                                                interval_minutes)
+                                                                            results.get_interval())
                         effort = 0
                         if first_month == last_month and first_month == one_month:
                             effort = last_day - first_day + 1
@@ -183,60 +175,50 @@ class LocationStatFormatter:
         return result
 
     @staticmethod
-    def print_species_by_month_by_oc(results: tuple, res_locations: tuple, res_species: tuple, \
-                                 interval_minutes: int) -> str:
+    def print_species_by_month_by_oc(results: Results) -> str:
         """ Returns all locations for all species for each month for all years
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
-            interval_minutes: the interval between images to be considered the same period
-                                (in minutes)
         Return:
             Returns the image analysis text
         """
         result = 'ALL LOCATIONS ALL SPECIES FOR EACH MONTH FOR ALL YEARS' + os.linesep
         result += '  Use independent picture' + os.linesep
 
-        sorted_years = sorted(set(map(lambda item: item['image_dt'].year, \
-                                                                    results['sorted_images_dt'])))
-        if sorted_years:
-            results += 'Years ' + sorted_years[0] + ' to ' + sorted_years[len(sorted_years) - 1] + \
+        if results.get_years():
+            results += 'Years ' + results.get_first_year() + ' to ' + results.get_last_year() + \
                                                                                         os.linesep
 
-        for location in res_locations:
-            location_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                                        one_image['loc'] == location['idProperty']]
+        for location in results.get_locations():
+            location_images = results.get_location_images(location['idProperty'])
             if location_images:
                 result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
                           'Sep    Oct    Nov    Dec   Total'.format(location['name'])
 
-                for species in res_species:
+                for species in results.get_species():
                     total_pics = 0
-                    location_species_images = [one_image for one_image in location_images if \
-                                                             Analysis.image_has_species(one_image, \
-                                                                            species['sci_name'])]
+                    location_species_images = results.filter_species(location_images,\
+                                                                        species['scientificName'])
                     if location_species_images:
                         result += '{:<28s}'.format(species['name'])
                         # Months 0-12
                         for one_month in range(0, 12):
-                            location_species_month_images = [one_image for one_image in \
-                                                location_species_images if \
-                                                        one_image['image_dt'].month == one_month]
+                            location_species_month_images = results.filter_month( \
+                                                                location_species_images, one_month)
                             period = Analysis.period_for_image_list(location_species_month_images, \
-                                                                                interval_minutes)
+                                                                            results.get_interval())
                             result += '{:5d}  '.format(period)
-                            total_pics = total_pics + period
+                            total_pics += period
                         result += '{:5d}  '.format(total_pics) + os.linesep
 
                 result += 'Total pictures              '
                 total_pics = 0
                 for one_month in range(0, 12):
-                    location_month_images = [one_image for one_image in location_images if \
-                                                        one_image['image_dt'].month == one_month]
-                    period = Analysis.period_for_image_list(location_month_images, interval_minutes)
+                    location_month_images = results.filter_month(location_images, one_month)
+                    period = Analysis.period_for_image_list(location_month_images, \
+                                                                            results.get_interval())
                     result += '{:5d}  '.format(period)
-                    total_pics = total_pics + period
+                    total_pics += period
                 result += '{:5d}  '.format(total_pics) + os.linesep
 
                 result += 'Total effort                '
@@ -259,14 +241,14 @@ class LocationStatFormatter:
                         effort = 31
 
                     result += '{:5d}  '.format(effort)
-                    total_effort = total_effort + effort
+                    total_effort += effort
                 result += '{:5d}  '.format(total_effort) + os.linesep
 
                 result += 'Total/Total effort          '
                 for one_month in range(0, 12):
-                    location_month_images = [one_image for one_image in location_images if \
-                                                        one_image['image_dt'].month == one_month]
-                    period = Analysis.period_for_image_list(location_month_images, interval_minutes)
+                    location_month_images = results.filter_month(location_images, one_month)
+                    period = Analysis.period_for_image_list(location_month_images, \
+                                                                            results.get_interval())
                     effort = 0
                     if first_month == last_month and first_month == one_month:
                         effort = last_day - first_day + 1
@@ -290,10 +272,10 @@ class LocationStatFormatter:
         return result
 
     @staticmethod
-    def print_distance_between_locations(res_locations: tuple) -> str:
+    def print_distance_between_locations(results: Results) -> str:
         """ 
         Arguments:
-            res_locations: all distinct result locations
+            results: the query results
         Return:
             Returns the image analysis text
         """
@@ -305,10 +287,10 @@ class LocationStatFormatter:
         min_loc_1 = None
         min_loc_2 = None
         min_distance = sys.float_info.max
-        for location in res_locations:
-            for other_loc in res_locations:
-                if location['idProperty'] != other_loc['idPropertu']:
-                    distance = SanimalAnalysisUtils.distanceBetween(float(location['latProperty']), \
+        for location in results.get_locations():
+            for other_loc in results.get_locations():
+                if location['idProperty'] != other_loc['idProperty']:
+                    distance = SanimalAnalysisUtils.distanceBetween(float(location['latProperty']),\
                                                 float(location['lngProperty']), \
                                                 float(other_loc['latProperty']), \
                                                 float(other_loc['lngProperty']))
@@ -326,18 +308,18 @@ class LocationStatFormatter:
                                                         min_loc_1['name'], min_loc_2['name']) + \
                                                                                         os.linesep
             result += 'Maximum distance = {:7.3f} Locations: {:28s} {:28s}'.format(max_distance, \
-                                                            max_loc_1['name'], max_loc_2['name']) + \
+                                                        max_loc_1['name'], max_loc_2['name']) + \
                                                                                         os.linesep
             result += 'Average distance = {:7.3f}'.format((min_distance + max_distance) / 2.0) + \
                                                                             os.linesep + os.linesep
 
         result += 'Locations                       '
-        for location in res_locations:
+        for location in results.get_locations():
             result += '{:<28s}'.format(location['name'])
         result += os.linesep
-        for location in res_locations:
+        for location in results.get_locations():
             result += '{:<32s}'.format(location['name'])
-            for other_loc in res_locations:
+            for other_loc in results.get_locations():
                 distance = SanimalAnalysisUtils.distanceBetween(float(location['latProperty']), \
                                                 float(location['lngProperty']), \
                                                 float(other_loc['latProperty']), \
@@ -400,8 +382,7 @@ class LocationStatFormatter:
         return result
 
     @staticmethod
-    def print_species_overlap_at_loc(results: tuple, res_locations: tuple, res_species: tuple) \
-                                                                                            -> str:
+    def print_species_overlap_at_loc(results: Results) -> str:
         """ A species x species table. Each row has the species name followed by the number of
             locations in () where the species was recored, then the number and in () the percent
             of locations where it was recorded with the species in the column
@@ -413,27 +394,26 @@ class LocationStatFormatter:
             Returns the image analysis text
         """
         result = 'SPECIES OVERLAP AT LOCATIONS' + os.linesep
-        result = '  Number of locations  ' + str(len(res_locations)) + os.linesep
+        result = '  Number of locations  ' + str(len(results.get_locations())) + os.linesep
         result = '                          Locations  Locations and percent of locations where ' \
                  'both species were recorded' + os.linesep
         result = 'Species                    recorded '
-        for species in res_species:
+        for species in results.get_species():
             result += '{:<12s}'.format(species['name'])
         result += os.linesep
 
-        for species in res_species:
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+        for species in results.get_species():
+            species_images = results.get_species_images(species['scientificName'])
             result += '{:<28s}'.format(species['name'])
-            locations = Analysis.locations_for_image_list(species_images)
+            locations = results.locations_for_image_list(species_images)
             result += '{:3d}    '.format(len(locations))
-            for other_species in res_species:
+            for other_species in results.get_species():
                 other_species_images = [one_image for one_image in results['sorted_images_dt'] if \
                                 Analysis.image_has_species(one_image, other_species['sci_name'])]
-                locations_other = Analysis.locations_for_image_list(other_species_images)
+                locations_other = results.locations_for_image_list(other_species_images)
                 intersection_size = len(set(locations).intersection(locations_other))
                 result += '{:2d} ({:6.1f}) '.format(intersection_size, \
-                                        (100.0 * float(intersection_size) / float(len(locations))))
+                                        100.0 * (float(intersection_size) / float(len(locations))))
             result += os.linesep
 
         result += os.linesep

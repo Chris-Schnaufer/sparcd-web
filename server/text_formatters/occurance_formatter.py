@@ -4,7 +4,7 @@ import dataclasses
 import os
 import sys
 
-from analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -33,12 +33,10 @@ class OccuranceFormatter:
         return result
 
     @staticmethod
-    def print_co_occurance_matrix(results: tuple, res_locations: tuple, res_species: tuple) -> str:
+    def print_co_occurance_matrix(results: Results) -> str:
         """ 
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
@@ -46,26 +44,24 @@ class OccuranceFormatter:
         result += '  The number of locations each species pair co-occurs' + os.linesep
         result += '                            '
 
-        for species in res_species:
+        for species in results.get_species():
             result += '{:3s} '.format(species['name'][:3])
         result += os.linesep
 
-        for species in res_species:
+        for species in results.get_species():
             result += '{:<28s}'.format(species['name'])
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                Analysis.image_has_species(one_image, species['sci_name'])]
+            species_images = results.get_species_images(species['scientificName'])
 
-            for other_species in res_species:
-                other_species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                Analysis.image_has_species(one_image, other_species['sci_name'])]
+            for other_species in results.get_species():
+                other_species_images = results.get_species_images(other_species['scientificName'])
 
                 num_locations = 0
 
-                for location in res_locations:
-                    species_location_images = [one_image for one_image in \
-                                    species_images if one_image['loc'] == location['idProperty']]
-                    other_species_location_images = [one_image for one_image in \
-                                other_species_images if one_image['loc'] == location['idProperty']]
+                for location in results.get_locations():
+                    species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
+                    other_species_location_images = results.filter_location(other_species_images, \
+                                                                            location['idProperty'])
 
                     if species_location_images and other_species_location_images:
                         num_locations = num_locations + 1
@@ -79,8 +75,7 @@ class OccuranceFormatter:
         return result
 
     @staticmethod
-    def print_absense_presence_atrix(results: tuple, res_locations: tuple, res_species: tuple) \
-                                                                                            -> str:
+    def print_absense_presence_matrix(results: Results) -> str:
         """ Table of species presence or absence at locations
         Arguments:
             results: the results to search through
@@ -92,27 +87,26 @@ class OccuranceFormatter:
         result = 'ABSENCE-PRESENCE MATRIX' + os.linesep
         result += '  Species vs locations matrix (locations in alphabetical order)' + os.linesep
         result += '          Species ('
-        result += '{:3d}'.format(len(res_species))
+        result += '{:3d}'.format(len(results.get_species()))
         result += ')               Locations ('
-        result += '{:3d}'.format(len(res_locations))
+        result += '{:3d}'.format(len(results.get_locations()))
         result += os.linesep
         result += '                            '
 
-        alphabetical = sorted(res_locations, key=lambda loc: loc['idProperrty'])
+        alphabetical = sorted(results.get_locations(), key=lambda loc: loc['idProperrty'])
 
         for loc_num in range(1, len(alphabetical) + 1):
             result += '{:2d} '.format(loc_num)
         result += os.linesep
 
-        for species in res_species:
+        for species in results.get_species():
             result += '{:<28s}'.format(species['name'])
 
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+            species_images = results.get_species_images(species['scientificName'])
 
-            for location in res_locations:
-                species_location_images = [one_image for one_image in species_images if \
-                                                    one_image['loc'] == location['idProperty']]
+            for location in alphabetical:
+                species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
                 result += '{:2d} '.format(0 if len(species_location_images) == 0 else 1)
 
             result += os.linesep
@@ -122,13 +116,10 @@ class OccuranceFormatter:
         return result
 
     @staticmethod
-    def print_max_min_species_elevation(results: tuple, res_locations: tuple, res_species: tuple) \
-                                                                                            -> str:
+    def print_max_min_species_elevation(results: Results) -> str:
         """ Prints the species min amd max elevation table
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
@@ -136,28 +127,28 @@ class OccuranceFormatter:
         result += '  Species vs locations matrix (location sorted from low to high elevation)' + \
                                                                                         os.linesep
         result += '          Species ('
-        result += '{:3d}'.format(len(res_species))
+        result += '{:3d}'.format(len(results.get_species()))
         result += ')               Locations ('
-        result += '{:3d}'.format(len(res_locations))
+        result += '{:3d}'.format(len(results.get_locations()))
         result += os.linesep
         result += '                            '
 
-        elevation_locs = sorted(res_locations, key=lambda loc: float(loc['elevationProperty']))
+        elevation_locs = sorted(results.get_locations(), key=lambda loc: \
+                                                                    float(loc['elevationProperty']))
 
         for location in range(1, len(elevation_locs) + 1):
             result += '{:2d} '.format(location)
 
         result += os.linesep
 
-        for species in res_species:
+        for species in results.get_species():
             result += '{:<28s}'.format(species['name'])
 
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+            species_images = results.get_species_images(species['sci_name'])
 
-            for location in res_locations:
-                species_location_images = [one_image for one_image in species_images if \
-                                                    one_image['loc'] == location['idProperty']]
+            for location in elevation_locs:
+                species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
                 result += '{:2d} '.format(0 if len(species_location_images) == 0 else 1)
 
             result += os.linesep
@@ -166,23 +157,21 @@ class OccuranceFormatter:
 
         result += '  List of elevations and locations' + os.linesep
 
-        for loc_index, location in enumerate(res_locations):
+        for loc_index, location in enumerate(results.get_locations()):
             result += ' {:2d} {:5.0f} '.format(loc_index + 1, location['elevationProperty']) + \
                                 location['name'] + os.linesep
         result += os.linesep
 
         result += '  Minimum and maximum elevation for each species' + os.linesep
         result += '   SPECIES                     Min   Max' + os.linesep
-        for species in res_species:
+        for species in results.get_species():
             min_elevation = sys.float_info.max
             max_elevation = 0.0
 
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+            species_images = results.get_species_images(species['scientificName'])
 
-            for location in res_locations:
-                species_location_images = [one_image for one_image in species_images if \
-                                                    one_image['loc'] == location['idProperty']]
+            for location in results.get_locations():
+                species_location_images = results.filter_location(location['idProperty'])
 
                 if species_location_images:
                     elevation = float(location['elevationProperty'])
@@ -197,7 +186,7 @@ class OccuranceFormatter:
         return result
 
     @staticmethod
-    def print_native_occupancy(results: tuple, res_locations: tuple, res_species: tuple) -> str:
+    def print_native_occupancy(results: Results) -> str:
         """ The list of species analyzed, and for each species the Fraction of locations Occupied
             calculated by computing the number of locations occupied by the species divided by the
             total number of location shown in (). For each species the Number of locations Occupied
@@ -206,8 +195,6 @@ class OccuranceFormatter:
             of locations occupied to least locations occupied
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
@@ -217,20 +204,19 @@ class OccuranceFormatter:
         result += '                               Fraction of locations   Number of locations' + \
                                                                                 os.linesep
         result += 'Species                              Occupied             Occupied (' + \
-                            '{:3d}'.format(len(res_locations)) + os.linesep
+                            '{:3d}'.format(len(results.get_locations())) + os.linesep
 
-        total_locations = len(res_locations)
+        total_locations = len(results.get_locations())
 
         pairs_to_print = []
 
-        for species in res_species:
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+        for species in results.get_species():
+            species_images = results.get_species_images(species['sci_name'])
 
             locations_with_species = 0
-            for location in res_locations:
-                species_location_images = [one_image for one_image in species_images if \
-                                                    one_image['loc'] == location['idProperty']]
+            for location in results.get_locations():
+                species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
                 if species_location_images:
                     locations_with_species = locations_with_species + 1
 

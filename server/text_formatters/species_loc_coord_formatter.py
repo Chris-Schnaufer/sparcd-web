@@ -3,7 +3,7 @@
 import dataclasses
 import os
 
-from analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -12,25 +12,23 @@ class SpeciesLocCoordFormatter:
     """
 
     @staticmethod
-    def print_species_by_loc_with_utm(results: tuple, res_species: tuple) \
+    def print_species_by_loc_with_utm(results: Results) \
                                                                                             -> str:
         """ For each species a list of locations where the species was recorded, and the UTM and
             elevation of the location.
         Arguments:
             results: the results to search through
-            res_species: all distinct result species information
         Return:
             Returns the image analysis text
         """
         result = 'SPECIES BY LOCATION WITH UTM AND ELEVATION' + os.linesep
-        for species in res_species:
-            species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                        Analysis.image_has_species(one_image, species['sci_name'])]
+        for species in results.get_species():
+            species_images = results.get_species_images(species['scientificName'])
             result += species['name'] + os.linesep
 
             result += 'Location                        UTMe-w   UTMn-s    Elevation   Lat        ' \
                       'Long' + os.linesep
-            for location in Analysis.locations_for_image_list(species_images):
+            for location in results.locations_for_image_list(species_images):
                 utm_coord = SanimalAnalysisUtils.Deg2UTM(float(location['latProperty']), \
                                                                     float(location['lngProperty']))
 

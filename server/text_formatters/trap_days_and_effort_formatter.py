@@ -3,7 +3,8 @@
 import dataclasses
 import os
 
-from analysis import Analysis
+from .analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -12,14 +13,13 @@ class TrapDaysAndEffortFormatter:
     """
 
     @staticmethod
-    def print_camera_trap_days(results: tuple, res_locations: tuple) -> str:
+    def print_camera_trap_days(results: Results) -> str:
         """ A list of all locations (Location) to be analyzed that includes the state and stop date,
             the total number of days each location was run (Duration), the date of the first picture
             recorded at the location (First pic), and the species recorded. This is followed by the
             total number of Camera trap days (Duration).
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
         Return:
             Returns the image analysis text
         """
@@ -28,9 +28,8 @@ class TrapDaysAndEffortFormatter:
                   'Species' + os.linesep
 
         duration_total = 0
-        for one_loc in res_locations:
-            loc_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                                        one_image['loc'] == one_loc['idProperty']]
+        for one_loc in results.get_locations:
+            loc_images = results.get_location_images(one_loc['idProperty'])
 
             first_cal = loc_images[0]['image_dt']
             last_cal = loc_images[len(loc_images) - 1]['image_dt']
@@ -56,7 +55,7 @@ class TrapDaysAndEffortFormatter:
         return result
 
     @staticmethod
-    def print_camera_trap_effort(results: tuple) -> str:
+    def print_camera_trap_effort(results: Results) -> str:
         """ For each year, and for each location, and for each month, the number of camera traps
             days, and the total number of camera trap days for all months. This is followed by Total
             days this is the total of all camera trap days from all locations for each month. The
@@ -71,14 +70,10 @@ class TrapDaysAndEffortFormatter:
         """
         result = 'CAMERA TRAP EFFORT' + os.linesep
 
-        sorted_years = sorted(set(map(lambda item: item['image_dt'].year, \
-                                                                    results['sorted_images_dt'])))
+        for one_year in results.get_years():
 
-        for one_year in sorted_years:
-
-            year_images = [item for item in results['sorted_images_dt'] if \
-                                                                item['image_dt'].year == one_year]
-            locations = Analysis.locations_for_image_list(year_images)
+            year_images = results.get_year_images(one_year)
+            locations = results.locations_for_image_list(year_images)
 
             if locations:
                 result += 'Year ' + one_year + os.linesep
@@ -89,8 +84,7 @@ class TrapDaysAndEffortFormatter:
                 monthly_totals = [0] * 12
 
                 for one_loc in locations:
-                    year_loc_images = [item for item in year_images if \
-                                                        item['loc'].year == one_loc['idProperty']]
+                    year_loc_images = results.filter_year(year_images, one_loc['idProperty'])
                     first_cal = year_loc_images[0]['image_dt']
                     last_cal = year_loc_images[len(year_loc_images)]['image_dt']
                     first_month = first_cal.month
@@ -112,40 +106,34 @@ class TrapDaysAndEffortFormatter:
                             month_value = 31
 
                         result += ' {:2d}    '.format(month_value)
-                        month_total = month_total + month_value
-                        monthly_totals[one_month] = monthly_totals[one_month] + month_value
+                        month_total += month_value
+                        monthly_totals[one_month] += month_value
 
                     result += str(month_total) + os.linesep
 
                 result += 'Total days                  '
 
-                total_total = 0
-
                 for one_month in range(0, 12):
-                    total_total = total_total + monthly_totals[one_month]
                     result += ' {:2d}    '.format(monthly_totals[one_month])
 
-                result += '{:2d}'.format(total_total) + os.linesep
+                result += '{:2d}'.format(sum(monthly_totals)) + os.linesep
 
             result += os.linesep
 
         return result
 
     @staticmethod
-    def print_camera_trap_effort_summary(results: tuple, res_locations: tuple) -> str:
+    def print_camera_trap_effort_summary(results: tuple) -> str:
         """ Returns camera trap effort
         Arguments:
             results: the results to search through
-            res_locations: all distinct result locations
         Return:
             Returns the image analysis text
         """
         result = 'CAMERA TRAP EFFORT SUMMARY' + os.linesep
 
-        sorted_years = sorted(set(map(lambda item: item['image_dt'].year, \
-                                                                    results['sorted_images_dt'])))
-        if len(sorted_years) > 0:
-            result += 'Years ' + sorted_years[0] + ' to ' + sorted_years[len(sorted_years) - 1] + \
+        if results.get_years():
+            result += 'Years ' + results.get_first_year() + ' to ' + results.get_last_year() + \
                                                                                         os.linesep
 
         result += 'Location                    Jan    Feb    Mar    Apr    May    Jun    Jul    ' \
@@ -153,12 +141,11 @@ class TrapDaysAndEffortFormatter:
 
         monthly_totals = [0] * 12
 
-        for one_loc in res_locations:
-            loc_images = [item for item in results['sorted_images_dt'] if \
-                                                        item['loc'].year == one_loc['idProperty']]
+        for one_loc in results.get_locations():
+            loc_images = results.get_location_images(one_loc['idProperty'])
 
-            first_cal = loc_images[0]
-            last_cal = loc_images[len(loc_images) - 1]
+            first_cal = loc_images[0]['image_dt']
+            last_cal = loc_images[len(loc_images) - 1]['image_dt']
             first_month = first_cal.month
             last_month = last_cal.month
             first_day = first_cal.day
