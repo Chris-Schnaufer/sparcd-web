@@ -26,7 +26,7 @@ class Analysis:
         """
         if image and 'species' in image:
             for one_species in image['species']:
-                if one_species['sci_name'] == species:
+                if one_species['scientificname'] == species:
                     return True
 
         return False
@@ -149,7 +149,7 @@ class Analysis:
             # The max number of animals is the max number of animals in this image or the max number
             # of animals in the last image
             for one_species in one_image['species']:
-                if species_filter is None or one_species['sci_name'] == species_filter:
+                if species_filter is None or one_species['scientificname'] == species_filter:
                     max_animals_in_event = max(max_animals_in_event, one_species['count'])
 
             last_image_dt = one_image['image_dt']

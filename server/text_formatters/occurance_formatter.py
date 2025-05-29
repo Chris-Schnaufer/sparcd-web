@@ -144,7 +144,7 @@ class OccuranceFormatter:
         for species in results.get_species():
             result += '{:<28s}'.format(species['name'])
 
-            species_images = results.get_species_images(species['sci_name'])
+            species_images = results.get_species_images(species['scientificname'])
 
             for location in elevation_locs:
                 species_location_images = results.filter_location(species_images, \
@@ -211,7 +211,7 @@ class OccuranceFormatter:
         pairs_to_print = []
 
         for species in results.get_species():
-            species_images = results.get_species_images(species['sci_name'])
+            species_images = results.get_species_images(species['scientificname'])
 
             locations_with_species = 0
             for location in results.get_locations():

@@ -4,8 +4,10 @@ import datetime
 import json
 from typing import Optional
 
-from format_dr_sanderson import get_dr_sanderson_output
-from results import Results
+from format_dr_sanderson import get_dr_sanderson_output, get_dr_sanderson_pictures
+from format_csv import get_csv_raw, get_csv_location, get_csv_species
+from format_image_downloads import get_image_downloads
+from text_formatters.results import Results
 
 def filter_elevation(uploads: tuple, elevation_filter: dict) -> list:
     """ Returns the uploads that match the filter
@@ -77,9 +79,11 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     for one_filter in filters:
         match(one_filter[0]):
             case 'locations':
+                print('HACK:LOCATIONS')
                 cur_uploads = [one_upload for one_upload in cur_uploads if \
                                 one_upload['info']['loc'] in one_filter[1]]
             case 'elevation':
+                print('HACK:ELEVATIONS')
                 cur_uploads = filter_elevation(cur_uploads, json.loads(one_filter[1]))
 
     # Determine if we'll need image datetime objects
@@ -99,9 +103,14 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
         print(ex)
         raise ex
 
+    zzz = 0  #HACK
+    matches = []
     for one_upload in cur_uploads:
         cur_images = []
-        for one_image in one_upload['images']:
+        print('HACK:filter_uploads:ONE_UPLOAD:',zzz,one_upload,flush=True)
+        zzz += 1 #HACK
+        for one_image in one_upload['info']['images']:
+            print('HACK:filter_uploads:ONE_IMAGE:',one_image,flush=True)
             excluded = False
             image_dt = None
             image_gmt_dt = None
@@ -133,7 +142,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                     case 'species':
                         found = False
                         for one_species in one_image['species']:
-                            if one_species['sci_name'] in one_filter[1]:
+                            if one_species['scientificname'] in one_filter[1]:
                                 found = True
 
                         if not found:
@@ -161,9 +170,9 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                 cur_images.append(one_image)
 
         if len(cur_images) > 0:
-            cur_uploads.append((one_upload, cur_images))
+            matches.append((one_upload, cur_images))
 
-    return cur_uploads
+    return [cur_upload['info']|{'images':cur_images} for cur_upload,cur_images in matches]
 
 
 def query_output(results: Results) -> tuple:

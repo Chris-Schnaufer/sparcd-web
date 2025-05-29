@@ -175,7 +175,7 @@ class LocationStatFormatter:
         return result
 
     @staticmethod
-    def print_species_by_month_by_oc(results: Results) -> str:
+    def print_species_by_month_by_loc(results: Results) -> str:
         """ Returns all locations for all species for each month for all years
         Arguments:
             results: the results to search through
@@ -409,7 +409,7 @@ class LocationStatFormatter:
             result += '{:3d}    '.format(len(locations))
             for other_species in results.get_species():
                 other_species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                                Analysis.image_has_species(one_image, other_species['sci_name'])]
+                            Analysis.image_has_species(one_image, other_species['scientificname'])]
                 locations_other = results.locations_for_image_list(other_species_images)
                 intersection_size = len(set(locations).intersection(locations_other))
                 result += '{:2d} ({:6.1f}) '.format(intersection_size, \

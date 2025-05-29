@@ -32,14 +32,19 @@ class Results:
     _species_images = None
     # Images sorted by year
     _year_images = None
+    # S3 connection information
+    _s3_info = None
 
     def __init__(self, results: tuple, all_species: tuple, all_locations: tuple, \
-                                                    interval_minutes: int=DEFAULT_INTERVAL_MIN):
+                 s3_url: str, s3_user: str, s3_pw: str, interval_minutes:int=DEFAULT_INTERVAL_MIN):
         """ Initializer
         Arguments:
             results: the search results
             all_locations: all the known locations
             all_species: all the known species
+            s3_url: the URL of  the S3 instance
+            s3_user: the user name to connect to S3 with
+            S3_pw: the password for S3
             interval_minutes: the number of minutes between images to discard
         """
         # Disabling this because we don't want to assign to class instance until all
@@ -89,6 +94,22 @@ class Results:
         self._location_images = by_location
         self._species_images = by_species
         self._year_images = by_year
+        self._s3_info = {'url': s3_url, 'user': s3_user, 'pw': s3_pw}
+
+    @property
+    def s3_url(self):
+        """ Returns the S3 endpoint url """
+        return self._s3_info['url']
+
+    @property
+    def s3_user(self):
+        """ Returns the S3 user name """
+        return self._s3_info['user']
+
+    @property
+    def s3_password(self):
+        """ Returns the S3 password """
+        return self._s3_info['pw']
 
     def _initialize(self, results: tuple, all_locations: tuple, all_species: tuple) -> tuple:
         """ Returns the image, locations, years, and species of the search results
@@ -129,19 +150,21 @@ class Results:
 
         # Get all the species and check for unknown
         all_species = {}
-        for one_image in self._images:
-            for one_species in one_image['species']:
-                if not one_species['sci_name'] in all_species:
-                    all_species[one_species['name']] = {'first_image':one_image,
-                                                        'last_image':one_image,
-                                                        'sci_name':one_species['sci_name']
-                                                       }
-                else:
-                    # Update the last image for the species if it's later than the current
-                    # last image
-                    if one_image['image_dt'] > \
+        for one_result in results:
+            print('HACK:Results._initialize:SPECIES:',one_result,flush=True)
+            for one_image in one_result['images']:
+                for one_species in one_image['species']:
+                    if not one_species['scientificName'] in all_species:
+                        all_species[one_species['name']] = {'first_image':one_image,
+                                                            'last_image':one_image,
+                                                            'scientificname':one_species['scientificname']
+                                                           }
+                    else:
+                        # Update the last image for the species if it's later than the current
+                        # last image
+                        if one_image['image_dt'] > \
                                         all_species[one_species['name']]['last_image']['image_dt']:
-                        all_species[one_species['name']]['last_image'] = one_image['image_dt']
+                            all_species[one_species['name']]['last_image'] = one_image['image_dt']
 
         sorted_species = sorted(map(lambda cur_species: cur_species['name'], \
                                 [{'name':key} | item for key, item in all_species.items()]))
@@ -150,7 +173,7 @@ class Results:
         for test_value in sorted_species:
             for one_species in all_species:
                 found_items = [one_species for one_species in all_species if \
-                                                            one_species['sci_name'] == test_value]
+                                                            one_species['scientificname'] == test_value]
                 if found_items and len(found_items) > 0:
                     mapped_values.append(found_items[0])
                 else:
@@ -189,7 +212,7 @@ class Results:
         for one_image in images:
             locations_filtered[one_image['loc']].append(one_image)
             for one_species in one_image['species']:
-                species_filtered[one_image['sci_name']].append(one_image)
+                species_filtered[one_image['scientificname']].append(one_image)
             years_filtered[one_image['image_dt'].year].append(one_image)
 
         return locations_filtered, species_filtered, years_filtered
@@ -343,6 +366,39 @@ class Results:
 
         raise RuntimeError('Call made to Results.get_last_year after bad initialization')
 
+
+    def get_image_location(self, location_id: str) -> str:
+        """ Finds the location object for the specified location ID
+        Arguments:
+            location_id: the location ID for returning the instance
+        Return:
+            The location instance or None if it's not found
+        """
+        if self._all_locations:
+            found_loc = next(set(one_loc for one_loc in self._all_locations if \
+                                                            one_loc['idProperty'] == location_id))
+            if found_loc:
+                return found_loc
+            return None
+
+        raise RuntimeError('Call made to Results.get_image_location after bad initialization')
+
+
+    def get_location_name(self, location_id: str) -> str:
+        """ Finds the location name for the specified location ID
+        Arguments:
+            location_id: the location ID for returning the name
+        Return:
+            The name of the location or None if it's not found
+        """
+        if self._all_locations:
+            found_loc = self.get_image_location(location_id)
+            if found_loc and 'name' in found_loc:
+                return found_loc['name']
+            return None
+
+        raise RuntimeError('Call made to Results.get_location_name after bad initialization')
+
     def filter_hours(self, images: tuple, hour_start: int, hour_end: int) -> tuple:
         """ Filters the images by hour range (not including ending hour)
         Arguments:
@@ -387,7 +443,7 @@ class Results:
         return [one_image for one_image in images if \
                                             Analysis.image_has_species(one_image, species_sci_name)]
 
-    def locations_for_image_list(images: tuple) -> tuple:
+    def locations_for_image_list(self, images: tuple) -> tuple:
         """ Returns a list of locations that the image list contains
         Arguments:
             images: the tuple of images to search

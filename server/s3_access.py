@@ -299,7 +299,7 @@ class S3Connection:
                     if cur_img.get('species') is None:
                         cur_img['species'] = []
                     cur_img['species'].append({ 'name':common_name, \
-                                                'sci_name':csv_info[8], \
+                                                'scientificName':csv_info[8], \
                                                 'count':csv_info[9]})
                 else:
                     print(f'Unable to find collection image: {csv_info[3]}')
@@ -379,7 +379,7 @@ class S3Connection:
                         if len(csv_info) >= 20:
                             # Get the fields of interest
                             cur_species = { 'name':get_common_name(csv_info[19]), \
-                                            'sci_name':csv_info[8], \
+                                            'scientificName':csv_info[8], \
                                             'count':csv_info[9]}
 
                             cur_images.append({ 'name':os.path.basename(csv_info[3].rstrip('/\\')),
@@ -417,11 +417,12 @@ class S3Connection:
                 settings_bucket = one_bucket.name
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
 
         file_path = os.path.join(SETTINGS_FOLDER, filename)
         config_data = None
         try:
-            config_data = get_s3_file(minio, settings_bucket, file_path, temp_file)
+            config_data = get_s3_file(minio, settings_bucket, file_path, temp_file[1])
         except S3Error as ex:
             print(f'Unable to get configuration file {filename} from {settings_bucket}')
             print(ex)
@@ -429,3 +430,18 @@ class S3Connection:
             os.unlink(temp_file[1])
 
         return config_data
+
+    @staticmethod
+    def get_object_urls(url: str, user: str, password: str, object_info: tuple) -> tuple:
+        """ Returns the URLs of the objects listed in object_info
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            object_info: tuple containing tuple pairs of bucket name and the object path
+        Return:
+            Returns a tuple containing the S3 URLs for the objects (each url subject to timeout)
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        return [minio.presigned_get_object(one_obj[0], one_obj[1]) for one_obj in object_info]

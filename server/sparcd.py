@@ -23,7 +23,7 @@ from flask import Flask, abort, request, session, url_for
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
-from results import Results
+from text_formatters.results import Results
 import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
@@ -460,6 +460,7 @@ def login_token():
     # Save information into the database
     new_key = uuid.uuid4().hex
     db.reconnect()
+    # TODO Move the encryption to S3 instance & pass in the encryption key
     db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip, \
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
@@ -513,6 +514,7 @@ def collections():
 
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])
+    # TODO: have s3 instance do the decryption & pass in decrypt key to S3 instance
     all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
                                                             do_decrypt(db.get_password(token)))
 
@@ -802,10 +804,14 @@ def query():
 
         # Filter on current uploads
         if len(uploads_info) > 0:
-            print(json.dumps(uploads_info[0]))
-            cur_results = filter_uploads(uploads_info, filters)
+            print('HACK: UPLOADINFO: ',json.dumps(uploads_info[0]))
+            print('HACK: ALL UPLOADS: ',uploads_info)
+            print('HACK: FILTERS: ',filters)
+            cur_results = query_helpers.filter_uploads(uploads_info, filters)
             if cur_results:
                 all_results = all_results + cur_results
+
+    print('HACK:FILTERED:', all_results)
 
     # Get the species and locations
     species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
@@ -813,8 +819,11 @@ def query():
     locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
+    print('HACK: ALL RESULTS',all_results, flush=True)
     # Get some sorted lists of images, species, locations
-    results = Results(all_results, species, locations, 0) # TODO: add query interval
+    results = Results(all_results, species, locations,
+                        s3_url, user_info["name"], do_decrypt(db.get_password(token)),
+                        0) # TODO: add query interval
 
     # Format and return the results
     return json.dumps(query_helpers.query_output(results))

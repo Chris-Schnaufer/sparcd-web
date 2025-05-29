@@ -129,8 +129,8 @@ class ActivityPatternFormatter:
         for species in results.get_species():
             result += '{:<27s}'.format(species['name'])
             for other_species in results.get_species():
-                species_image = results.get_species_images(species['sci_name'])
-                other_species_image = results.get_species_images(other_species['sci_name'])
+                species_image = results.get_species_images(species['scientificname'])
+                other_species_image = results.get_species_images(other_species['scientificname'])
                 total_activity = Analysis.activity_for_image_list(species_image)
                 total_activity_other = Analysis.activity_for_image_list(other_species_image)
 
@@ -175,13 +175,13 @@ class ActivityPatternFormatter:
 
         for species in results.get_species():
             for other_species in results.get_species():
-                species_image = results.get_species_images(species['sci_name'])
-                other_species_image = results.get_species_images(other_species['sci_name'])
+                species_image = results.get_species_images(species['scientificname'])
+                other_species_image = results.get_species_images(other_species['scientificname'])
 
                 activity_similarity = 0.0
 
                 if (len(species_image) >= 25 and len(other_species_image) >= 25 and \
-                                                species['sci_name'] != other_species['sci_name']):
+                                                species['scientificname'] != other_species['scientificname']):
                     # 24 hrs
                     for one_hour in range(0, 24):
                         species_image_hour = results.filter_hours(species_image, \
@@ -207,8 +207,8 @@ class ActivityPatternFormatter:
             result += 'Hour            {:<28s} {:<28s}'.format(lowest['name'], \
                                                             lowest_other['name']) + os.linesep
 
-            species_images = results.get_species_images(lowest['sci_name'])
-            other_species_images = results.get_species_images(lowest_other['sci_name'])
+            species_images = results.get_species_images(lowest['scientificname'])
+            other_species_images = results.get_species_images(lowest_other['scientificname'])
             total_images = len(species_images)
             total_images_other = len(other_species_images)
             activity_similarity = 0.0
@@ -258,11 +258,11 @@ class ActivityPatternFormatter:
         result += os.linesep
 
         for species in results.get_species():
-            species_images = results.get_species_images(species['sci_name'])
+            species_images = results.get_species_images(species['scientificname'])
             if len(species_images) >= 25:
                 result += '{:<28s}'.format(species['name'])
                 for other_species in results.get_species():
-                    other_species_images = results.get_species_images(other_species['sci_name'])
+                    other_species_images = results.get_species_images(other_species['scientificname'])
 
                     activity_similarity = 0.0
 
@@ -361,7 +361,7 @@ class ActivityPatternFormatter:
                                                                         monthly_totals[one_month]
 
         for species in results.get_species():
-            species_images = results.get_species_images(species['sci_name'])
+            species_images = results.get_species_images(species['scientificname'])
 
             result += species['name'] + os.linesep
             result += '                     Dec-Jan-Feb           Mar-Apr-May           ' \

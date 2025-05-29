@@ -249,7 +249,7 @@ class TotalDayFormatter:
             for species in results.get_species():
 
                 year_species_images = results.filter_year(results.get_species_images(\
-                                                                            species['sci_name']), \
+                                                                    species['scientificname']), \
                                                           one_year)
 
                 if year_species_images:
@@ -468,8 +468,8 @@ class TotalDayFormatter:
 
             for one_year in results.get_years():
                 species_year_images = results.filter_year( \
-                                                results.get_species_images(species['sci_name']), \
-                                                one_year)
+                                            results.get_species_images(species['scientificname']), \
+                                            one_year)
 
                 if species_year_images:
                     result += str(one_year) + os.linesep
@@ -693,7 +693,7 @@ class TotalDayFormatter:
         for species in results.get_species():
             result += species['name'] + os.linesep
 
-            species_images = results.get_species_images(species['sci_name'])
+            species_images = results.get_species_images(species['scientificname'])
 
             for one_year in results.get_years():
 

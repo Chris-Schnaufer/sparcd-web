@@ -54,8 +54,8 @@ def create_lunar_activity_table(results: Results)-> tuple:
 
         total_difference = 0.0
 
-        full_species_images = results.filter_species(full_images, species['sci_name'])
-        new_species_images = results.filter_species(new_images, species['sci_name'])
+        full_species_images = results.filter_species(full_images, species['scientificname'])
+        new_species_images = results.filter_species(new_images, species['scientificname'])
 
         # 24 hrs
         for one_hour in range(0, 24):
@@ -126,8 +126,8 @@ class LunarActivityFormatter:
             result += '                 Full moon activity    New moon activity' + os.linesep
             result += '    Hour        Number    Frequency   Number    Frequency' + os.linesep
 
-            full_species_images = results.filter_species(full_images, species['sci_name'])
-            new_species_images = results.filter_species(new_images, species['sci_name'])
+            full_species_images = results.filter_species(full_images, species['scientificname'])
+            new_species_images = results.filter_species(new_images, species['scientificname'])
 
             num_images_total_tull = 0
             num_images_total_new = 0
