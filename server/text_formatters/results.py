@@ -74,8 +74,8 @@ class Results:
             print(ex, flush=True)
             return
 
-        # Sort images by year
-        year_images = [] * len(self._years)
+        # Sort images by year (we need a list of lists)
+        year_images = [[]] * len(cur_years)
         for one_image in cur_images:
             cur_index = cur_years.index(one_image['image_dt'].year)
             year_images[cur_index].append(one_image)
@@ -145,39 +145,36 @@ class Results:
 
         sorted_locations = mapped_values
         if have_unknown:
-            sorted_locations.append({'name':'Unknown', 'idPropert':'unknown', 'latProperty':0.0,
-                                     'lngProperty':0.0, 'elevation':0.0})
+            sorted_locations.append({'nameProperty':'Unknown', 'idPropert':'unknown', 
+                                     'latProperty':0.0, 'lngProperty':0.0, 'elevation':0.0})
 
         # Get all the species and check for unknown
-        all_species = {}
-        for one_result in results:
-            print('HACK:Results._initialize:SPECIES:',one_result,flush=True)
-            for one_image in one_result['images']:
-                for one_species in one_image['species']:
-                    if not one_species['scientificName'] in all_species:
-                        all_species[one_species['name']] = {'first_image':one_image,
-                                                            'last_image':one_image,
-                                                            'scientificname':one_species['scientificname']
-                                                           }
-                    else:
-                        # Update the last image for the species if it's later than the current
-                        # last image
-                        if one_image['image_dt'] > \
-                                        all_species[one_species['name']]['last_image']['image_dt']:
-                            all_species[one_species['name']]['last_image'] = one_image['image_dt']
+        cur_species = {}
+        for one_image in sorted_images:
+            for one_species in one_image['species']:
+                if not one_species['scientificName'] in cur_species:
+                    cur_species[one_species['scientificName']] = {
+                                                'first_image':one_image,
+                                                'last_image':one_image,
+                                                'name':one_species['name'],
+                                                'scientificName':one_species['scientificName']
+                                               }
+                else:
+                    # Update the last image for the species if it's later than the current
+                    # last image
+                    if one_image['image_dt'] > \
+                            cur_species[one_species['scientificName']]['last_image']['image_dt']:
+                        cur_species[one_species['scientificName']]['last_image'] = one_image
 
-        sorted_species = sorted(map(lambda cur_species: cur_species['name'], \
-                                [{'name':key} | item for key, item in all_species.items()]))
+        sorted_species = sorted(map(lambda one_species: one_species['scientificName'], \
+                                [{'name':key} | item for key, item in cur_species.items()]))
         have_unknown = False
         mapped_values = []
         for test_value in sorted_species:
-            for one_species in all_species:
-                found_items = [one_species for one_species in all_species if \
-                                                            one_species['scientificname'] == test_value]
-                if found_items and len(found_items) > 0:
-                    mapped_values.append(found_items[0])
-                else:
-                    have_unknown = True
+            if test_value in cur_species:
+                mapped_values.append(cur_species[test_value])
+            else:
+                have_unknown = True
 
         sorted_species = mapped_values
         if have_unknown:
@@ -204,15 +201,15 @@ class Results:
             keys
             e.g.: ((location image dict), (species image dict), (year image dict))
         """
-        locations_filtered = [{one_location['idProperty']: []} for one_location in locations]
-        species_filtered = [{one_species['scientificName']:[]} for one_species in species]
-        years_filtered = [{one_year: []} for one_year in years]
+        locations_filtered = {one_location['idProperty']: [] for one_location in locations}
+        species_filtered = {one_species['scientificName']: [] for one_species in species}
+        years_filtered = {one_year: [] for one_year in years}
 
         # Loop through the images and add them to the correct buckets
         for one_image in images:
             locations_filtered[one_image['loc']].append(one_image)
             for one_species in one_image['species']:
-                species_filtered[one_image['scientificname']].append(one_image)
+                species_filtered[one_species['scientificName']].append(one_image)
             years_filtered[one_image['image_dt'].year].append(one_image)
 
         return locations_filtered, species_filtered, years_filtered
@@ -375,7 +372,7 @@ class Results:
             The location instance or None if it's not found
         """
         if self._all_locations:
-            found_loc = next(set(one_loc for one_loc in self._all_locations if \
+            found_loc = next(iter(one_loc for one_loc in self._all_locations if \
                                                             one_loc['idProperty'] == location_id))
             if found_loc:
                 return found_loc
@@ -393,11 +390,22 @@ class Results:
         """
         if self._all_locations:
             found_loc = self.get_image_location(location_id)
-            if found_loc and 'name' in found_loc:
-                return found_loc['name']
+            if found_loc and 'nameProperty' in found_loc:
+                return found_loc['nameProperty']
             return None
 
         raise RuntimeError('Call made to Results.get_location_name after bad initialization')
+
+    def filter_year(self, images: tuple, year: int) -> tuple:
+        """ Filters the images by year
+        Arguments:
+            images: the tuple of images to search through
+            year: the year to filter on
+        Return:
+            A tuple containing the images for that hour range
+        """
+        return [one_image for one_image in images if \
+                                            one_image['image_dt'].year == year]
 
     def filter_hours(self, images: tuple, hour_start: int, hour_end: int) -> tuple:
         """ Filters the images by hour range (not including ending hour)

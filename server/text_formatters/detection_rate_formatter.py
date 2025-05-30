@@ -1,4 +1,4 @@
-""" Formats  """
+""" Formats for detection rates of species at locations """
 
 import dataclasses
 import datetime
@@ -25,7 +25,7 @@ def last_day_of_month(year: int, month: int) -> int:
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
 class DetectionRateFormatter:
-    """ Formats 
+    """ Formats for detection rates of species at locations
     """
 
     @staticmethod
@@ -60,7 +60,7 @@ class DetectionRateFormatter:
                 year_location_images = results.filter_location(year_images, location['idProperty'])
                 if year_location_images:
 
-                    result += '{:<28s}'.format(location['name'])
+                    result += '{:<28s}'.format(location['nameProperty'])
 
                     total_days_for_loc = 0
                     first = year_location_images[0]
@@ -139,7 +139,7 @@ class DetectionRateFormatter:
         result += '  One record of each species per location per PERIOD' + os.linesep
         result += '  Number of pictures/PERIOD multiplied by 100' + os.linesep
 
-        if results.years():
+        if results.get_years():
             result += 'Years ' + str(results.get_first_year()) + ' to ' + \
                                             str(results.get_last_year()) + os.linesep
 
@@ -158,7 +158,7 @@ class DetectionRateFormatter:
         average_rate = [0.0] * len(results.get_species())
 
         for location in results.get_locations():
-            result += '{:<28s}'.format(location['name'])
+            result += '{:<28s}'.format(location['nameProperty'])
             location_images = results.get_location_images(location['idProperty'])
 
             total_days_loc = 0
@@ -261,11 +261,11 @@ class DetectionRateFormatter:
             average_rate = [0.0] * 12
 
             for location in results.get_locations():
-                year_location_images = results.filter_location(year_images. location['idProperty'])
+                year_location_images = results.filter_location(year_images, location['idProperty'])
 
                 if year_location_images:
                     total_days_for_loc = 0
-                    result += '{:<28s}'.format(location['name'])
+                    result += '{:<28s}'.format(location['nameProperty'])
 
                     first = year_location_images[0]
                     last = year_location_images[len(year_location_images) - 1]
@@ -360,7 +360,7 @@ class DetectionRateFormatter:
         average_rate = [0.0] * 12
 
         for location in results.get_locations():
-            result += '{:<28s}'.format(location['name'])
+            result += '{:<28s}'.format(location['nameProperty'])
 
             location_images = results.get_location_images(location['idProperty'])
 

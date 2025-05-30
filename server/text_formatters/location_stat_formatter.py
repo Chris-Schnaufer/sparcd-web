@@ -5,6 +5,7 @@ import os
 import sys
 
 from .analysis import Analysis
+from .coordinate_utils import distance_between
 from .results import Results
 
 # pylint: disable=consider-using-f-string
@@ -27,7 +28,7 @@ class LocationStatFormatter:
         result += '  Use independent picture' + os.linesep
 
         for location in results.get_locations():
-            result += '{:31s} '.format(location['name'])
+            result += '{:31s} '.format(location['nameProperty'])
         result += os.linesep
         result += 'Species'
         for location in results.get_locations():
@@ -35,7 +36,7 @@ class LocationStatFormatter:
         result += os.linesep
 
         # We just want images that have a species and ignore ones that don't
-        have_species_images = [one_image for one_image in results['sorted_images_dt'] if \
+        have_species_images = [one_image for one_image in results.get_images() if \
                                                     'species' in one_image and one_image['species']]
         # Loop thrrough the species
         for species in results.get_species():
@@ -57,7 +58,7 @@ class LocationStatFormatter:
         result += 'Total pictures            '
 
         for location in results.get_locations():
-            location_images = [one_image for one_image in results['sorted_images_dt'] if \
+            location_images = [one_image for one_image in results.get_images() if \
                                                         one_image['loc'] == location['idProperty']]
             result += '{:5d}  100.00                   '.format(\
                                 Analysis.period_for_image_list(location_images, \
@@ -91,9 +92,9 @@ class LocationStatFormatter:
                                                                 location['idProperty'])
                 if year_location_images:
                     result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
-                              'Sep    Oct    Nov    Dec   Total'.format(location['name'])
+                              'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty'])
                     # All species
-                    for species in results.species():
+                    for species in results.get_species():
                         total_pics = 0
                         year_locations_species_images = results.filter_species(\
                                                                         year_location_images, \
@@ -103,7 +104,7 @@ class LocationStatFormatter:
                             # Months 0-12
                             for one_month in range(0, 12):
                                 yls_month_images = results.filter_month(\
-                                                                    year_locations_species_images. \
+                                                                    year_locations_species_images, \
                                                                     one_month)
                                 period = Analysis.period_for_image_list(yls_month_images, \
                                                                             results.get_interval())
@@ -186,14 +187,14 @@ class LocationStatFormatter:
         result += '  Use independent picture' + os.linesep
 
         if results.get_years():
-            results += 'Years ' + results.get_first_year() + ' to ' + results.get_last_year() + \
-                                                                                        os.linesep
+            result += 'Years ' + str(results.get_first_year()) + ' to ' + \
+                                                        str(results.get_last_year()) + os.linesep
 
         for location in results.get_locations():
             location_images = results.get_location_images(location['idProperty'])
             if location_images:
                 result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
-                          'Sep    Oct    Nov    Dec   Total'.format(location['name'])
+                          'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty'])
 
                 for species in results.get_species():
                     total_pics = 0
@@ -290,7 +291,7 @@ class LocationStatFormatter:
         for location in results.get_locations():
             for other_loc in results.get_locations():
                 if location['idProperty'] != other_loc['idProperty']:
-                    distance = SanimalAnalysisUtils.distanceBetween(float(location['latProperty']),\
+                    distance = distance_between(float(location['latProperty']),\
                                                 float(location['lngProperty']), \
                                                 float(other_loc['latProperty']), \
                                                 float(other_loc['lngProperty']))
@@ -305,22 +306,22 @@ class LocationStatFormatter:
 
         if min_loc_1 is not None:
             result += 'Minimum distance = {:7.3f} Locations: {:28s} {:28s}'.format(min_distance, \
-                                                        min_loc_1['name'], min_loc_2['name']) + \
-                                                                                        os.linesep
+                                        min_loc_1['nameProperty'], min_loc_2['nameProperty']) + \
+                                    os.linesep
             result += 'Maximum distance = {:7.3f} Locations: {:28s} {:28s}'.format(max_distance, \
-                                                        max_loc_1['name'], max_loc_2['name']) + \
-                                                                                        os.linesep
+                                        max_loc_1['nameProperty'], max_loc_2['nameProperty']) + \
+                                    os.linesep
             result += 'Average distance = {:7.3f}'.format((min_distance + max_distance) / 2.0) + \
                                                                             os.linesep + os.linesep
 
         result += 'Locations                       '
         for location in results.get_locations():
-            result += '{:<28s}'.format(location['name'])
+            result += '{:<28s}'.format(location['nameProperty'])
         result += os.linesep
         for location in results.get_locations():
-            result += '{:<32s}'.format(location['name'])
+            result += '{:<32s}'.format(location['nameProperty'])
             for other_loc in results.get_locations():
-                distance = SanimalAnalysisUtils.distanceBetween(float(location['latProperty']), \
+                distance = distance_between(float(location['latProperty']), \
                                                 float(location['lngProperty']), \
                                                 float(other_loc['latProperty']), \
                                                 float(other_loc['lngProperty']))
@@ -408,8 +409,7 @@ class LocationStatFormatter:
             locations = results.locations_for_image_list(species_images)
             result += '{:3d}    '.format(len(locations))
             for other_species in results.get_species():
-                other_species_images = [one_image for one_image in results['sorted_images_dt'] if \
-                            Analysis.image_has_species(one_image, other_species['scientificname'])]
+                other_species_images = results.get_species_images(other_species['scientificName'])
                 locations_other = results.locations_for_image_list(other_species_images)
                 intersection_size = len(set(locations).intersection(locations_other))
                 result += '{:2d} ({:6.1f}) '.format(intersection_size, \

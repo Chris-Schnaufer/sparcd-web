@@ -40,13 +40,15 @@ def create_lunar_activity_table(results: Results)-> tuple:
     """
     lunar_activities = []
 
-    full_moons = Analysis.get_full_moons(results.get_first_image(), results.get_last_image())
-    new_moons = Analysis.get_new_moons(results.get_first_image(), results.get_last_image())
+    full_moons = Analysis.get_full_moons(results.get_first_image()['image_dt'], \
+                                                            results.get_last_image()['image_dt'])
+    new_moons = Analysis.get_new_moons(results.get_first_image()['image_dt'], \
+                                                            results.get_last_image()['image_dt'])
 
     full_images = [one_image for one_image in results.get_images() if \
-                                                                    in_moons(one_image, full_moons)]
+                                                        in_moons(one_image['image_dt'], full_moons)]
     new_images = [one_image for one_image in results.get_images() if \
-                                                                    in_moons(one_image, new_moons)]
+                                                        in_moons(one_image['image_dt'], new_moons)]
 
     for species in results.get_species():
         num_images_total_tull = 0
@@ -54,8 +56,8 @@ def create_lunar_activity_table(results: Results)-> tuple:
 
         total_difference = 0.0
 
-        full_species_images = results.filter_species(full_images, species['scientificname'])
-        new_species_images = results.filter_species(new_images, species['scientificname'])
+        full_species_images = results.filter_species(full_images, species['scientificName'])
+        new_species_images = results.filter_species(new_images, species['scientificName'])
 
         # 24 hrs
         for one_hour in range(0, 24):
@@ -111,23 +113,23 @@ class LunarActivityFormatter:
         result += '  New and full moon +/- 5 days activity patterns' + os.linesep
         result += '  Difference (large is greater difference)' + os.linesep
 
-        full_moons = Analysis.get_full_moons(results['sorted_images_dt'][0],
-                                results['sorted_images_dt'][len(results['sorted_images_dt']) - 1])
-        new_moons = Analysis.get_new_moons(results['sorted_images_dt'][0],
-                                results['sorted_images_dt'][len(results['sorted_images_dt']) - 1])
+        full_moons = Analysis.get_full_moons(results.get_first_image()['image_dt'], \
+                                                            results.get_last_image()['image_dt'])
+        new_moons = Analysis.get_new_moons(results.get_first_image()['image_dt'], \
+                                                            results.get_last_image()['image_dt'])
 
         full_images = [one_image for one_image in results.get_images() if \
-                                                                    in_moons(one_image, full_moons)]
+                                                        in_moons(one_image['image_dt'], full_moons)]
         new_images = [one_image for one_image in results.get_images() if \
-                                                                    in_moons(one_image, new_moons)]
+                                                        in_moons(one_image['image_dt'], new_moons)]
 
         for species in results.get_species():
             result += species['name'] + os.linesep
             result += '                 Full moon activity    New moon activity' + os.linesep
             result += '    Hour        Number    Frequency   Number    Frequency' + os.linesep
 
-            full_species_images = results.filter_species(full_images, species['scientificname'])
-            new_species_images = results.filter_species(new_images, species['scientificname'])
+            full_species_images = results.filter_species(full_images, species['scientificName'])
+            new_species_images = results.filter_species(new_images, species['scientificName'])
 
             num_images_total_tull = 0
             num_images_total_new = 0

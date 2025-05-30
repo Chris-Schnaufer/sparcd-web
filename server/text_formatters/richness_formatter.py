@@ -32,7 +32,7 @@ class RichnessFormatter:
         result += 'Rich' + os.linesep
 
         for location in results.get_locations():
-            result += '{:<28s}       '.format(location['name'])
+            result += '{:<28s}       '.format(location['nameProperty'])
 
             location_images = results.get_location_images(location['idProperty'])
 
@@ -55,8 +55,7 @@ class RichnessFormatter:
             species_images = results.get_species_images(species['scientificName'])
 
             for location in results.get_locations():
-                species_location_images = [one_image for one_image in species_images if \
-                                                        results['loc'] == location['idProperty']]
+                species_location_images = results.filter_location(species_images, location['idProperty'])
                 richness = richness + (0 if len(species_location_images) == 0 else 1)
 
             result += '{:5d}  '.format(richness)

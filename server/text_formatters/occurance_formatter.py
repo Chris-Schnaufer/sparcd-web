@@ -93,7 +93,7 @@ class OccuranceFormatter:
         result += os.linesep
         result += '                            '
 
-        alphabetical = sorted(results.get_locations(), key=lambda loc: loc['idProperrty'])
+        alphabetical = sorted(results.get_locations(), key=lambda loc: loc['idProperty'])
 
         for loc_num in range(1, len(alphabetical) + 1):
             result += '{:2d} '.format(loc_num)
@@ -144,7 +144,7 @@ class OccuranceFormatter:
         for species in results.get_species():
             result += '{:<28s}'.format(species['name'])
 
-            species_images = results.get_species_images(species['scientificname'])
+            species_images = results.get_species_images(species['scientificName'])
 
             for location in elevation_locs:
                 species_location_images = results.filter_location(species_images, \
@@ -159,7 +159,7 @@ class OccuranceFormatter:
 
         for loc_index, location in enumerate(results.get_locations()):
             result += ' {:2d} {:5.0f} '.format(loc_index + 1, location['elevationProperty']) + \
-                                location['name'] + os.linesep
+                                location['nameProperty'] + os.linesep
         result += os.linesep
 
         result += '  Minimum and maximum elevation for each species' + os.linesep
@@ -171,7 +171,8 @@ class OccuranceFormatter:
             species_images = results.get_species_images(species['scientificName'])
 
             for location in results.get_locations():
-                species_location_images = results.filter_location(location['idProperty'])
+                species_location_images = results.filter_location(species_images, \
+                                                                            location['idProperty'])
 
                 if species_location_images:
                     elevation = float(location['elevationProperty'])
@@ -211,7 +212,7 @@ class OccuranceFormatter:
         pairs_to_print = []
 
         for species in results.get_species():
-            species_images = results.get_species_images(species['scientificname'])
+            species_images = results.get_species_images(species['scientificName'])
 
             locations_with_species = 0
             for location in results.get_locations():
@@ -231,7 +232,7 @@ class OccuranceFormatter:
         sorted_pairs_to_print = sorted(pairs_to_print, key=lambda pair: pair[0])
 
         for to_print in sorted_pairs_to_print:
-            resut += to_print[1]
+            result += to_print[1]
 
         result += os.linesep
 

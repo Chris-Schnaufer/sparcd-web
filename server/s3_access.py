@@ -382,9 +382,20 @@ class S3Connection:
                                             'scientificName':csv_info[8], \
                                             'count':csv_info[9]}
 
-                            cur_images.append({ 'name':os.path.basename(csv_info[3].rstrip('/\\')),
-                                                'timestamp':csv_info[4],
-                                                'species':cur_species})
+                            image_name = os.path.basename(csv_info[3].rstrip('/\\'))
+                            temp_image = [one_image for one_image in cur_images if \
+                                                                one_image['name'] == image_name]
+                            if temp_image and len(temp_image) > 0:
+                                temp_image = temp_image[0]
+
+                            if temp_image:
+                                temp_image['species'].append(cur_species)
+                            else:
+                                cur_images.append({ 'name':image_name,
+                                                    'timestamp':csv_info[4],
+                                                    'bucket': bucket,
+                                                    's3_path': csv_info[3],
+                                                    'species':[cur_species]})
                         elif csv_info:
                             print(f'Invalid CSV row ({cur_row}) read from {upload_info_path}')
                 else:

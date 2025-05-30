@@ -49,12 +49,12 @@ class HeaderFormatter:
         Return:
             Returns the image analysis text
         """
-        total_images = len(results['sorted_images_dt'])
+        total_images = len(results.get_images())
         total_activity = 0
         total_period = 0
         for species in results.get_species():
             species_images = results.get_species_images(species['scientificName'])
-            for location in results.get_locations:
+            for location in results.get_locations():
                 species_location_images = results.filter_location(species_images, \
                                                                             location['idProperty'])
                 total_activity += Analysis.activity_for_image_list(species_location_images)
@@ -66,7 +66,7 @@ class HeaderFormatter:
             "Number of pictures used in activity calculation = " + str(total_activity) + \
                                                                                     os.linesep + \
             "Number of independent pictures used in analysis = " + \
-                                total_period + os.linesep + \
+                                str(total_period) + os.linesep + \
             "Number of sequential pictures of same species at same location within a PERIOD = " + \
-                                 (total_images - total_period) + os.linesep + \
+                                 str(total_images - total_period) + os.linesep + \
             os.linesep

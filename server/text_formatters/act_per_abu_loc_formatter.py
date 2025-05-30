@@ -94,7 +94,7 @@ class ActPerAbuLocFormatter:
                                                                             results.get_interval())
                 species_abundance = Analysis.abundance_for_image_list(species_year_images, \
                                             results.get_interval(), one_species['scientificName'])
-                species_location = len(Analysis.locations_for_image_list(species_year_images))
+                species_location = len(results.locations_for_image_list(species_year_images))
                 species_image_total += len(species_year_images)
                 species_activity_total += species_activity
                 species_period_total += species_period
@@ -235,7 +235,7 @@ class ActPerAbuLocFormatter:
             result += 'Species                     '
 
             for one_location in results.get_locations():
-                result += '{:<5s} '.format(one_location['name'][:5])
+                result += '{:<5s} '.format(one_location['nameProperty'][:5])
             result += os.linesep
 
             for one_species in results.get_species():
@@ -282,7 +282,7 @@ class ActPerAbuLocFormatter:
 
         result += 'Species                     '
         for location in results.get_locations():
-            result += '{:<5s} '.format(location['name'][:5])
+            result += '{:<5s} '.format(location['nameProperty'][:5])
         result += os.linesep
 
         for one_species in results.get_species():

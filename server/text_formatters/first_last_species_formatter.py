@@ -24,12 +24,12 @@ class FirstLastSpeciesFormatter:
         last_dt = results.get_last_image()['image_dt']
 
         return  "NUMBER OF DAYS IN CAMERA TRAP PROGRAM = " + \
-                        Analysis.get_days_span(last_dt, first_dt) + \
+                        str(Analysis.get_days_span(last_dt, first_dt)) + \
                         os.linesep + \
-                "First picture: Year = " + first_dt.year + " Month = " + first_dt.month + \
-                        " Day = " + first_dt.day + os.linesep + \
-                "Last picture: Year = " + last_dt.year + " Month = " + last_dt.month + \
-                        " Day = " + last_dt.day + os.linesep + \
+                "First picture: Year = " + str(first_dt.year) + " Month = " + str(first_dt.month) + \
+                        " Day = " + str(first_dt.day) + os.linesep + \
+                "Last picture: Year = " + str(last_dt.year) + " Month = " + str(last_dt.month) + \
+                        " Day = " + str(last_dt.day) + os.linesep + \
                 os.linesep
 
     @staticmethod
@@ -54,10 +54,10 @@ class FirstLastSpeciesFormatter:
             # Look up the name of the location using the site ID
             if one_species['first_image']['loc'] != cur_location:
                 cur_location = one_species['first_image']['loc']
-                format_location = next([one_loc for one_loc in results.get_locations() if \
-                                        one_loc['idProperty'] == one_species['first_image']['loc']])
+                format_location = next(iter([one_loc for one_loc in results.get_locations() if \
+                                        one_loc['idProperty'] == one_species['first_image']['loc']]))
                 if format_location:
-                    format_location = cur_location['name']
+                    format_location = format_location['nameProperty']
                 else:
                     format_location = 'Unknown'
 
@@ -68,7 +68,7 @@ class FirstLastSpeciesFormatter:
                                 Analysis.get_days_span(first_dt, \
                                                     results.get_first_image()['image_dt']), \
                                 first_dt.year, first_dt.month, first_dt.day, first_dt.hour, \
-                                first_dt.min, first_dt.sec, \
+                                first_dt.min, first_dt.second, \
                                 format_location) + \
                              os.linesep
 
@@ -98,10 +98,10 @@ class FirstLastSpeciesFormatter:
             # Look up the location name by site ID
             if one_species['last_image']['loc'] != cur_location:
                 cur_location = one_species['last_image']['loc']
-                format_location = next([one_loc for one_loc in results.get_locations() if \
-                                        one_loc['idProperty'] == one_species['last_image']['loc']])
+                format_location = next(iter([one_loc for one_loc in results.get_locations() if \
+                                        one_loc['idProperty'] == one_species['last_image']['loc']]))
                 if format_location:
-                    format_location = cur_location['name']
+                    format_location = format_location['nameProperty']
                 else:
                     format_location = 'Unknown'
 
@@ -112,7 +112,7 @@ class FirstLastSpeciesFormatter:
                                 Analysis.get_days_span(last_dt, \
                                     results.get_first_image()['image_dt']), \
                                 last_dt.year, last_dt.month, last_dt.day, last_dt.hour, \
-                                last_dt.min, last_dt.sec, format_location, \
+                                last_dt.min, last_dt.second, format_location, \
                                 Analysis.get_days_span(first_dt, last_dt)) + \
                              os.linesep
 

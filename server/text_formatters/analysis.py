@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 import math
 
-from .moon_calculator import MoonCalculator
+import ephem
 
 # The number of seconds in a day as a float to capture fractions of days
 SECONDS_IN_DAY = 60.0 * 60.0 * 24.0
@@ -26,7 +26,7 @@ class Analysis:
         """
         if image and 'species' in image:
             for one_species in image['species']:
-                if one_species['scientificname'] == species:
+                if one_species['scientificName'] == species:
                     return True
 
         return False
@@ -133,6 +133,8 @@ class Analysis:
             than one hour
         """
         abundance = 0
+        if not images or len(images) <= 0:
+            return abundance
 
         last_image_dt = images[0]['image_dt']
         max_animals_in_event = 0
@@ -149,8 +151,8 @@ class Analysis:
             # The max number of animals is the max number of animals in this image or the max number
             # of animals in the last image
             for one_species in one_image['species']:
-                if species_filter is None or one_species['scientificname'] == species_filter:
-                    max_animals_in_event = max(max_animals_in_event, one_species['count'])
+                if species_filter is None or one_species['scientificName'] == species_filter:
+                    max_animals_in_event = max(max_animals_in_event, int(one_species['count']))
 
             last_image_dt = one_image['image_dt']
 
@@ -169,21 +171,13 @@ class Analysis:
         """
         full_moons = []
 
-        cur_date = first
-        while cur_date <= last:
-            # Localize the timestamps based upon either the server, the browser, or a user choice
-            # TODO: Localize date before getting Julian date
-            julian_date = MoonCalculator.get_julian(cur_date)
-
-            phases = MoonCalculator.get_phase(julian_date)
-            full_moon = MoonCalculator.get_lunation(julian_date, phases[MoonCalculator.MOONPHASE], \
-                                                                                                180)
-            full_millis = MoonCalculator.to_millis_from_julian(full_moon)
-
-            # TODO: convert next date to localized timestamp
-            next_full_moon_date = datetime.datetime.fromtimestamp(full_millis / 1000.0)
-            full_moons.append(next_full_moon_date)
-            cur_date = next_full_moon_date + datetime.timedelta(days=20)
+        date = ephem.Date(datetime.date(first.year, first.month, first.day))
+        while True:
+            date = ephem.next_full_moon(date)
+            if date.datetime().date() <= last.date():
+                full_moons.append(date.datetime())
+            else:
+                break
 
         return full_moons
 
@@ -198,19 +192,12 @@ class Analysis:
         """
         new_moons = []
 
-        cur_date = first
-        while cur_date.isBefore(last):
-            # Localize the timestamps based upon either the server, the browser, or a user choice
-            # TODO: Localize date before getting Julian date
-            julian_date = MoonCalculator.get_julian(cur_date)
-
-            phases = MoonCalculator.get_phase(julian_date)
-            new_moon = MoonCalculator.get_lunation(julian_date, phases[MoonCalculator.MOONPHASE], 0)
-            new_millis = MoonCalculator.to_millis_from_julian(new_moon)
-
-            # TODO: convert next date to localized timestamp
-            next_new_moon_date = datetime.datetime.fromtimestamp(new_millis / 1000.0)
-            new_moons.append(next_new_moon_date)
-            cur_date = next_new_moon_date + datetime.timedelta(days=20)
+        date = ephem.Date(datetime.date(first.year, first.month, first.day))
+        while True:
+            date = ephem.next_new_moon(date)
+            if date.datetime().date() <= last.date():
+                new_moons.append(date.datetime())
+            else:
+                break
 
         return new_moons

@@ -28,7 +28,7 @@ class TrapDaysAndEffortFormatter:
                   'Species' + os.linesep
 
         duration_total = 0
-        for one_loc in results.get_locations:
+        for one_loc in results.get_locations():
             loc_images = results.get_location_images(one_loc['idProperty'])
 
             first_cal = loc_images[0]['image_dt']
@@ -40,9 +40,9 @@ class TrapDaysAndEffortFormatter:
             for one_species in loc_images[0]['species']:
                 species_present += one_species['name'] + ' '
 
-            result += '{:<27s} {:4s} {:2d} {:2d}  {:4s} {:2d} {:2d} {:9d}   {:4s} {:2d} {:2d}  ' \
+            result += '{:<27s} {:4d} {:2d} {:2d}  {:4d} {:2d} {:2d} {:9d}   {:4d} {:2d} {:2d}  ' \
                       '{:s}'.format( \
-                                    one_loc['name'], first_cal.year, first_cal.month, \
+                                    one_loc['nameProperty'], first_cal.year, first_cal.month, \
                                     first_cal.day, last_cal.year, last_cal.month, last_cal.day, \
                                     current_duration, first_cal.year, first_cal.month, \
                                     first_cal.day, species_present) + \
@@ -74,9 +74,10 @@ class TrapDaysAndEffortFormatter:
 
             year_images = results.get_year_images(one_year)
             locations = results.locations_for_image_list(year_images)
+            locations = [results.get_image_location(one_loc) for one_loc in locations]
 
             if locations:
-                result += 'Year ' + one_year + os.linesep
+                result += 'Year ' + str(one_year) + os.linesep
                 result += 'Location ({:3d})              Jan    Feb    Mar    Apr    May    ' \
                           'Jun    Jul    Aug    Sep    Oct    Nov    Dec    Total'.format( \
                                                                         len(locations)) + os.linesep
@@ -84,14 +85,14 @@ class TrapDaysAndEffortFormatter:
                 monthly_totals = [0] * 12
 
                 for one_loc in locations:
-                    year_loc_images = results.filter_year(year_images, one_loc['idProperty'])
+                    year_loc_images = results.filter_location(year_images, one_loc['idProperty'])
                     first_cal = year_loc_images[0]['image_dt']
-                    last_cal = year_loc_images[len(year_loc_images)]['image_dt']
+                    last_cal = year_loc_images[len(year_loc_images) - 1]['image_dt']
                     first_month = first_cal.month
                     last_month = last_cal.month
                     first_day = first_cal.day
                     last_day = last_cal.day
-                    result += '{:<28s}'.format(one_loc['name'])
+                    result += '{:<28s}'.format(one_loc['nameProperty'])
 
                     month_total = 0
                     for one_month in range(0, 12):
@@ -133,8 +134,8 @@ class TrapDaysAndEffortFormatter:
         result = 'CAMERA TRAP EFFORT SUMMARY' + os.linesep
 
         if results.get_years():
-            result += 'Years ' + results.get_first_year() + ' to ' + results.get_last_year() + \
-                                                                                        os.linesep
+            result += 'Years ' + str(results.get_first_year()) + ' to ' + \
+                                                        str(results.get_last_year()) + os.linesep
 
         result += 'Location                    Jan    Feb    Mar    Apr    May    Jun    Jul    ' \
                   'Aug    Sep    Oct    Nov    Dec    Total' + os.linesep
@@ -151,7 +152,7 @@ class TrapDaysAndEffortFormatter:
             first_day = first_cal.day
             last_day = last_cal.day
 
-            result += '{:<28s}'.format(one_loc['name'])
+            result += '{:<28s}'.format(one_loc['nameProperty'])
 
             month_total = 0
             for one_month in range(0, 12):

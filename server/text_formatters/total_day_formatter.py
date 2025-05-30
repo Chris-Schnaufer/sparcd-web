@@ -40,7 +40,7 @@ class TotalDayFormatter:
                                                                location['idProperty'])
 
                 if year_location_images:
-                    result += '{:<28s}'.format(location['name'])
+                    result += '{:<28s}'.format(location['nameProperty'])
 
                     total = 0
                     for one_month in range(0, 12):
@@ -91,8 +91,8 @@ class TotalDayFormatter:
                     first_cal = first['image_dt']
                     last_cal = last['image_dt']
                     first_days_in_month = 31
-                    first_day = first_cal - 1
-                    last_day = last_cal - 1
+                    first_day = first_cal.day - 1
+                    last_day = last_cal.day - 1
                     first_month = first_cal.month - 1
                     last_month = last_cal.month - 1
                     if first_month == last_month:
@@ -137,13 +137,13 @@ class TotalDayFormatter:
         result += '  Number of independent pictures per location' + os.linesep
 
         if results.get_years():
-            result += 'Years ' + results.get_first_year() + ' to ' + \
-                                            results.get_last_year() + os.linesep
+            result += 'Years ' + str(results.get_first_year()) + ' to ' + \
+                                            str(results.get_last_year()) + os.linesep
 
         result += 'Location                      Jan   Feb   Mar   Apr   May   Jun   Jul   Aug   ' \
                   'Sep   Oct   Nov   Dec   Total' + os.linesep
         for location in results.get_locations():
-            result += '{:<28s}'.format(location['name'])
+            result += '{:<28s}'.format(location['nameProperty'])
 
             location_images = results.get_location_images(location['idProperty'])
 
@@ -240,7 +240,7 @@ class TotalDayFormatter:
         result = 'SPECIES AND SPECIES RICHNESS BY YEAR AND MONTH' + os.linesep
         result += '  One record of each species per location per PERIOD' + os.linesep
 
-        for one_year in results.years():
+        for one_year in results.get_years():
             result += str(one_year) + os.linesep
             result += 'Species                       Jan   Feb   Mar   Apr   May   Jun   Jul   ' \
                       'Aug   Sep   Oct   Nov   Dec   Total' + os.linesep
@@ -249,7 +249,7 @@ class TotalDayFormatter:
             for species in results.get_species():
 
                 year_species_images = results.filter_year(results.get_species_images(\
-                                                                    species['scientificname']), \
+                                                                    species['scientificName']), \
                                                           one_year)
 
                 if year_species_images:
@@ -405,7 +405,7 @@ class TotalDayFormatter:
         for one_year in results.get_years():
             year_images = results.get_year_images(one_year)
             for location in results.get_locations():
-                year_location_images = results.filter_locations(year_images, location['idProperty'])
+                year_location_images = results.filter_location(year_images, location['idProperty'])
                 if year_location_images:
                     first = year_location_images[0]
                     last = year_location_images[len(year_location_images) - 1]
@@ -468,7 +468,7 @@ class TotalDayFormatter:
 
             for one_year in results.get_years():
                 species_year_images = results.filter_year( \
-                                            results.get_species_images(species['scientificname']), \
+                                            results.get_species_images(species['scientificName']), \
                                             one_year)
 
                 if species_year_images:
@@ -481,8 +481,8 @@ class TotalDayFormatter:
                         species_year_location_images = results.filter_location(species_year_images,\
                                                                             location['idProperty'])
                         if species_year_location_images:
-                            result += '{:<28s} {:6d}'.format(location['name'], \
-                                                                        int(location['elevation']))
+                            result += '{:<28s} {:6d}'.format(location['nameProperty'], \
+                                                                        int(location['elevationProperty']))
                             total = 0
                             for one_month in range(0, 12):
                                 syl_month_images = results.filter_month( \
@@ -570,8 +570,8 @@ class TotalDayFormatter:
             result += 'SUMMARY ALL YEARS' + os.linesep
 
             if len(results.get_years()) > 0:
-                result += 'Years ' + results.get_first_year() + ' to ' + \
-                                                                results.get_last_year() + os.linesep
+                result += 'Years ' + str(results.get_first_year()) + ' to ' + \
+                                                                str(results.get_last_year()) + os.linesep
 
             result += 'Location                  Elevation  Jan   Feb   Mar   Apr   May   Jun   ' \
                       'Jul   Aug   Sep   Oct   Nov   Dec   Total' + os.linesep
@@ -583,7 +583,7 @@ class TotalDayFormatter:
 
                 if location_species_images:
 
-                    result += '{:<28s} {:6d}'.format(location['name'], int(location['elevation']))
+                    result += '{:<28s} {:6d}'.format(location['nameProperty'], int(location['elevationProperty']))
                     total = 0
                     for one_month in range(0, 12):
                         location_species_month_images = results.filter_month( \
@@ -693,25 +693,25 @@ class TotalDayFormatter:
         for species in results.get_species():
             result += species['name'] + os.linesep
 
-            species_images = results.get_species_images(species['scientificname'])
+            species_images = results.get_species_images(species['scientificName'])
 
             for one_year in results.get_years():
 
                 species_year_images = results.filter_year(species_images, one_year)
 
                 if species_year_images:
-                    result += one_year + os.linesep
+                    result += str(one_year) + os.linesep
 
                     result += 'Location                  Elevation  Jan   Feb   Mar   Apr   May   '\
                               'Jun   Jul   Aug   Sep   Oct   Nov   Dec   Total' + os.linesep
 
-                    for location in results.get_location():
+                    for location in results.get_locations():
                         species_year_location_images = results.filter_location(species_year_images,\
                                                                             location['idProperty'])
 
                         if species_year_location_images:
-                            result += '{:<28s} {:6d}'.format(location['name'], \
-                                                                        int(location['elevation']))
+                            result += '{:<28s} {:6d}'.format(location['nameProperty'], \
+                                                                        int(location['elevationProperty']))
                             total = 0
                             for one_month in range(0, 12):
                                 syl_month_images = results.filter_month( \
@@ -734,7 +734,7 @@ class TotalDayFormatter:
                                                                          one_month)
 
                         total_period = 0
-                        for location in results.get_location():
+                        for location in results.get_locations():
                             sym_location_images = results.filter_location(\
                                                                         species_year_month_images, \
                                                                         location['idProperty'])
@@ -755,7 +755,7 @@ class TotalDayFormatter:
                         species_year_month_images = results.filter_month(species_year_images, \
                                                                          one_month)
                         total_abundance = 0
-                        for location in results.get_location():
+                        for location in results.get_locations():
                             sym_location_images = results.filter_location(\
                                                                         species_year_month_images, \
                                                                         location['idProperty'])
@@ -784,15 +784,15 @@ class TotalDayFormatter:
                     days_used = [0] * 12
                     year_images = results.get_year_images(one_year)
 
-                    for location in results.get_location():
+                    for location in results.get_locations():
                         year_location_images = results.filter_location(year_images, \
                                                                        location['idProperty'])
 
                         if year_location_images:
                             first = year_location_images[0]
                             last = year_location_images[len(year_location_images)- 1]
-                            first_cal = first['image_Dt']
-                            last_cal = last['image_Dt']
+                            first_cal = first['image_dt']
+                            last_cal = last['image_dt']
                             first_days_in_month = 31
                             first_day = first_cal.day - 1
                             last_day = last_cal.day - 1
@@ -838,15 +838,15 @@ class TotalDayFormatter:
                       'Jul   Aug   Sep   Oct   Nov   Dec   Total' + os.linesep
 
             species_images = results.get_species_images(species['scientificName'])
-            for location in results.get_location():
+            for location in results.get_locations():
                 species_location_images = results.filter_location(species_images, \
                                                                             location['idProperty'])
 
                 if species_location_images:
-                    result += '{:<28s} {:6d}'.format(location['name'], int(location['elevation']))
+                    result += '{:<28s} {:6d}'.format(location['nameProperty'], int(location['elevationProperty']))
                     total = 0
                     for one_month in range(0, 12):
-                        species_location_month_images = result.filter_month( \
+                        species_location_month_images = results.filter_month( \
                                                                         species_location_images, \
                                                                         one_month)
 
@@ -920,7 +920,7 @@ class TotalDayFormatter:
             for one_year in results.get_years():
                 year_images = results.get_year_images(one_year)
 
-                for location in results.get_location():
+                for location in results.get_locations():
                     year_location_images = results.filter_location(year_images, \
                                                                    location['idProperty'])
                     if year_location_images:
@@ -998,7 +998,7 @@ class TotalDayFormatter:
                     if species_location_year_images:
                         period_total = period_total + \
                                     Analysis.period_for_image_list(species_location_year_images, \
-                                                                            result.get_interval())
+                                                                            results.get_interval())
 
                 effort_total = 0
                 for one_year in results.get_years():
@@ -1036,8 +1036,8 @@ class TotalDayFormatter:
             for location_index, location in enumerate(results.get_locations()):
                 if pics_over_effort_totals[location_index] != 0.0:
                     result += '{:<28s} {:6.0f}        {:5.3f}       {:5.2f}'.format( \
-                                    location['name'], \
-                                    float(location['elevation']), \
+                                    location['nameProperty'], \
+                                    float(location['elevationProperty']), \
                                     pics_over_effort_totals[location_index], \
                                     (pics_over_effort_totals[location_index] \
                                                             / pics_over_effort_total) * 100.0) + \
@@ -1075,7 +1075,7 @@ class TotalDayFormatter:
         result += os.linesep
 
         for location in results.get_locations():
-            result += '{:<28s} {:5.0f}  '.format(location['name'], float(location['elevation']))
+            result += '{:<28s} {:5.0f}  '.format(location['nameProperty'], float(location['elevationProperty']))
 
             for species in results.get_species():
                 species_images = results.get_species_images(species['scientificName'])

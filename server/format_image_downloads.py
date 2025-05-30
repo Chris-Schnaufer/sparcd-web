@@ -13,7 +13,7 @@ def get_image_downloads(results: Results) -> str:
     """
     image_urls = S3Connection.get_object_urls(results.s3_url, results.s3_user, \
                     results.s3_password, \
-                    [tuple(one_image['bucket'], one_image['s3_path']) for \
+                    [(one_image['bucket'], one_image['s3_path']) for \
                                                                 one_image in results.get_images()])
     return [{'name': one_image['name'],
              'url': image_urls[index]

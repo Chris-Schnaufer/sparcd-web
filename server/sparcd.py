@@ -779,7 +779,6 @@ def query():
     all_results = []
     for one_coll in cur_coll:
         cur_bucket = one_coll['json']['bucketProperty']
-        print('HACK:BEFORE UPLOADS FETCH',cur_bucket)
         uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
         if uploads_info is not None and uploads_info:
             uploads_info = [{'bucket':cur_bucket,       \
@@ -791,10 +790,7 @@ def query():
                                                 user_info["name"], \
                                                 do_decrypt(db.get_password(token)), \
                                                 cur_bucket)
-            print('HACK:UPLOAD:',type(uploads_info),len(uploads_info),flush=True)
             if len(uploads_info) > 0:
-                print('            ',type(uploads_info[0]),flush=True)
-                print('            ',uploads_info[0],flush=True)
                 uploads_info = [{'bucket':cur_bucket,
                                  'name':one_upload['name'],
                                  'info':one_upload,
@@ -804,14 +800,9 @@ def query():
 
         # Filter on current uploads
         if len(uploads_info) > 0:
-            print('HACK: UPLOADINFO: ',json.dumps(uploads_info[0]))
-            print('HACK: ALL UPLOADS: ',uploads_info)
-            print('HACK: FILTERS: ',filters)
             cur_results = query_helpers.filter_uploads(uploads_info, filters)
             if cur_results:
                 all_results = all_results + cur_results
-
-    print('HACK:FILTERED:', all_results)
 
     # Get the species and locations
     species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
@@ -819,11 +810,12 @@ def query():
     locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
-    print('HACK: ALL RESULTS',all_results, flush=True)
     # Get some sorted lists of images, species, locations
     results = Results(all_results, species, locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
                         0) # TODO: add query interval
 
     # Format and return the results
-    return json.dumps(query_helpers.query_output(results))
+    return_info = query_helpers.query_output(results)
+    print('HACK:RETURN:',return_info)
+    return json.dumps(return_info)

@@ -142,7 +142,7 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                     case 'species':
                         found = False
                         for one_species in one_image['species']:
-                            if one_species['scientificname'] in one_filter[1]:
+                            if one_species['scientificName'] in one_filter[1]:
                                 found = True
 
                         if not found:

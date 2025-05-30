@@ -3,6 +3,7 @@
 import dataclasses
 import os
 
+from .coordinate_utils import deg2utm
 from .results import Results
 
 # pylint: disable=consider-using-f-string
@@ -29,13 +30,14 @@ class SpeciesLocCoordFormatter:
             result += 'Location                        UTMe-w   UTMn-s    Elevation   Lat        ' \
                       'Long' + os.linesep
             for location in results.locations_for_image_list(species_images):
-                utm_coord = SanimalAnalysisUtils.Deg2UTM(float(location['latProperty']), \
-                                                                    float(location['lngProperty']))
+                # Get the full location entry
+                location = results.get_image_location(location)
+                utm_coord = deg2utm(float(location['latProperty']), float(location['lngProperty']))
 
                 # We format the easting then northing of the UTM coordiantes
                 result += '{:<28s}  {:8d}  {:8d}  {:7.0f}      {:8.6f}  {:8.6f}'. \
                                 format( \
-                                    location['name'], \
+                                    location['nameProperty'], \
                                     round(utm_coord[0]), round(utm_coord[1]), \
                                     location['elevationProperty'], \
                                     float(location['latProperty']), float(location['lngProperty']) \
