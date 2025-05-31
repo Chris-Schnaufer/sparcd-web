@@ -79,11 +79,9 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     for one_filter in filters:
         match(one_filter[0]):
             case 'locations':
-                print('HACK:LOCATIONS')
                 cur_uploads = [one_upload for one_upload in cur_uploads if \
                                 one_upload['info']['loc'] in one_filter[1]]
             case 'elevation':
-                print('HACK:ELEVATIONS')
                 cur_uploads = filter_elevation(cur_uploads, json.loads(one_filter[1]))
 
     # Determine if we'll need image datetime objects
@@ -103,14 +101,10 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
         print(ex)
         raise ex
 
-    zzz = 0  #HACK
     matches = []
     for one_upload in cur_uploads:
         cur_images = []
-        print('HACK:filter_uploads:ONE_UPLOAD:',zzz,one_upload,flush=True)
-        zzz += 1 #HACK
         for one_image in one_upload['info']['images']:
-            print('HACK:filter_uploads:ONE_IMAGE:',one_image,flush=True)
             excluded = False
             image_dt = None
             image_gmt_dt = None

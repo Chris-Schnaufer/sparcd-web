@@ -68,7 +68,7 @@ class FirstLastSpeciesFormatter:
                                 Analysis.get_days_span(first_dt, \
                                                     results.get_first_image()['image_dt']), \
                                 first_dt.year, first_dt.month, first_dt.day, first_dt.hour, \
-                                first_dt.min, first_dt.second, \
+                                first_dt.minute, first_dt.second, \
                                 format_location) + \
                              os.linesep
 
@@ -112,7 +112,7 @@ class FirstLastSpeciesFormatter:
                                 Analysis.get_days_span(last_dt, \
                                     results.get_first_image()['image_dt']), \
                                 last_dt.year, last_dt.month, last_dt.day, last_dt.hour, \
-                                last_dt.min, last_dt.second, format_location, \
+                                last_dt.minute, last_dt.second, format_location, \
                                 Analysis.get_days_span(first_dt, last_dt)) + \
                              os.linesep
 

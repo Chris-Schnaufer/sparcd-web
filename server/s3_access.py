@@ -384,7 +384,9 @@ class S3Connection:
 
                             image_name = os.path.basename(csv_info[3].rstrip('/\\'))
                             temp_image = [one_image for one_image in cur_images if \
-                                                                one_image['name'] == image_name]
+                                                one_image['name'] == image_name and \
+                                                one_image['bucket'] == bucket and \
+                                                one_image['s3_path'] == csv_info[3]]
                             if temp_image and len(temp_image) > 0:
                                 temp_image = temp_image[0]
 

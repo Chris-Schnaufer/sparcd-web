@@ -41,7 +41,7 @@ class Analysis:
             The number of days between the timestamps as an integer. Will return a 
             negative number of end_dt is earlier than start_dt
         """
-        return math.ceil(abs((end_dt - start_dt).total_seconds()) / SECONDS_IN_DAY)
+        return max(math.ceil(abs((end_dt - start_dt).total_seconds()) / SECONDS_IN_DAY), 1)
 
     @staticmethod
     def activity_for_image_list(images: tuple) -> int:
@@ -110,7 +110,7 @@ class Analysis:
                 continue
 
             # Compare minute difference in time to the limit (1 hour)
-            if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 <= interval_minutes:
+            if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 >= interval_minutes:
                 periods += 1
                 prev_dt = one_image['image_dt']
                 continue
