@@ -23,7 +23,7 @@ class SpeciesLocCoordFormatter:
             Returns the image analysis text
         """
         result = 'SPECIES BY LOCATION WITH UTM AND ELEVATION' + os.linesep
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             species_images = results.get_species_images(species['scientificName'])
             result += species['name'] + os.linesep
 

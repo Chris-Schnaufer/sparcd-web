@@ -44,15 +44,15 @@ class OccuranceFormatter:
         result += '  The number of locations each species pair co-occurs' + os.linesep
         result += '                            '
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:3s} '.format(species['name'][:3])
         result += os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:<28s}'.format(species['name'])
             species_images = results.get_species_images(species['scientificName'])
 
-            for other_species in results.get_species():
+            for other_species in results.get_species_by_name():
                 other_species_images = results.get_species_images(other_species['scientificName'])
 
                 num_locations = 0
@@ -99,7 +99,7 @@ class OccuranceFormatter:
             result += '{:2d} '.format(loc_num)
         result += os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:<28s}'.format(species['name'])
 
             species_images = results.get_species_images(species['scientificName'])
@@ -141,7 +141,7 @@ class OccuranceFormatter:
 
         result += os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:<28s}'.format(species['name'])
 
             species_images = results.get_species_images(species['scientificName'])
@@ -164,7 +164,7 @@ class OccuranceFormatter:
 
         result += '  Minimum and maximum elevation for each species' + os.linesep
         result += '   SPECIES                     Min   Max' + os.linesep
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             min_elevation = sys.float_info.max
             max_elevation = 0.0
 
@@ -205,13 +205,13 @@ class OccuranceFormatter:
         result += '                               Fraction of locations   Number of locations' + \
                                                                                 os.linesep
         result += 'Species                              Occupied             Occupied (' + \
-                            '{:3d}'.format(len(results.get_locations())) + os.linesep
+                            '{:3d}'.format(len(results.get_locations())) + ")" +os.linesep
 
         total_locations = len(results.get_locations())
 
         pairs_to_print = []
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             species_images = results.get_species_images(species['scientificName'])
 
             locations_with_species = 0

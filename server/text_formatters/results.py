@@ -239,12 +239,22 @@ class Results:
         raise RuntimeError('Call made to Results.get_locations after bad initialization')
 
     def get_species(self) -> tuple:
-        """ Returns the unique species sorted by name
+        """ Returns the unique species sorted by scientific name
         Return:
             Returns the tuple of species
         """
         if self._species:
             return self._species
+
+        raise RuntimeError('Call made to Results.get_species after bad initialization')
+
+    def get_species_by_name(self) -> tuple:
+        """ Returns the unique species sorted by name
+        Return:
+            Returns the tuple of species
+        """
+        if self._species:
+            return sorted(self._species, key=lambda item: item['name'])
 
         raise RuntimeError('Call made to Results.get_species after bad initialization')
 
@@ -429,6 +439,16 @@ class Results:
             A tuple containing the images for that month
         """
         return [one_image for one_image in images if one_image['image_dt'].month == month]
+
+    def filter_month_list(self, images: tuple, months: tuple) -> tuple:
+        """ Filters the images by image month
+        Arguments:
+            images: the tuple of images to search through
+            month: a tuple of months to filter on (months start at zero - 0)
+        Return:
+            A tuple containing the images for those months
+        """
+        return [one_image for one_image in images if one_image['image_dt'].month in months]
 
     def filter_location(self, images: tuple, location_id: str) -> tuple:
         """ Filters the image by the location ID

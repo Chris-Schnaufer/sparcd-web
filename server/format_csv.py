@@ -19,9 +19,9 @@ def get_csv_raw(results: Results) -> str:
         loc_x = image_loc['latProperty'] if image_loc and 'latProperty' in image_loc else ''
         loc_y = image_loc['lngProperty'] if image_loc and 'lngProperty' in image_loc else ''
         loc_elevation = image_loc['elevation'] if image_loc and 'elevation' in image_loc else ''
-        if 'species' in one_image and one_image['species']:
-            for index, one_species in enumerate(one_image['species']):
-                csv_results.append({
+
+        # Base image information, we add the species next
+        cur_image = {
                     'image': one_image['name'],
                     'date': one_image['image_dt'].isoformat(),
                     'locName': loc_name,
@@ -29,12 +29,18 @@ def get_csv_raw(results: Results) -> str:
                     'locX': loc_x,
                     'locY': loc_y,
                     'locElevation': loc_elevation,
-                    'common' + str(index + 1): one_species['name'],
-                    'scientific' + str(index + 1): one_species['scientificName'],
-                    'count' + str(index + 1): str(one_species['count'])
-                    })
+                    's3_bucket':one_image['bucket'],
+                    's3_path':one_image['s3_path']
+                    }
+        if 'species' in one_image and one_image['species']:
+            for index, one_species in enumerate(one_image['species']):
+                cur_image['common' + str(index + 1)] = one_species['name']
+                cur_image['scientific' + str(index + 1)] = one_species['scientificName']
+                cur_image['count' + str(index + 1)] = str(one_species['count'])
 
-        return csv_results
+        csv_results.append(cur_image)
+
+    return csv_results
 
 
 def get_csv_location(results: Results) -> str:

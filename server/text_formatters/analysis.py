@@ -79,7 +79,6 @@ class Analysis:
 
         return activities
 
-
     @staticmethod
     def period_for_image_list(images: tuple, interval_minutes: int) -> int:
         """ Returns the number of distinct periods from the result set. Images MUST first be
@@ -94,7 +93,6 @@ class Analysis:
             than one hour
         """
         periods = 0
-
         prev_dt = None
 
         # Loop through the results and look at all the images
@@ -109,11 +107,10 @@ class Analysis:
                 prev_dt = one_image['image_dt']
                 continue
 
-            # Compare minute difference in time to the limit (1 hour)
+            # Compare minute difference in time to the interval limit
             if abs((one_image['image_dt'] - prev_dt).total_seconds()) / 60.0 >= interval_minutes:
                 periods += 1
                 prev_dt = one_image['image_dt']
-                continue
 
         return periods
 

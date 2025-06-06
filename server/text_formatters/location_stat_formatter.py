@@ -28,7 +28,7 @@ class LocationStatFormatter:
         result += '  Use independent picture' + os.linesep
 
         for location in results.get_locations():
-            result += '{:31s} '.format(location['nameProperty'])
+            result += '{:>31s} '.format(location['nameProperty'])
         result += os.linesep
         result += 'Species'
         for location in results.get_locations():
@@ -38,9 +38,10 @@ class LocationStatFormatter:
         # We just want images that have a species and ignore ones that don't
         have_species_images = [one_image for one_image in results.get_images() if \
                                                     'species' in one_image and one_image['species']]
-        # Loop thrrough the species
-        for species in results.get_species():
-            result += '{:<26s}'.format(species['scientificName'])
+
+        # Loop through the species
+        for species in results.get_species_by_name():
+            result += '{:<26s}'.format(species['name'])
             for location in results.get_locations():
                 have_location_images = results.filter_location(have_species_images, \
                                                                             location['idProperty'])
@@ -92,9 +93,10 @@ class LocationStatFormatter:
                                                                 location['idProperty'])
                 if year_location_images:
                     result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
-                              'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty'])
+                              'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty']) +\
+                            os.linesep
                     # All species
-                    for species in results.get_species():
+                    for species in results.get_species_by_name():
                         total_pics = 0
                         year_locations_species_images = results.filter_species(\
                                                                         year_location_images, \
@@ -194,9 +196,10 @@ class LocationStatFormatter:
             location_images = results.get_location_images(location['idProperty'])
             if location_images:
                 result += '{:<28s}  Jan    Feb    Mar    Apr    May    Jun    Jul    Aug    ' \
-                          'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty'])
+                          'Sep    Oct    Nov    Dec   Total'.format(location['nameProperty']) + \
+                        os.linesep
 
-                for species in results.get_species():
+                for species in results.get_species_by_name():
                     total_pics = 0
                     location_species_images = results.filter_species(location_images,\
                                                                         species['scientificName'])
@@ -395,15 +398,15 @@ class LocationStatFormatter:
             Returns the image analysis text
         """
         result = 'SPECIES OVERLAP AT LOCATIONS' + os.linesep
-        result = '  Number of locations  ' + str(len(results.get_locations())) + os.linesep
-        result = '                          Locations  Locations and percent of locations where ' \
+        result += '  Number of locations  ' + str(len(results.get_locations())) + os.linesep
+        result += '                          Locations  Locations and percent of locations where ' \
                  'both species were recorded' + os.linesep
-        result = 'Species                    recorded '
-        for species in results.get_species():
+        result += 'Species                    recorded '
+        for species in results.get_species_by_name():
             result += '{:<12s}'.format(species['name'])
         result += os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             species_images = results.get_species_images(species['scientificName'])
             result += '{:<28s}'.format(species['name'])
             locations = results.locations_for_image_list(species_images)

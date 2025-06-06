@@ -54,7 +54,6 @@ class HeaderFormatter:
         total_period = 0
         for species in results.get_species():
             species_images = results.get_species_images(species['scientificName'])
-            print('HACK:SPECIES:',species['scientificName'],len(species_images),[(x['name'],x['s3_path']) for x in species_images])
             for location in results.get_locations():
                 species_location_images = results.filter_location(species_images, \
                                                                             location['idProperty'])

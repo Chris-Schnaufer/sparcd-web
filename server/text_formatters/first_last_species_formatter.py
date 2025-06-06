@@ -47,7 +47,7 @@ class FirstLastSpeciesFormatter:
 
         cur_location = None
         format_location = ''
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             # Some upfront preparation
             first_dt = one_species['first_image']['image_dt']
 
@@ -90,7 +90,7 @@ class FirstLastSpeciesFormatter:
 
         cur_location = None
         format_location = ''
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             # Some upfront preparation
             first_dt = one_species['first_image']['image_dt']
             last_dt = one_species['last_image']['image_dt']
@@ -130,12 +130,14 @@ class FirstLastSpeciesFormatter:
         result = 'SPECIES ACCUMULATION CURVE' + os.linesep + \
                  '  DAY    NUMBER    SPECIES' + os.linesep
 
-        for index, one_species in enumerate(results.get_species()):
-            result += '{:5d}     {:3d}      {:s}'.format( \
-                    Analysis.get_days_span(one_species['first_image']['image_dt'], \
-                                                        results.get_first_image()['image_dt']), \
-                    index + 1, \
-                    one_species['name']) + \
-                os.linesep
+        days_span = [(Analysis.get_days_span(one_species['first_image']['image_dt'], \
+                                                        results.get_first_image()['image_dt']),
+                                            one_species['name']) \
+                    for one_species in results.get_species()]
+        days_span = sorted(days_span, key=lambda item: item[0])
+
+        for index, one_result in enumerate(days_span):
+            result += '{:5d}     {:3d}      {:s}'.format(one_result[0], index + 1, one_result[1]) +\
+                        os.linesep
 
         return result + os.linesep

@@ -12,22 +12,35 @@ from .results import Results
 MOON_PHASE_DATE_DIFF_SEC = 5 * 24 * 60 * 60     # Five days in seconds
 
 
-def in_moons(image_date: datetime.datetime, moons: tuple) -> tuple:
+def in_moons(image_date: datetime.datetime, moons: tuple) -> bool:
     """ Returns whether or not the image date falls within a full moon
     Arguments:
         image_date: the date to check
         moons: an iterator containing the datetime of the moons to check
     Return:
-        Returns a tuple containing True/False for if the image date is within
-        range of a full moon, the index of the moon that matched, and the moon
-        datetime that matched. When not matched, the index and datetime positions
+        Returns True/False for if the image date is within range of the moons
         contain None
     """
-    for index, one_moon in enumerate(moons):
+    for one_moon in moons:
         if abs((one_moon - image_date).total_seconds()) < MOON_PHASE_DATE_DIFF_SEC:
-            return True, index, one_moon
+            return True
 
-    return False, None, None
+    return False
+
+def in_moons_debug(image_date: datetime.datetime, moons: tuple) -> bool:
+    """ Returns whether or not the image date falls within a full moon
+    Arguments:
+        image_date: the date to check
+        moons: an iterator containing the datetime of the moons to check
+    Return:
+        Returns True/False for if the image date is within range of the moons
+        contain None
+    """
+    for one_moon in moons:
+        if abs((one_moon - image_date).total_seconds()) < MOON_PHASE_DATE_DIFF_SEC:
+            return True
+
+    return False
 
 
 def create_lunar_activity_table(results: Results)-> tuple:
@@ -50,8 +63,8 @@ def create_lunar_activity_table(results: Results)-> tuple:
     new_images = [one_image for one_image in results.get_images() if \
                                                         in_moons(one_image['image_dt'], new_moons)]
 
-    for species in results.get_species():
-        num_images_total_tull = 0
+    for species in results.get_species_by_name():
+        num_images_total_full = 0
         num_images_total_new = 0
 
         total_difference = 0.0
@@ -70,19 +83,19 @@ def create_lunar_activity_table(results: Results)-> tuple:
             if len(full_species_images) > 0:
                 frequency_full = float(len(full_species_hour_images)) / \
                                                                     float(len(full_species_images))
-            num_images_total_tull = num_images_total_tull + len(full_species_hour_images)
+            num_images_total_full += len(full_species_hour_images)
 
             frequency_new = 0.0
             if len(new_species_images) > 0:
                 frequency_new = float(len(new_species_hour_images)) / float(len(new_species_images))
-            num_images_total_new = num_images_total_new + len(new_species_hour_images)
+            num_images_total_new += len(new_species_hour_images)
 
             difference = frequency_full - frequency_new
-            total_difference = total_difference + difference * difference
+            total_difference = total_difference + (difference * difference)
 
         total_difference = math.sqrt(total_difference)
 
-        lunar_activities.append((species, total_difference, num_images_total_tull + \
+        lunar_activities.append((species, total_difference, num_images_total_full + \
                                                                             num_images_total_new))
 
     return lunar_activities
@@ -123,7 +136,7 @@ class LunarActivityFormatter:
         new_images = [one_image for one_image in results.get_images() if \
                                                         in_moons(one_image['image_dt'], new_moons)]
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += species['name'] + os.linesep
             result += '                 Full moon activity    New moon activity' + os.linesep
             result += '    Hour        Number    Frequency   Number    Frequency' + os.linesep
@@ -131,7 +144,7 @@ class LunarActivityFormatter:
             full_species_images = results.filter_species(full_images, species['scientificName'])
             new_species_images = results.filter_species(new_images, species['scientificName'])
 
-            num_images_total_tull = 0
+            num_images_total_full = 0
             num_images_total_new = 0
 
             total_difference = 0.0
@@ -149,7 +162,7 @@ class LunarActivityFormatter:
                 if len(full_species_images) > 0:
                     frequency_full = float(len(full_species_hour_images)) / \
                                                                     float(len(full_species_images))
-                num_images_total_tull += len(full_species_hour_images)
+                num_images_total_full += len(full_species_hour_images)
 
                 frequency_new = 0.0
                 if len(new_species_images) > 0:
@@ -170,7 +183,7 @@ class LunarActivityFormatter:
             total_difference = math.sqrt(total_difference)
 
             to_add += 'Total            {:5d}                 {:5d}'.format(\
-                                        num_images_total_tull, num_images_total_new) + os.linesep
+                                        num_images_total_full, num_images_total_new) + os.linesep
             to_add += 'Difference       {:5.2f}'.format(total_difference) + os.linesep
             to_add += os.linesep
 
@@ -194,7 +207,7 @@ class LunarActivityFormatter:
 
         if lunar_activities:
             # Sort by descending difference
-            sorted_lunar_activities = sorted(lunar_activities, key=lambda activity: activity[1])
+            sorted_lunar_activities = sorted(lunar_activities, key=lambda activity: activity[1], reverse=True)
 
             result += 'SPECIES LUNAR ACTIVITY MOST DIFFERENT: '
             result += sorted_lunar_activities[0][0]['name'] + os.linesep

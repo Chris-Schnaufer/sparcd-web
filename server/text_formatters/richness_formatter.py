@@ -27,7 +27,7 @@ class RichnessFormatter:
         result += '  One record of each species per location per PERIOD' + os.linesep
         result += 'Location                          '
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:<6s} '.format(species['name'][:6])
         result += 'Rich' + os.linesep
 
@@ -37,7 +37,7 @@ class RichnessFormatter:
             location_images = results.get_location_images(location['idProperty'])
 
             horizontal_richness = 0
-            for species in results.get_species():
+            for species in results.get_species_by_name():
                 location_species_images = results.filter_species(location_images, \
                                                                         species['scientificName'])
 

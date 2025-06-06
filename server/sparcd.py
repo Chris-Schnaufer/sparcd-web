@@ -810,18 +810,10 @@ def query():
     locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
-    # Get some sorted lists of images, species, locations
-    #print('HACK: all_results= ', all_results)
-    #print('HACK:     species=', species)
-    #print('HACK:   locations=', locations)
-    #print('HACK:      s3_url=', s3_url)
-    #print('HACK:        name=', user_info["name"])
-    #print('HACK:    interval=', 0)
     results = Results(all_results, species, locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
-                        0) # TODO: add query interval
+                        60) # TODO: add query interval
 
     # Format and return the results
     return_info = query_helpers.query_output(results)
-    #print('HACK:RETURN:',return_info)
     return json.dumps(return_info)

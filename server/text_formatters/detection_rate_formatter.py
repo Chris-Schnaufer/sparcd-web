@@ -37,8 +37,8 @@ class DetectionRateFormatter:
             Returns the image analysis text
         """
         result = 'DETECTION RATE FOR EACH SPECIES PER YEAR' + os.linesep
-        result = '  One record of each species per location per PERIOD' + os.linesep
-        result = '  Number of pictures/prd multiplied by 100' + os.linesep
+        result += '  One record of each species per location per PERIOD' + os.linesep
+        result += '  Number of pictures/prd multiplied by 100' + os.linesep
 
         for one_year in results.get_years():
             result += 'Year ' + str(one_year) + os.linesep
@@ -46,7 +46,7 @@ class DetectionRateFormatter:
                                                                                         os.linesep
             result += 'Location                     days    pics       /prd    '
 
-            for species in results.get_species():
+            for species in results.get_species_by_name():
                 result += '{:5s} '.format(species['name'][:5])
 
             result += os.linesep
@@ -89,7 +89,7 @@ class DetectionRateFormatter:
 
                     period_total = 0
 
-                    for species in results.get_species():
+                    for species in results.get_species_by_name():
                         year_location_species_images = results.filter_species(year_location_images,\
                                                                         species['scientificName'])
                         period_total = period_total + \
@@ -103,7 +103,7 @@ class DetectionRateFormatter:
                                     (0.0 if total_days_for_loc == 0 else \
                                         100.0 * (float(period_total) / float(total_days_for_loc))))
 
-                    for species_index, species in enumerate(results.get_species()):
+                    for species_index, species in enumerate(results.get_species_by_name()):
                         year_location_species_images = results.filter_species(year_location_images,\
                                                                         species['scientificName'])
                         period = Analysis.period_for_image_list(year_location_species_images, \
@@ -114,12 +114,12 @@ class DetectionRateFormatter:
 
                     result += os.linesep
 
-            result += 'Total days pics Avg rate   '
+            result += 'Total days pics Avg rate    '
 
             result += '  {:3d} {:7d}    {:7.2f}   '.format(total_days, total_pics, \
                                                     100.0 * (float(total_pics) / float(total_days)))
 
-            for species_index in range(0, len(results.get_species())):
+            for species_index in range(0, len(results.get_species_by_name())):
                 result += ' {:5.2f}'.format(0.0 if total_days == 0 else \
                                         100.0 * (average_rate[species_index] / float(total_days)))
 
@@ -147,7 +147,7 @@ class DetectionRateFormatter:
                                                                                         os.linesep
         result += 'Location                     days    pics     /prd   '
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:5s} '.format(species['name'][:5])
 
         result += os.linesep
@@ -190,7 +190,7 @@ class DetectionRateFormatter:
 
             period_total = 0
 
-            for species in results.get_species():
+            for species in results.get_species_by_name():
                 for one_year in results.get_years():
                     location_species_year_images = results.filter_year(results.filter_species( \
                                                                         location_images, \
@@ -206,7 +206,7 @@ class DetectionRateFormatter:
                             0.0 if total_days_loc == 0 else \
                                         100.0 * (float(period_total) / float(total_days_loc)))
 
-            for species_index, species in enumerate(results.get_species()):
+            for species_index, species in enumerate(results.get_species_by_name()):
                 period = 0
                 for one_year in results.get_years():
                     location_species_year_images = results.filter_year(results.filter_species( \
@@ -247,7 +247,7 @@ class DetectionRateFormatter:
         result += '  One record of each species per location per PERIOD' + os.linesep
 
         for one_year in results.get_years():
-            result += 'Year ").append(year).append("' + os.linesep
+            result += 'Year ' + str(one_year) + os.linesep
             result += '                            Total   Total       Pics          Months ' + \
                                                                                         os.linesep
             result += 'Location                     days    pics       /prd       Jan     ' \
@@ -321,7 +321,7 @@ class DetectionRateFormatter:
 
                     result += os.linesep
 
-            result += 'Total days pics Avg rate   '
+            result += 'Total days pics Avg rate    '
 
             result += '  {:3d} {:7d}    {:7.2f}    '.format(total_days, total_pics, \
                                                             float(total_pics) / float(total_days))
@@ -429,9 +429,9 @@ class DetectionRateFormatter:
 
             result += os.linesep
 
-        result += 'Total days pics Avg rate   '
+        result += 'Total days pics Avg rate    '
 
-        result += '  {:3d} {:7d}    {:7}.2f    '.format(total_days, total_pics, \
+        result += '  {:3d} {:7d}    {:7.2f}    '.format(total_days, total_pics, \
                                                             float(total_pics) / float(total_days))
 
         for one_month in range(0, 12):

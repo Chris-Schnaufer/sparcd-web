@@ -212,8 +212,8 @@ def query_output(results: Results) -> tuple:
                                      'count1':'Count','common2':'Common Name',\
                                      'scientific2':'Scientific Name','count2':'Count'},
                         },
-                'csvLocation': {'name':'Name','id':'ID', 'utmZone':'UTM Zone', 'x':'Easting', \
-                                'y':'Northing', 'elevation':'Elevation'},
+                'csvLocation': {'name':'Name','id':'ID', 'locX':'Easting', \
+                                'locY':'Northing', 'locElevation':'Elevation'},
                 'csvSpecies': {'common':'Common Name', 'scientific':'Scientific Name'},
                 'imageDownloads': {'name':'Name'}
             }

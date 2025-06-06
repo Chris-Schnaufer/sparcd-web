@@ -76,7 +76,7 @@ class ActPerAbuLocFormatter:
         """
         result = 'NUMBER OF PICTURES BY SPECIES BY YEAR' + os.linesep
 
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             result += '  ' + one_species['name'] + os.linesep
             result += '        Year       All Activity   Period Abundance Locations' + os.linesep
 
@@ -105,7 +105,7 @@ class ActPerAbuLocFormatter:
                                             species_period, species_abundance, species_location) + \
                           os.linesep
 
-            result = '        Total  {:7d}  {:7d}  {:7d}  {:7d}  {:7d}'.format(\
+            result += '        Total  {:7d}  {:7d}  {:7d}  {:7d}  {:7d}'.format(\
                                             species_image_total, species_activity_total, \
                                             species_period_total, species_abundance_total, \
                                             species_location_total) + \
@@ -140,7 +140,7 @@ class ActPerAbuLocFormatter:
                                                                             results.get_interval())
             period_total = period_total + year_period_total
 
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             species_period_total = 0
             species_images = results.get_species_images(one_species['scientificName'])
 
@@ -179,7 +179,7 @@ class ActPerAbuLocFormatter:
         period_over_all_species = 0
         num_animals_photographed = 0
 
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             species_images = results.get_species_images(one_species['scientificName'])
 
             for one_year in results.get_years():
@@ -206,7 +206,7 @@ class ActPerAbuLocFormatter:
             result += '{:<28s} {:7d}               {:7.2f}             {:7.2f}             ' \
                       '{:7.2f}'.format(one_species['name'], period_total, \
                                 100.0 * float(period_total) / float(period_over_all_species), \
-                                float(abundance_total) / float(period_total), \
+                                float(abundance_total)/float(period_total) if period_total else 0,\
                                 100.0 * float(abundance_total) / float(num_animals_photographed)) \
                       + os.linesep
 
@@ -238,7 +238,7 @@ class ActPerAbuLocFormatter:
                 result += '{:<5s} '.format(one_location['nameProperty'][:5])
             result += os.linesep
 
-            for one_species in results.get_species():
+            for one_species in results.get_species_by_name():
                 year_species_images = results.filter_species(year_images, \
                                                                     one_species['scientificName'])
                 result += '{:<28s}'.format(one_species['name'])
@@ -285,7 +285,7 @@ class ActPerAbuLocFormatter:
             result += '{:<5s} '.format(location['nameProperty'][:5])
         result += os.linesep
 
-        for one_species in results.get_species():
+        for one_species in results.get_species_by_name():
             species_images = results.get_species_images(one_species['scientificName'])
             result += '{:<28s}'.format(one_species['name'])
 

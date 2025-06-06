@@ -40,6 +40,7 @@ class TrapDaysAndEffortFormatter:
             for one_species in loc_images[0]['species']:
                 species_present += one_species['name'] + ' '
 
+            print('HACKK:print_camera_trap_days',first_cal,last_cal,flush=True)
             result += '{:<27s} {:4d} {:2d} {:2d}  {:4d} {:2d} {:2d} {:9d}   {:4d} {:2d} {:2d}  ' \
                       '{:s}'.format( \
                                     one_loc['nameProperty'], first_cal.year, first_cal.month, \

@@ -55,7 +55,6 @@ class TotalDayFormatter:
                     result += '{:7d}'.format(total) + os.linesep
 
             result += 'Total pictures              '
-
             total_pic = 0
             total_pics = [0] * 12
             for one_month in range(0, 12):
@@ -69,18 +68,16 @@ class TotalDayFormatter:
 
                     period = Analysis.period_for_image_list(year_location_month_images, \
                                                                             results.get_interval())
-                    total_pic = total_pic + period
-                    total_period = total_period + period
-                    total_pics[one_month] = total_pics[one_month] + period
+                    total_pic += period
+                    total_period += period
+                    total_pics[one_month] += period
 
                 result += '{:5d} '.format(total_period)
 
             result += '{:7d}'.format(total_pic) + os.linesep
 
             result += 'Total days                     '
-
             year_images = results.get_year_images(one_year)
-
             days_used = [0] * 12
             for location in results.get_locations():
                 year_location_images = results.filter_location(year_images, location['idProperty'])
@@ -246,7 +243,7 @@ class TotalDayFormatter:
                       'Aug   Sep   Oct   Nov   Dec   Total' + os.linesep
 
             total_richness = [0] * 12
-            for species in results.get_species():
+            for species in results.get_species_by_name():
 
                 year_species_images = results.filter_year(results.get_species_images(\
                                                                     species['scientificName']), \
@@ -360,7 +357,7 @@ class TotalDayFormatter:
                   'Sep   Oct   Nov   Dec   Total' + os.linesep
 
         total_richness = [0] * 12
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:<28s}'.format(species['name'])
 
             species_images = results.get_species_images(species['scientificName'])
@@ -463,7 +460,7 @@ class TotalDayFormatter:
         result = 'SPECIES BY LOCATION BY YEAR BY MONTH SORTED BY ELEVATION' + os.linesep
         result += '  One record of each species per location per PERIOD' + os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += species['name'] + os.linesep
 
             for one_year in results.get_years():
@@ -980,7 +977,7 @@ class TotalDayFormatter:
             result += 'Years ' + str(results.get_first_year()) + ' to ' + \
                                             str(results.get_last_year()) + os.linesep
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             species_images = results.get_species_images(species['scientificName'])
 
             result += 'Location                  Elevation   # pics/Effort   Percent' + os.linesep
@@ -1043,6 +1040,8 @@ class TotalDayFormatter:
                                                             / pics_over_effort_total) * 100.0) + \
                                 os.linesep
 
+        result += os.linesep
+
         return result
 
     @staticmethod
@@ -1069,7 +1068,7 @@ class TotalDayFormatter:
 
         result += 'Location                  Elevation '
 
-        for species in results.get_species():
+        for species in results.get_species_by_name():
             result += '{:6s} '.format(species['name'][:6])
 
         result += os.linesep
@@ -1077,7 +1076,7 @@ class TotalDayFormatter:
         for location in results.get_locations():
             result += '{:<28s} {:5.0f}  '.format(location['nameProperty'], float(location['elevationProperty']))
 
-            for species in results.get_species():
+            for species in results.get_species_by_name():
                 species_images = results.get_species_images(species['scientificName'])
                 species_location_images = results.filter_location(species_images, \
                                                                   location['idProperty'])

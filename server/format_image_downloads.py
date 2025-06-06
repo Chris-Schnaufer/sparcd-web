@@ -15,6 +15,6 @@ def get_image_downloads(results: Results) -> str:
                     results.s3_password, \
                     [(one_image['bucket'], one_image['s3_path']) for \
                                                                 one_image in results.get_images()])
-    return [{'name': one_image['name'],
+    return [{'name':one_image['bucket'] + ':' + one_image['s3_path'],
              'url': image_urls[index]
             } for index, one_image in enumerate(results.get_images())]

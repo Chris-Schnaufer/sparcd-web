@@ -102,11 +102,18 @@ def get_dr_sanderson_pictures(results: Results) -> str:
         A tuple of image infodmation in a dict
     """
     image_data = []
-    for one_image in results.get_images():
-        if 'species' in one_image and one_image['species']:
-            for one_species in one_image['species']:
-                image_data.append({'location':results.get_location_name(one_image['loc']),
-                                              'species':one_species['name'],
-                                              'image':one_image['name']})
+
+    date_format = '%Y %m %d %H %M %S'
+
+    for location in results.get_locations():
+        location_images = results.get_location_images(location['idProperty'])
+        for one_species in results.get_species_by_name():
+            location_species_images = results.filter_species(location_images, \
+                                                                    one_species['scientificName'])
+            for one_image in location_species_images:
+                image_data.append({'location': results.get_location_name(one_image['loc']),
+                                   'species': one_species['name'],
+                                   'image': one_image['image_dt'].strftime(date_format) + \
+                                                        os.path.splitext(one_image['name'])[1]})
 
     return image_data
