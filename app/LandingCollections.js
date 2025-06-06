@@ -58,7 +58,9 @@ export default function LandingCollections({loadingCollections, onChange}) {
                   {
                     collectionItems.map(function(obj, idx) {
                       return <FormControlLabel value={obj.name} control={<Radio />} label={obj.name} key={obj.name}
-                                               sx={{padding:'0px 5px', backgroundColor:idx & 1 ? 'silver':'lightgrey', marginRight:'0px'}}/>
+                                               sx={{padding:'0px 5px', 
+                                                    backgroundColor:idx & 1 ? '#D5D7DD':'#E3E5EB',
+                                                    marginRight:'0px'}}/>
                     })
                   }
               </RadioGroup>

@@ -205,10 +205,52 @@ def get_upload_date(date_json: object) -> str:
 
     if 'time' in date_json and date_json['time']:
         cur_time = date_json['time']
-        if 'hour' in cur_time and 'second' in cur_time:
-            return_str += ' at ' + str(cur_time['hour']) + ':' + str(cur_time['second'])
+        if 'hour' in cur_time and 'minute' in cur_time:
+            return_str += ' at ' + str(cur_time['hour']) + ':' + str(cur_time['minute'])
 
     return return_str
+
+
+def get_later_timestamp(cur_ts: object, new_ts: object) -> Optional[object]:
+    """ Returns the later of the two dates
+    Arguments:
+        cur_ts: the date and time to compare against
+        new_ts: the date and time to check if it's later
+    Return:
+        Returns the later date. If cur_ts is None, then new_ts is returned.
+        If new_ts is None, then cur_ts is returned
+    """
+    if cur_ts is None:
+        return new_ts
+    if new_ts is None:
+        return cur_ts
+
+    if 'date' in cur_ts and 'date' in new_ts and cur_ts['date'] and new_ts['date']:
+        if 'year' in cur_ts['date'] and 'year' in new_ts['date']:
+            if int(cur_ts['date']['year']) < int(new_ts['date']['year']):
+                return new_ts
+        if 'month' in cur_ts['date'] and 'month' in new_ts['date']:
+            if int(cur_ts['date']['month']) < int(new_ts['date']['month']):
+                return new_ts
+        if 'day' in cur_ts['date'] and 'day' in new_ts['date']:
+            if int(cur_ts['date']['day']) < int(new_ts['date']['day']):
+                return new_ts
+
+    if 'time' in cur_ts and 'time' in new_ts and cur_ts['time'] and new_ts['time']:
+        if 'hour' in cur_ts['time'] and 'hour' in new_ts['time']:
+            if int(cur_ts['time']['hour']) < int(new_ts['time']['hour']):
+                return new_ts
+        if 'minute' in cur_ts['time'] and 'minute' in new_ts['time']:
+            if int(cur_ts['time']['minute']) < int(new_ts['time']['minute']):
+                return new_ts
+        if 'second' in cur_ts['time'] and 'second' in new_ts['time']:
+            if int(cur_ts['time']['second']) < int(new_ts['time']['second']):
+                return new_ts
+        if 'nano' in cur_ts['time'] and 'nano' in new_ts['time']:
+            if int(cur_ts['time']['nano']) < int(new_ts['time']['nano']):
+                return new_ts
+
+    return cur_ts
 
 
 def load_timed_temp_colls(user: str) -> Optional[list]:
@@ -530,7 +572,9 @@ def collections():
                     'uploads': []
                   }
         cur_uploads = []
+        last_upload_date = None
         for one_upload in one_coll['uploads']:
+            last_upload_date = get_later_timestamp(last_upload_date, one_upload['info']['uploadDate'])
             cur_uploads.append({'name': one_upload['info']['uploadUser'] + ' on ' + \
                                                 get_upload_date(one_upload['info']['uploadDate']),
                                 'description': one_upload['info']['description'],
@@ -541,6 +585,7 @@ def collections():
                                 'key': one_upload['key']
                               })
         cur_col['uploads'] = cur_uploads
+        cur_col['last_upload_ts'] = last_upload_date
         return_colls.append(cur_col)
 
     # Everything checks out

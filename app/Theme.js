@@ -22,7 +22,7 @@ let theme = createTheme({
       contrastText: '#000000'
     },
     landing_card: {
-      background: 'lightgrey',
+      background: 'rgba(224, 227, 232, 0.7)',
       minHeight: '20vh',
       maxWidth: '40vw',
       uploadImage: "https://arizona.box.com/shared/static/dcxcm0y8u6cnwcz6tftovo68ixkcd2c0.jpg",

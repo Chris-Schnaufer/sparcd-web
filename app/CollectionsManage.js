@@ -22,6 +22,8 @@ import { useTheme } from '@mui/material/styles';
 import { CollectionsInfoContext, NarrowWindowContext } from './serverInfo'
 import UploadSidebarItem from './components/UploadSidebarItem'
 
+import { pad } from './utils'
+
 /**
  * Renders the UI for managing the list of uploaded folders
  * @function
@@ -44,6 +46,8 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
   const handleCollectionSearch = searchCollections.bind(CollectionsManage);
+
+  console.log(theme);
 
   // Setup search
   React.useEffect(() => {
@@ -155,12 +159,78 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     setWorkspaceWidth(curSize.width - curSidebarWidth);
   }
 
+  /**
+   * Formats the upload timestamp for display
+   * @function
+   * @param {object} upload_ts The timestamp object from an upload
+   * @returns {str} Returns the formatted timestamp string
+   */
+  function getLastUploadDate(upload_ts) {
+    let return_str = '';
+    if (upload_ts) {
+      if (upload_ts.date) {
+        if (upload_ts.date.year)
+          return_str += pad(upload_ts.date.year);
+        else
+          return_str += 'XXXX';
+        if (upload_ts.date.month)
+          return_str += '-' + pad(upload_ts.date.month, 2, 0);
+        else
+          return_str += '-XX';
+        if (upload_ts.date.day)
+          return_str += '-' + pad(upload_ts.date.day, 2, 0);
+        else
+          return_str += '-XX';
+      }
+
+      if (upload_ts.time) {
+        if (upload_ts.time.hour !== null)
+          return_str += ' ' + pad(upload_ts.time.hour, 2, 0);
+        else
+          return_str += ' XX'
+        if (upload_ts.time.minute !== null)
+          return_str += ':' + pad(upload_ts.time.minute, 2, 0);
+        else
+          return_str += ':XX'
+        if (upload_ts.time.second !== null)
+          return_str += ':' + pad(upload_ts.time.second, 2, 0);
+        else
+          return_str += ':XX'
+      }
+    }
+
+    if (return_str.length <= 0)
+      return_str = 'No last upload date';
+
+    return return_str;
+  }
+
   // Check if we need to specify variables that aren't setup yet
   let curSelectionIndex = selectionIndex;
   if (curSelectionIndex == -1 && collectionsItems && selectedCollection) {
     curSelectionIndex = collectionsItems.findIndex((item) => item.name === selectedCollection);
     setSelectionIndex(curSelectionIndex);
   }
+/*
+                        <Box sx={{border:"1px solid black", width:"100%", minHeight:'3em', maxHeight:'3em', overflow:"scroll"}} >
+                          {item.uploads.map((uploadItem, uploadIdx) =>
+                              <Grid container key={'upload-'+uploadItem.name+'-'+uploadIdx} direction="column" spacing={1}>
+                                <Grid item>
+                                  <Typography variant="body" sx={{padding:"0 5px"}}>
+                                    {uploadItem.name}
+                                  </Typography>
+                                </Grid>
+                              </Grid>
+                          )}
+                        </Box>
+
+                          <Grid item>
+                            <Typography variant="body">
+                              {item.email}
+                            </Typography>
+                          </Grid>
+
+*/
 
   // Render the UI
   const curHeight = (totalHeight || 480) + 'px';
@@ -254,20 +324,16 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
           <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
-                        sx={{minWidth:'400px', maxWidth:'400px', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+                        sx={{minWidth:'400px', maxWidth:'400px', backgroundColor:'rgba(206,223,205,0.7)',
+                             '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
                     <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
-                      sx={{height: '100%', '&[data-active]': {backgroundColor:theme.palette.action.active} }}
+                      sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(0, 0, 0, 0.40)'} }}
                     >
                       <CardContent>
                         <Grid container direction="column" spacing={1}>
                           <Grid item>
-                            <Typography variant="H6">
+                            <Typography variant='body' sx={{fontSize:'larger', fontWeight:(selectionIndex === idx ? 'bold' : 'normal')}}>
                               {item.name}
-                            </Typography>
-                          </Grid>
-                          <Grid item>
-                            <Typography variant="body">
-                              {item.email}
                             </Typography>
                           </Grid>
                           <Grid item>
@@ -280,21 +346,19 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                               {item.description}
                             </Typography>
                           </Grid>
-                        </Grid>
-                        <Typography variant="body3">
-                          Uploads
-                        </Typography>
-                        <Box sx={{border:"1px solid black", width:"100%", minHeight:'3em', maxHeight:'3em', overflow:"scroll"}} >
-                          {item.uploads.map((uploadItem, uploadIdx) =>
-                              <Grid container key={'upload-'+uploadItem.name+'-'+uploadIdx} direction="column" spacing={1}>
-                                <Grid item>
-                                  <Typography variant="body" sx={{padding:"0 5px"}}>
-                                    {uploadItem.name}
-                                  </Typography>
-                                </Grid>
-                              </Grid>
-                          )}
-                        </Box>
+                          <Grid item>
+                            <Typography variant="body">
+                              Uploads - {item.uploads.length}
+                            </Typography>
+                          </Grid>
+                          { item.uploads.length > 0 &&
+                            <Grid item>
+                              <Typography variant="body">
+                                Last upload: {getLastUploadDate(item.last_upload_ts)}
+                              </Typography>
+                            </Grid>
+                          }
+                      </Grid>
                       </CardContent>
                     </CardActionArea>
                   </Card>

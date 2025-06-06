@@ -116,13 +116,13 @@ export default function Landing({loadingCollections, onUserAction, onSandboxUpda
         <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}} sx={{ 'margin': '4vw' }} >
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
-                         action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload() } : null,
+                         action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload(), 'disabled':true } : null,
                                   {'title':'Manage', 
                                    'onClick':() => {
                                                     onUserAction(selUploadInfo ? UserActions.UploadEdit : UserActions.Upload, 
                                                                   selUploadInfo, selUploadInfo ? true : false, 'Home');
                                                    },
-                                   'disabled': curSandboxInfo ? false : true
+                                   'disabled': curSandboxInfo && curSandboxInfo.length > 0 ? false : true
                                   }
                                  ]}
             >
