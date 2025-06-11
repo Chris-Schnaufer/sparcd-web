@@ -63,19 +63,19 @@ export default function InputSlider({label, onChange}) {
   return (
     <Box sx={{ width: 300 }}>
       <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-        <Grid item xs>
+        <Grid xs>
           <Typography id="input-slider" gutterBottom>
             {label}
           </Typography>
         </Grid>
-        <Grid item xs>
+        <Grid xs>
           <Slider
             value={typeof value === 'number' ? value : 0}
             onChange={handleSliderChange}
             aria-labelledby="input-slider"
           />
         </Grid>
-        <Grid item>
+        <Grid>
           <Input
             value={value}
             size="small"

@@ -26,7 +26,7 @@ export default function ImageAdjustments({isVisible, onBrightnessChange, onContr
       <Grid id="image-edit-adjustments" container direction="column" alignItems="start" justifyContent="start"
             sx={{position:'absolute',left:'0px',top:'1.3em',
                  visibility:(showAdjustments ? 'visible' : 'hidden')}} >
-        <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{backgroundColor:'rgba(255,255,255,0.7)'}}>
+        <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{backgroundColor:'rgba(255,255,255,0.7)'}}>
           <InputSlider label="Brightness" onChange={onBrightnessChange} />
           <InputSlider label="Contrast" onChange={onContrastChange} />
           <InputSlider label="Hue"  onChange={onHueChange} />

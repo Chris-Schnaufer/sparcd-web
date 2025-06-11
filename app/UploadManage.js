@@ -143,7 +143,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
             style={{ 'minHeight':curHeight, 'maxHeight':curHeight, 'height':curHeight, 'top':curStart, 'left':workplaceStartX,
                      'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 'position':'absolute' }}>
         { curSelectionIndex <= -1 ?
-            <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+            <Grid size={{ xs: 12, sm: 12, md:12 }}>
               <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
                 <Typography variant="body" sx={{ color: 'text.secondary' }}>
                   Please select an upload to work with
@@ -151,7 +151,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
               </Container>
             </Grid>
           :
-            <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+            <Grid size={{ xs: 12, sm: 12, md:12 }}>
               <Card variant='outlined' sx={{backgroundColor: 'action.selected', maxWidth:'50vw'}}>
                 <CardContent>
                   <Typography variant="body" sx={{ color: 'text.secondary' }}>

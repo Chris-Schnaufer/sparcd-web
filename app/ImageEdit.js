@@ -252,16 +252,16 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
                     }}
         >
           <Grid container direction="row" alignItems="start" justifyContent="start" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-            <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative'}}>
+            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative'}}>
               <ImageAdjustments isVisible={!!adjustments} onBrightnessChange={adjustBrightness} 
                                 onContrastChange={adjustContrast} onHueChange={adjustHue} onSaturationChange={adjustSaturation} />
             </Grid>
-            <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
+            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
               <Typography variant="body" sx={{textTransform:'uppercase',color:'grey','&:hover':{color:'white'} }}>
                 {name}
               </Typography>
             </Grid>
-            <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
+            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
               <div id="image-edit-close" sx={{height:'20px', flex:'1'}} onClick={() => onClose()}>
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}
@@ -273,11 +273,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           </Grid>
           { navigation ?
             <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-              <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
+              <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
                 <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.onPrev()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
-              <Grid item size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
+              <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
                 <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.onNext()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
@@ -287,7 +287,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           <Grid container id="image-edit-species" direction="row" alignItems="end" justifyContent="end"
                 sx={{minHeight:rowHeight,maxHeight:rowHeight}}
           >
-            <Grid item size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
+            <Grid size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
                   visibility:(curSpecies ? 'visible' : 'hidden')}}>
               {curSpecies.map((curItem) =>
                 <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onDelete={handleSpeciesDelete}

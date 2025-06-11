@@ -1,0 +1,11 @@
+gunicorn
+Flask
+Flask-Cors
+Flask-session
+cachelib
+cryptography
+ephem
+minio
+gdal==3.10
+python-dateutil
+requests

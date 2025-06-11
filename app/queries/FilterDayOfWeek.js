@@ -1,7 +1,6 @@
 /** @module components/FilterDayOfWeek */
 
 import * as React from 'react';
-import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';

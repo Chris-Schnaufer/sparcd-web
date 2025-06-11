@@ -116,19 +116,19 @@ export default function LandingUpload({setUploadInfo, onChange}) {
       { firstItem ? (
         <React.Fragment>
           <Grid container direction="row" alignItems="sflex-tart" justifyContent="flex-start">
-            <Grid item sm={4} md={4} lg={4} sx={{left:'auto'}}>
+            <Grid sm={4} md={4} lg={4} sx={{left:'auto'}}>
               <Typography gutterBottom sx={{ ...theme.palette.landing_upload_prompt,
                           visibility: `${refreshingUploads?"visible":"hidden"}` }} >
                 Unpublished uploads
               </Typography>
             </Grid>
-            <Grid item sm={4} md={4} lg={4}>
+            <Grid sm={4} md={4} lg={4}>
               <Typography gutterBottom sx={{ ...theme.palette.landing_upload_refresh,
                           visibility: `${refreshingUploads?"visible":"hidden"}` }} >
                 Refreshing...
               </Typography>
             </Grid>
-            <Grid item sm={4} md={4} lg={4}>
+            <Grid sm={4} md={4} lg={4}>
               &nbsp;
             </Grid>
           </Grid>

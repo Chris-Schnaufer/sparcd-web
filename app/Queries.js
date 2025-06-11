@@ -426,20 +426,20 @@ export default function Queries() {
   function generateQueryResults(queryResults) {
     return (
       <Grid container alignItems="start" justifyContent="start" >
-        <Grid item xs={2}  sx={{backgroundColor:"#EAEAEA"}}>
+        <Grid xs={2}  sx={{backgroundColor:"#EAEAEA"}}>
           <Tabs id='testing' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
           { queryResults.tabs.order.map((item, idx) => 
               <Tab label={
                           <Grid container direction="row" alignItems="center" justifyContent="center">
-                            <Grid item>
+                            <Grid>
                               <Typography gutterBottom variant="body2">
                                 {queryResults.tabs[item]}
                               </Typography>
                             </Grid>
                             <Tooltip title={'Download CSV of '+queryResults.tabs[item]}>
                               <a href={serverURL + '/querydownload?tab' + item} download={item + '.csv'}  style={{marginLeft:'auto'}}>
-                                <Grid item sx={{borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
+                                <Grid sx={{borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
                                   <DownloadForOfflineOutlinedIcon sx={{padding:'5px'}} />
                                 </Grid>
                               </a>
@@ -451,7 +451,7 @@ export default function Queries() {
           }
           </Tabs>
         </Grid>
-        <Grid item xs={10} sx={{minHeight:'395px',maxHeight:'395px',overflowX:'scroll',display:'flex'}}>
+        <Grid xs={10} sx={{minHeight:'395px',maxHeight:'395px',overflowX:'scroll',display:'flex'}}>
           { queryResults.tabs.order.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 

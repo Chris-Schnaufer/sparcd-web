@@ -77,9 +77,9 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
     <header id='sparcd-header' className={styles.titlebar} role="banner">
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
         <Grid container direction="column" spacing={3} sx={{flexGrow:1}}>
-          <Grid item size={{xs:12, sm:12, md:12}}>
+          <Grid size={{xs:12, sm:12, md:12}}>
             <Grid container direction="row" spacing={3} sx={{flexGrow:1}}>
-              <Grid item size={{xs:12, sm:12, md:12}}>
+              <Grid size={{xs:12, sm:12, md:12}}>
                 <Grid container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
                     <div
                       aria-description="Scientific Photo Analysis for Research & Conservation database"
@@ -88,7 +88,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
                     <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
                 </Grid>
               </Grid>
-              <Grid item size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
+              <Grid size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
                 <Grid container direction="row">
                   { search_title &&
                     <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
@@ -115,7 +115,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
               </Grid>
             </Grid>
           </Grid>
-          <Grid item size={{xs:12, sm:12, md:12}} style={{paddingTop:'0', visibility:breadcrumbs ? 'visible':'hidden' }}>
+          <Grid size={{xs:12, sm:12, md:12}} style={{paddingTop:'0', visibility:breadcrumbs ? 'visible':'hidden' }}>
             <Typography sx={{fontSize:"xx-small"}}>
             { breadcrumbs ? 
                 breadcrumbs.map((item, idx) => {

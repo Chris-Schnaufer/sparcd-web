@@ -1,7 +1,7 @@
 /** @module components/FilterCollections */
 
 import * as React from 'react';
-import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
+import BackspaceOutlined from '@mui/icons-material/BackspaceOutlined';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
@@ -168,7 +168,7 @@ export default function FilterCollections({data, onClose, onChange}) {
               endAdornment:(
                 <InputAdornment position="end">
                   <IconButton onClick={handleClearSearch}>
-                    <BackspaceOutlinedIcon/>
+                    <BackspaceOutlined/>
                   </IconButton>
                 </InputAdornment>
               )

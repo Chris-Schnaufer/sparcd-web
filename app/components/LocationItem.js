@@ -30,12 +30,12 @@ export default function LocationItem({shortName,longName,lat,lng,elevation, onTT
   return (
     <React.Fragment>
       <Grid container>
-        <Grid item sm={6} md={6} lg={6}>
+        <Grid sm={6} md={6} lg={6}>
           <Box display="flex" justifyContent="flex-start">
             {shortName}
           </Box>
         </Grid>
-      <Grid item sm={6} md={6} lg={6} zeroMinWidth>
+      <Grid sm={6} md={6} lg={6} zeroMinWidth>
         <Box display="flex" justifyContent="flex-end">
           <Typography variant="body" sx={{ fontSize:'small', overflow:"clip"}}>
             {longName}

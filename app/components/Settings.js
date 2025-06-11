@@ -154,7 +154,7 @@ export default function Settings({curSettings, onChange, onClose}) {
                   spacing={1}
                   sx={{overflowY:'scroll'}}
           >
-            <Grid item key={"setting-dates"} >
+            <Grid key={"setting-dates"} >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -165,7 +165,7 @@ export default function Settings({curSettings, onChange, onClose}) {
                 renderInput={(params) => <TextField {...params} label="Dates" />}
               />
             </Grid>
-            <Grid item key={"setting-time"} >
+            <Grid key={"setting-time"} >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -176,7 +176,7 @@ export default function Settings({curSettings, onChange, onClose}) {
                 renderInput={(params) => <TextField {...params} label="Times" />}
               />
             </Grid>
-            <Grid item key={"setting-measurements"} >
+            <Grid key={"setting-measurements"} >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -187,7 +187,7 @@ export default function Settings({curSettings, onChange, onClose}) {
                 renderInput={(params) => <TextField {...params} label="Measurements" />}
               />
             </Grid>
-            <Grid item key={"setting-options"} >
+            <Grid key={"setting-options"} >
               <FormGroup>
                 <FormControlLabel
                     control={

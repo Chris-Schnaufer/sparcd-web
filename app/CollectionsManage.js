@@ -215,7 +215,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                         <Box sx={{border:"1px solid black", width:"100%", minHeight:'3em', maxHeight:'3em', overflow:"scroll"}} >
                           {item.uploads.map((uploadItem, uploadIdx) =>
                               <Grid container key={'upload-'+uploadItem.name+'-'+uploadIdx} direction="column" spacing={1}>
-                                <Grid item>
+                                <Grid>
                                   <Typography variant="body" sx={{padding:"0 5px"}}>
                                     {uploadItem.name}
                                   </Typography>
@@ -224,7 +224,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                           )}
                         </Box>
 
-                          <Grid item>
+                          <Grid>
                             <Typography variant="body">
                               {item.email}
                             </Typography>
@@ -249,12 +249,12 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                 sx={{minWidth:'100%', backgroundColor:'#D2E1DB', '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
             <CardHeader title={
                               <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                                <Grid item>
+                                <Grid>
                                   <Typography gutterBottom variant="h6" component="h4" noWrap="true">
                                     {item.name}
                                   </Typography>
                                 </Grid>
-                                <Grid item sx={{marginLeft:'auto'}}>
+                                <Grid sx={{marginLeft:'auto'}}>
                                   <Tooltip title="Edit this upload">
                                     <IconButton aria-label="Edit this upload" onClick={() => onEditUpload(curCollection.id, item.key, "Collections")}>
                                       <BorderColorOutlinedIcon fontSize="small"/>
@@ -280,17 +280,17 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                 </AccordionSummary>
                 <AccordionDetails sx={{backgroundColor:'#BBCFC8'}}>
                   <Grid container id={'collection-upload-'+item.name} direction="column" alignItems="start" justifyContent="start">
-                    <Grid item sx={{padding:'5px 0'}}>
+                    <Grid sx={{padding:'5px 0'}}>
                       <Typography variant="body2">
                         {item.imagesCount + '/' + item.imagesWithSpeciesCount + 'images tagged with species'}
                       </Typography>
                     </Grid>
-                    <Grid item sx={{padding:'5px 0'}}>
+                    <Grid sx={{padding:'5px 0'}}>
                       <Typography variant="body2">
                         {item.description}
                       </Typography>
                     </Grid>
-                    <Grid item>
+                    <Grid>
                       <Typography variant="body2" sx={{fontWeight:'500'}}>
                         Edits
                       </Typography>
@@ -323,7 +323,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                      margin: '0px'}}
         >
         { collectionsItems && collectionsItems.map((item, idx) =>
-          <Grid item key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
+          <Grid key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
                         sx={{minWidth:'400px', maxWidth:'400px', backgroundColor:'rgba(206,223,205,0.7)',
@@ -333,28 +333,28 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                     >
                       <CardContent>
                         <Grid container direction="column" spacing={1}>
-                          <Grid item>
+                          <Grid>
                             <Typography variant='body' sx={{fontSize:'larger', fontWeight:(selectionIndex === idx ? 'bold' : 'normal')}}>
                               {item.name}
                             </Typography>
                           </Grid>
-                          <Grid item>
+                          <Grid>
                             <Typography variant="body">
                               {item.organization}
                             </Typography>
                           </Grid>
-                          <Grid item>
+                          <Grid>
                             <Typography variant="body" sx={{whiteSpace:"pre-wrap"}} >
                               {item.description}
                             </Typography>
                           </Grid>
-                          <Grid item>
+                          <Grid>
                             <Typography variant="body">
                               Uploads - {item.uploads.length}
                             </Typography>
                           </Grid>
                           { item.uploads.length > 0 &&
-                            <Grid item>
+                            <Grid>
                               <Typography variant="body">
                                 Last upload: {getLastUploadDate(item.last_upload_ts)}
                               </Typography>

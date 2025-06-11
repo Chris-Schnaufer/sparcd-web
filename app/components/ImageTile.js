@@ -59,10 +59,10 @@ export default function ImageTile({name, species, onClick}) {
       >
         <CardContent>
           <Grid container spacing={1}>
-            <Grid item>
+            <Grid>
               {generateImageSvg(haveSpecies ? 'grey':undefined, haveSpecies ? '#68AB68':undefined)}
             </Grid>
-            <Grid item>
+            <Grid>
               <Box>
                 <Typography variant="body" sx={{textTransform:'uppercase'}}>
                   {name}

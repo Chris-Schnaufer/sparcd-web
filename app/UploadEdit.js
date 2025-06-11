@@ -470,13 +470,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         curUpload.images.map((item) => {
           let imageSpecies = item.species && item.species.length > 0;
           return (
-            <Grid item size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
+            <Grid size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
               <ImageTile name={item.name} species={item.species} onClick={() => clickHandler(item.name)} />
             </Grid>
           )}
         )
         :
-          <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+          <Grid size={{ xs: 12, sm: 12, md:12 }}>
             <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
               <Typography variant="body" sx={{ color: 'text.secondary' }}>
                 No images are available
@@ -505,7 +505,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' rows='1' 
           style={{ ...theme.palette.top_sidebar, 'top':curStart+'px', 'minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px',
                    'position':'sticky', 'left':workplaceStartX, 'verticalAlignment':'middle', 'visibility':topbarVisiblity }} >
-        <Grid item>
+        <Grid>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
             {curUpload.name}
           </Typography>
@@ -531,7 +531,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'maxWidth':workspaceWidth,
                        'width':workspaceWidth, 
                        'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
-          <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+          <Grid size={{ xs: 12, sm: 12, md:12 }}>
             {generateImageTiles(handleEditingImage)}
           </Grid>
         </Grid>
@@ -544,7 +544,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'top':(curStart)+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
-          <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+          <Grid size={{ xs: 12, sm: 12, md:12 }}>
             <ImageEdit id={navigationRedraw}
                        url={curImageEdit.url}
                        name={curImageEdit.name}
@@ -568,7 +568,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                         'top':(curStart+sidebarHeightTop)+'px',
                          'left':workplaceStartX+'px','minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px', 'width':workspaceWidth+'px',
                          'position':'absolute'}}>
-              <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+              <Grid size={{ xs: 12, sm: 12, md:12 }}>
                 <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={curUploadLocation} 
                                    onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
                                    dataTT={tooltipData} onContinue={onLocationContinue}
@@ -584,7 +584,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'top':curStart+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
-              <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+              <Grid size={{ xs: 12, sm: 12, md:12 }}>
                 <ImageEdit url={speciesItems.find((item)=>item.name===speciesZoomName).speciesIconURL} name={speciesZoomName}
                            parentX={workplaceStartX} parentId='image-edit-species-image'
                            maxWidth={workspaceWidth-40} maxHeight={curHeight-40} onClose={() => setSpeciesZoomName(null)}
@@ -601,7 +601,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'top':curStart+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
-              <Grid item size={{ xs: 12, sm: 12, md:12 }}>
+              <Grid size={{ xs: 12, sm: 12, md:12 }}>
                 <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
                                 name={speciesKeybindName}
                                 parentId='image-edit-species-image'

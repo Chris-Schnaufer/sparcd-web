@@ -5,7 +5,7 @@
 import * as React from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Grid from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
@@ -101,7 +101,7 @@ export default function Landing({loadingCollections, onUserAction, onSandboxUpda
           justifyContent="center"
           sx={{ minHeight: '100vh' }}
         >
-          <Grid item="true" xs={3}>
+          <Grid xs={3}>
             <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
           </Grid>
         </Grid>
