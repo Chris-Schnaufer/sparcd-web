@@ -329,7 +329,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                         sx={{minWidth:'400px', maxWidth:'400px', backgroundColor:'rgba(206,223,205,0.7)',
                              '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
                     <CardActionArea data-active={selectionIndex === idx ? '' : undefined}
-                      sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(0, 0, 0, 0.40)'} }}
+                      sx={{height: '100%',  '&[data-active]': {backgroundColor:'rgba(0, 0, 0, 0.23)'} }}
                     >
                       <CardContent>
                         <Grid container direction="column" spacing={1}>
