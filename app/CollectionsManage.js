@@ -245,7 +245,8 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
             
       >
         { curCollection && curCollection.uploads.map((item, idx) =>
-          <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" sx={{minWidth:'100%', '&:hover':{backgroundColor:theme.palette.action.active} }}>
+          <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" 
+                sx={{minWidth:'100%', backgroundColor:'#D2E1DB', '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
             <CardHeader title={
                               <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                                 <Grid item>
@@ -266,7 +267,8 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
             />
             <CardContent sx={{paddingTop:'0px'}}>
               <Accordion expanded={expandedUpload === 'upload-details-'+item.name}
-                         onChange={handleExpandedChange('upload-details-'+item.name)}>
+                         onChange={handleExpandedChange('upload-details-'+item.name)}
+                         sx={{backgroundColor:'#BBCFC8'}}>
                 <AccordionSummary
                   id={'summary-'+item.name}
                   expandIcon={<ExpandMoreIcon />}
@@ -276,7 +278,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                     Advanced details
                   </Typography>
                 </AccordionSummary>
-                <AccordionDetails sx={{backgroundColor:'darkgrey'}}>
+                <AccordionDetails sx={{backgroundColor:'#BBCFC8'}}>
                   <Grid container id={'collection-upload-'+item.name} direction="column" alignItems="start" justifyContent="start">
                     <Grid item sx={{padding:'5px 0'}}>
                       <Typography variant="body2">
