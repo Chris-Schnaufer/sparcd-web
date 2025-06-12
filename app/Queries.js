@@ -425,8 +425,8 @@ export default function Queries() {
    */
   function generateQueryResults(queryResults) {
     return (
-      <Grid container alignItems="start" justifyContent="start" >
-        <Grid xs={2}  sx={{backgroundColor:"#EAEAEA"}}>
+      <Grid container size="grow" alignItems="start" justifyContent="start">
+        <Grid size={2}  sx={{backgroundColor:"#EAEAEA"}}>
           <Tabs id='testing' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
           { queryResults.tabs.order.map((item, idx) => 
@@ -451,7 +451,7 @@ export default function Queries() {
           }
           </Tabs>
         </Grid>
-        <Grid xs={10} sx={{minHeight:'395px',maxHeight:'395px',overflowX:'scroll',display:'flex'}}>
+        <Grid size={10} sx={{minHeight:'395px',maxHeight:'395px',overflowX:'scroll',display:'flex'}}>
           { queryResults.tabs.order.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 

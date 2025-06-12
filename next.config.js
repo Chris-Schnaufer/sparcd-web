@@ -10,6 +10,13 @@ const nextConfig = {
  
   // Optional: Change the output directory `out` -> `dist`
   // distDir: 'dist',
+
+  // https://github.com/vercel/next.js/issues/21079
+  // Remove this workaround whenever the issue is fixed
+  //images: {
+  //  unoptimized: true,
+  //},
+
 }
 
 module.exports = nextConfig

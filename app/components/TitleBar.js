@@ -76,42 +76,38 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
   return (
     <header id='sparcd-header' className={styles.titlebar} role="banner">
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
-        <Grid container direction="column" spacing={3} sx={{flexGrow:1}}>
-          <Grid size={{xs:12, sm:12, md:12}}>
-            <Grid container direction="row" spacing={3} sx={{flexGrow:1}}>
-              <Grid size={{xs:12, sm:12, md:12}}>
-                <Grid container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
-                    <div
-                      aria-description="Scientific Photo Analysis for Research & Conservation database"
-                      className={styles.titlebar_title}>SPARC&apos;d
-                    </div>
-                    <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
-                </Grid>
-              </Grid>
-              <Grid size={{xs:12, sm:12, md:12}} offset={{xs:'auto', sm:'auto', md:'auto'}} sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
-                <Grid container direction="row">
-                  { search_title &&
-                    <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
-                              onKeyPress={handleSearchChange}
-                              slotProps={{
-                                input: {
-                                  endAdornment:
-                                    <InputAdornment position="end">
-                                      <IconButton
-                                        aria-label="description for action"
-                                        onClick={clickHandler}
-                                      >
-                                        <SearchOutlinedIcon />
-                                      </IconButton>
-                                    </InputAdornment>
-                                },
-                              }}
-                   />
-                  }
-                  <IconButton onClick={() => setShowSettings(true)}>
-                    <MenuOutlinedIcon />
-                  </IconButton>
-                </Grid>
+        <Grid id='sparcd-header-items' container direction="column" spacing={0} sx={{flexGrow:1}}>
+          <Grid id='sparcd-header-image-wrapper' container direction="row" spacing={3} sx={{flexGrow:1}}>
+            <Grid id='sparcd-header-image-link' size="grow" container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
+                <div
+                  aria-description="Scientific Photo Analysis for Research & Conservation database"
+                  className={styles.titlebar_title}>SPARC&apos;d
+                </div>
+                <img id="sparcd-logo" src="/sparcd.png" alt="SPARC'd Logo" className={styles.titlebar_icon}/>
+            </Grid>
+            <Grid id='sparcd-header-search-wrapper' sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
+              <Grid id='sparcd-header-search' container direction="row">
+                { search_title &&
+                  <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
+                            onKeyPress={handleSearchChange}
+                            slotProps={{
+                              input: {
+                                endAdornment:
+                                  <InputAdornment position="end">
+                                    <IconButton
+                                      aria-label="description for action"
+                                      onClick={clickHandler}
+                                    >
+                                      <SearchOutlinedIcon />
+                                    </IconButton>
+                                  </InputAdornment>
+                              },
+                            }}
+                 />
+                }
+                <IconButton onClick={() => setShowSettings(true)}>
+                  <MenuOutlinedIcon />
+                </IconButton>
               </Grid>
             </Grid>
           </Grid>

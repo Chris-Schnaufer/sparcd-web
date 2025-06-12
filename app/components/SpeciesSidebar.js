@@ -19,14 +19,14 @@ import SpeciesSidebarItem from './SpeciesSidebarItem'
  */
 export default function SpeciesSidebar({species, position, speciesSidebarRef, workingDim, topX, onKeybind, onZoom}) {
   const theme = useTheme();
-  let sidebarPositionalAttributes = {direction:'row'};
+  let sidebarPositionalAttributes = {direction:'column'};
   let sidebarStyleAttributes = Object.assign({},
                                 {'minHeight':workingDim, 'maxHeight':workingDim, 'height':workingDim},
                                 theme.palette.species_left_sidebar);
   let speciesSidebarItemAttributes = {};
 
   if (position === 'top') {
-    sidebarPositionalAttributes = {direction:'column'};
+    sidebarPositionalAttributes = {direction:'row'};
     sidebarStyleAttributes = Object.assign({}, 
                                 {'minWidth':workingDim, 'maxWidth':workingDim, 'width':workingDim},
                                 theme.palette.species_top_sidebar);
@@ -34,13 +34,15 @@ export default function SpeciesSidebar({species, position, speciesSidebarRef, wo
   }
 
   return (
-    <Grid id='species-sidebar' ref={speciesSidebarRef} container alignItems='stretch' columns='1' {...sidebarPositionalAttributes}
-        style={{ ...sidebarStyleAttributes, 'position':'absolute', 'overflow':'scroll', 'top':topX+'px' }} >
+    <div style={{ ...sidebarStyleAttributes, 'position':'absolute', 'overflow':'scroll', 'top':topX+'px' }} >
+    <Grid id='species-sidebar' ref={speciesSidebarRef} container alignItems='stretch' {...sidebarPositionalAttributes}
+        >
       { species.map((item) => <SpeciesSidebarItem id={'card-' + item.name}  species={item} key={item.name} {...speciesSidebarItemAttributes}
                                                   onKeybindClick={(event) => onKeybind(event, item)}
                                                   onZoomClick={(event) => onZoom(event, item)}
                               />)
       }
     </Grid>
+    </div>
   );
 }

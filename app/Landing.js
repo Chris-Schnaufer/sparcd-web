@@ -101,7 +101,7 @@ export default function Landing({loadingCollections, onUserAction, onSandboxUpda
           justifyContent="center"
           sx={{ minHeight: '100vh' }}
         >
-          <Grid xs={3}>
+          <Grid size={{xs:3}}>
             <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
           </Grid>
         </Grid>

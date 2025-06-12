@@ -238,14 +238,14 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const curCollection = collectionsItems && curSelectionIndex >= 0 ? collectionsItems[curSelectionIndex] : {uploads: []};
   return (
     <Box id='image-edit-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative' }} >
-      <div style={{position:'absolute', top:'0px', width:'40vw', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
+      <div style={{position:'absolute', top:'0px', height:curHeight, minHeight:curHeight, maxHeight:curHeight, right:'-0',
                    backgroundColor:'white', borderLeft:'1px solid grey', overflow:'scroll'}}
       >
       <Grid id='collection-workspace-details' ref={sidebarRef} container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
-            
+            sx={{minWidth:'440px', maxWidth:'440px'}}
       >
         { curCollection && curCollection.uploads.map((item, idx) =>
-          <Card id={"collection-upload-"+name} key={'collection-'+idx} variant="outlined" 
+          <Card id={"collection-upload-"+item.name} key={'collection-'+idx} variant="outlined" 
                 sx={{minWidth:'100%', backgroundColor:'#D2E1DB', '&:hover':{backgroundColor:'rgba(0, 0, 0, 0.25)'} }}>
             <CardHeader title={
                               <Grid id="collection-card-header-wrapper" container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
@@ -315,15 +315,15 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
             rowSpacing={1}
             style={{ position:'absolute',
                      top: '0px',
+                     maxHeight:curHeight,
                      maxWidth:workspaceWidth + 'px',
                      minWidth:workspaceWidth + 'px',
-                     maxHeight:curHeight,
                      paddingTop: '10px',
                      overflow:'scroll',
                      margin: '0px'}}
         >
         { collectionsItems && collectionsItems.map((item, idx) =>
-          <Grid key={'collection-'+item.name} size={{ xs: 12, sm: 12, md:12 }} >
+          <Grid key={'collection-'+item.name} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
                         sx={{minWidth:'400px', maxWidth:'400px', backgroundColor:'rgba(206,223,205,0.7)',

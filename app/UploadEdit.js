@@ -544,7 +544,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'top':(curStart)+'px', 
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
-          <Grid size={{ xs: 12, sm: 12, md:12 }}>
+          <Grid >
             <ImageEdit id={navigationRedraw}
                        url={curImageEdit.url}
                        name={curImageEdit.name}

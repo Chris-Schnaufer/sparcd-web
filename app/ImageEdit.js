@@ -50,7 +50,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   const [showAdjustments, setShowAdjustments] = React.useState(false);  // Show image brightness, etc
   const [saturation, setSaturation] = React.useState(100);              // Image saturation
   const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Forces redraw due to species change
-  const [imageId, setImageId] =  React.useState('image-edit-image-'+Math.random()); // Unique image ID
+  const [imageId, setImageId] =  React.useState('image-edit-image-'+crypto.randomUUID()); // Unique image ID
 
   const brightnessRange = {'default':100, 'min':0, 'max':200};
   const contrastRange = {'default':100, 'min':0, 'max':200};
@@ -252,16 +252,16 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
                     }}
         >
           <Grid container direction="row" alignItems="start" justifyContent="start" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative'}}>
+            <Grid size={{ xs: 4, sm: 4, md:4 }} sx={{position:'relative'}}>
               <ImageAdjustments isVisible={!!adjustments} onBrightnessChange={adjustBrightness} 
                                 onContrastChange={adjustContrast} onHueChange={adjustHue} onSaturationChange={adjustSaturation} />
             </Grid>
-            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
-              <Typography variant="body" sx={{textTransform:'uppercase',color:'grey','&:hover':{color:'white'} }}>
+            <Grid container alignItems="center" justifyContent="center" size={{ xs: 4, sm: 4, md:4 }} sx={{marginLeft:'auto', cursor:'default'}}>
+              <Typography variant="body" sx={{textTransform:'uppercase',color:'grey',textShadow:'1px 1px black','&:hover':{color:'white'} }}>
                 {name}
               </Typography>
             </Grid>
-            <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{marginLeft:'auto', cursor:'default'}}>
+            <Grid container alignItems="right" justifyContent="right" size={{ xs: 4, sm: 4, md:4 }} style={{marginLeft:'auto', cursor:'default'}}>
               <div id="image-edit-close" sx={{height:'20px', flex:'1'}} onClick={() => onClose()}>
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}
@@ -273,11 +273,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           </Grid>
           { navigation ?
             <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-              <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginRight:'auto'}}>
+              <Grid size="grow" sx={{position:'relative', marginRight:'auto'}}>
                 <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.onPrev()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
-              <Grid size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
+              <Grid container alignItems="right" justifyContent="right" size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
                 <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.onNext()}
                           sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
