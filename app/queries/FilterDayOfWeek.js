@@ -69,7 +69,7 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
     if (!data) {
       onChange(selectedDays);
     }
-  }, [selectedDays]);
+  }, [data, onChange, selectedDays]);
 
   /**
    * Handles selecting all the day of the week choices
@@ -128,7 +128,7 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid item sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>

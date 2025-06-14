@@ -88,7 +88,7 @@ export default function Queries() {
 
         // Calculate the filter panel size
         if (filterRef && filterRef.current) {
-          filterHeight = filterRef.current.offsetHeight;
+          let filterHeight = filterRef.current.offsetHeight;
           setFilterHeight(filterHeight);
         }
       }

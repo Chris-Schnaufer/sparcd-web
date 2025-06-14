@@ -10,8 +10,11 @@
 export function getServer() {
   let curUrl = '';
   if (typeof window !== "undefined") {
-    curUrl = window.location.origin;
-    curUrl = 'http://127.0.0.1:5000'  // TODO:
+    // Conditional upon what version we're running
+    if (process.env.NODE_ENV === 'development')
+      curUrl = 'http://127.0.0.1:5000'
+    else
+      curUrl = window.location.origin;
   }
 
   // modify as needed
@@ -30,7 +33,7 @@ export function getServer() {
  * @return {string} Returns the padded string
  */
 export function pad(value, length, padding, left) {
-  if (value == null || length === null) {
+  if (value === null || length === null) {
     return '';
   }
 

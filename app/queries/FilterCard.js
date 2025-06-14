@@ -28,12 +28,12 @@ export default function FilterCard({title, onClose, actions, children}) {
     <Card id="filter-content" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
       <CardHeader title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
-                      <Grid item>
+                      <Grid>
                         <Typography gutterBottom variant="h6" component="h4" noWrap="true">
                           {title}
                         </Typography>
                       </Grid>
-                      <Grid item sx={{marginLeft:'auto'}} >
+                      <Grid sx={{marginLeft:'auto'}} >
                         <div onClick={onClose}>
                           <Tooltip title="Delete this filter">
                             <Typography gutterBottom variant="body2" noWrap="true"

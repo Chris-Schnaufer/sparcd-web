@@ -30,7 +30,7 @@ import * as utils from './utils'
  */
 export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const theme = useTheme();
-  const editingStates = {'none':0, 'listImages':2, 'editImage': 3}; // Different states of this page
+  const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
   const sidebarSpeciesRef = React.useRef();  // Used for sizeing
   const sidebarTopRef = React.useRef();   // Used for sizeing
   const curUpload = React.useContext(UploadEditContext);
@@ -69,13 +69,71 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
 
+  /**
+   * Calculates the total available height for the workspace
+   * @function
+   * @param {object} curSize The working height and width of the window
+   */
+  const calcTotalHeight = React.useCallback((curSize) => {
+    const elHeader = document.getElementById('sparcd-header');
+    const elFooter = document.getElementById('sparcd-footer');
+    const elHeaderSize = elHeader.getBoundingClientRect();
+    const elFooterSize = elFooter.getBoundingClientRect();
+
+    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height);
+
+    setTotalHeight(maxHeight);
+    setWorkingTop(elHeaderSize.height);
+
+    // Get the top sidebar and add in the species sidebar if it's on top as wel;l
+    const elTopSidebar = document.getElementById('top-sidebar');
+    if (elTopSidebar) {
+      const elTopSidebarSize = elTopSidebar.getBoundingClientRect();
+      setSidebarHeightTop(elTopSidebarSize.height);
+    } else {
+      setSidebarHeightTop(0);
+    }
+
+    const elSpeciesSidebar = document.getElementById('species-sidebar');
+    if (elSpeciesSidebar) {
+      const elSpeciesSidebarSize = elSpeciesSidebar.getBoundingClientRect();
+      if (narrowWindow) {
+        setSidebarHeightSpecies(elSpeciesSidebarSize.height);
+        setSidebarWidthLeft(0);
+      } else {
+        setSidebarHeightSpecies(0);
+        setSidebarWidthLeft(elSpeciesSidebarSize.width);
+      }
+    }
+  }, [narrowWindow])
+
+  /**
+   * Common add a species to the current image function
+   * @function
+   * @param {object} speciesAdd The species to add to the image
+   */
+  const handleSpeciesAdd = React.useCallback((speciesAdd) => {
+    const haveSpeciesIdx = curImageEdit.species.findIndex((item) => item.name === speciesAdd.name);
+    if (haveSpeciesIdx > -1) {
+      curImageEdit.species[haveSpeciesIdx].count = parseInt(curImageEdit.species[haveSpeciesIdx].count) + 1;
+      window.setTimeout(() => {
+        setSpeciesRedraw(curImageEdit.name+curImageEdit.species[haveSpeciesIdx].name+curImageEdit.species[haveSpeciesIdx].count);
+      }, 100);
+    } else {
+      curImageEdit.species.push({name:speciesAdd.name,count:1});
+      window.setTimeout(() => {
+        setSpeciesRedraw(curImageEdit.name+speciesAdd.name+'1');
+      }, 100);
+    }
+  }, [curImageEdit])
+
   // Render time width and height measurements
   React.useLayoutEffect(() => {
     const newSize = {'width':window.innerWidth,'height':window.innerHeight};
     setWorkspaceWidth(newSize.width - (narrowWindow ? 0 : 150));
     setWindowSize(newSize);
     calcTotalHeight(newSize);
-  }, [narrowWindow])
+  }, [narrowWindow, calcTotalHeight])
 
   // Measurements when resizing the window
   React.useLayoutEffect(() => {
@@ -115,7 +173,30 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, [narrowWindow]);
+  }, [narrowWindow, calcTotalHeight]);
+
+  /**
+   * Updates the server with a new location for the upload
+   * @function
+   * @param {object} event The current event
+   */
+  const onLocationContinue = React.useCallback((event) => {
+    const locEl = document.getElementById('upload-edit-location');
+    const uploadLocationUrl = serverURL + '/uploadLocation';
+    // TODO: save new location on server
+    /* TODO: make call and wait for response & return correct result
+             need to handle null, 'invalid', and token values
+    const resp = await fetch(uploadLocationUrl, {
+      'method': 'POST',
+      'data': formData
+    });
+    console.log(resp);
+    */
+    curUpload.location = locEl.value;
+    setCurEditState(editingStates.listImages);
+    setEditingLocation(false);
+    searchSetup('Image Name', handleImageSearch);
+  }, [curUpload, editingStates.listImages, handleImageSearch, searchSetup, serverURL])
 
   // Adding drag-and-drop starting attributes to species elements
   React.useLayoutEffect(() => {
@@ -123,7 +204,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       const el = document.getElementById('card-' + item.name);
       el.addEventListener("dragstart", (ev) => dragstartHandler(ev, item.scientificName));
     });
-  }, []);
+  }, [speciesItems]);
 
   // Handling keypress events when adding a species to an image
   React.useEffect(() => {
@@ -144,34 +225,16 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     return () => {
       document.removeEventListener("keydown", onKeypress);
     }
-  }, [curEditState,curImageEdit]);
+  }, [curEditState,curImageEdit, editingStates, handleSpeciesAdd, speciesItems]);
 
   // Checking if we already have a location for the upload so we skip the initial prompt to assign loc.
   React.useEffect(() => {
     if (curUpload && curUpload.location) {
-      onLocationContinue();
+      setCurEditState(editingStates.listImages);
+      setEditingLocation(false);
+      searchSetup('Image Name', handleImageSearch);
     }
   }, [curUpload]);
-
-  /**
-   * Common add a species to the current image function
-   * @function
-   * @param {object} speciesAdd The species to add to the image
-   */
-  function handleSpeciesAdd(speciesAdd) {
-    const haveSpeciesIdx = curImageEdit.species.findIndex((item) => item.name === speciesAdd.name);
-    if (haveSpeciesIdx > -1) {
-      curImageEdit.species[haveSpeciesIdx].count = parseInt(curImageEdit.species[haveSpeciesIdx].count) + 1;
-      window.setTimeout(() => {
-        setSpeciesRedraw(curImageEdit.name+curImageEdit.species[haveSpeciesIdx].name+curImageEdit.species[haveSpeciesIdx].count);
-      }, 100);
-    } else {
-      curImageEdit.species.push({name:speciesAdd.name,count:1});
-      window.setTimeout(() => {
-        setSpeciesRedraw(curImageEdit.name+speciesAdd.name+'1');
-      }, 100);
-    }
-  }
 
   /**
    * Setting the drag information when drag starts
@@ -183,67 +246,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     // Add the target element's id to the data transfer object
     event.dataTransfer.setData("text/plain", value);
     event.dataTransfer.dropEffect = "copy";
-  }
-
-  /**
-   * Calculates the total available height for the workspace
-   * @function
-   * @param {object} curSize The working height and width of the window
-   */
-  function calcTotalHeight(curSize) {
-    const elHeader = document.getElementById('sparcd-header');
-    const elFooter = document.getElementById('sparcd-footer');
-    const elHeaderSize = elHeader.getBoundingClientRect();
-    const elFooterSize = elFooter.getBoundingClientRect();
-
-    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height);
-
-    setTotalHeight(maxHeight);
-    setWorkingTop(elHeaderSize.height);
-
-    // Get the top sidebar and add in the species sidebar if it's on top as wel;l
-    const elTopSidebar = document.getElementById('top-sidebar');
-    if (elTopSidebar) {
-      const elTopSidebarSize = elTopSidebar.getBoundingClientRect();
-      setSidebarHeightTop(elTopSidebarSize.height);
-    } else {
-      setSidebarHeightTop(0);
-    }
-
-    const elSpeciesSidebar = document.getElementById('species-sidebar');
-    if (elSpeciesSidebar) {
-      const elSpeciesSidebarSize = elSpeciesSidebar.getBoundingClientRect();
-      if (narrowWindow) {
-        setSidebarHeightSpecies(elSpeciesSidebarSize.height);
-        setSidebarWidthLeft(0);
-      } else {
-        setSidebarHeightSpecies(0);
-        setSidebarWidthLeft(elSpeciesSidebarSize.width);
-      }
-    }
-  }
-
-  /**
-   * Updates the server with a new location for the upload
-   * @function
-   * @param {object} event The current event
-   */
-  function onLocationContinue(event) {
-    const locEl = document.getElementById('upload-edit-location');
-    const uploadLocationUrl = serverURL + '/uploadLocation';
-    // TODO: save new location on server
-    /* TODO: make call and wait for response & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(uploadLocationUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
-    curUpload.location = locEl.value;
-    setCurEditState(editingStates.listImages);
-    setEditingLocation(false);
-    searchSetup('Image Name', handleImageSearch);
   }
 
   /**

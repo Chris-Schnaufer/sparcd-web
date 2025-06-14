@@ -213,7 +213,7 @@ export default function Home() {
         setDbRemember(loInfo.remember === 'true');
       }
     }
-  }, [checkedToken, savedTokenFetched, savedLoginFetched]);
+  }, [checkedToken, curLoggedIn, loadCollections, loginUserToken, savedTokenFetched, savedLoginFetched]);
 
   function restoreBreadcrumb(breadcrumb) {
     const curCrumbs = breadcrumbs;
@@ -251,6 +251,7 @@ export default function Home() {
     }
   }
 
+  // For some reason changing this to useCallback() causes the build to fail 
   /**
    * Fetches the collections from the server
    * @function
@@ -277,7 +278,7 @@ export default function Home() {
           console.log('COLLECTIONS',curCollections);
           setCollectionInfo(curCollections);
         })
-        .catch(function(err) {
+        .catch((err) => {
           console.log('Error: ',err);
           setLoadingCollections(false);
       });
@@ -352,6 +353,7 @@ export default function Home() {
     commonLoginUser(formData, onSuccess, onFailure);
   }
 
+  // For some reason changing this to useCallback() causes the build to fail 
   function loginUserToken(token, onSuccess, onFailure) {
     const formData = new FormData();
     formData.append('token', token);
@@ -498,9 +500,11 @@ export default function Home() {
   }
 
   // Get mobile device information if we don't have it yet
-  if (mobileDevice == null && !mobileDeviceChecked) {
-    setMobileDevice(navigator.userAgent.indexOf('Mobi') > -1);
-    setMobileDeviceChecked(true);
+  if (typeof window !== 'undefined') {
+    if (mobileDevice == null && !mobileDeviceChecked) {
+      setMobileDevice(navigator.userAgent.indexOf('Mobi') > -1);
+      setMobileDeviceChecked(true);
+    }
   }
 
   function renderAction(action, editing) {

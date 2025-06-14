@@ -13,7 +13,7 @@
   background-image: url('../public/sanimalBackground.JPG');
   background-origin: border-box;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: cover;
   background-position: center;
 }
 
@@ -60,14 +60,12 @@
 
 @media (max-width: 600px) or (max-height: 670px) {
   .login_background {
-    background-size: 150%;
     height: 87vh;
   }
 }
 
 @media (max-height: 540px) {
   .login_background {
-    background-size: 100%;
     height: 78vh;
   }
 }

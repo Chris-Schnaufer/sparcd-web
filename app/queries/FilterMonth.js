@@ -79,7 +79,7 @@ export default function FilterMonth({data, onClose, onChange}) {
     if (!data) {
       onChange(selectedMonths);
     }
-  }, [selectedMonths]);
+  }, [data, onChange, selectedMonths]);
 
   /**
    * Handle selecting all the filter choices
@@ -138,7 +138,7 @@ export default function FilterMonth({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid item sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>

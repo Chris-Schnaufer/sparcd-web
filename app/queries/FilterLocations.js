@@ -53,7 +53,7 @@ export default function FilterLocations({data, onClose, onChange}) {
     if (!data) {
       onChange(selectedLocations);
     }
-  }, [selectedLocations]);
+  }, [data, onChange, selectedLocations]);
 
   /**
    * Handles selecting all the location choices
@@ -144,7 +144,7 @@ export default function FilterLocations({data, onClose, onChange}) {
                 </React.Fragment>  
                 }
     >
-      <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -157,12 +157,12 @@ export default function FilterLocations({data, onClose, onChange}) {
                                           />} 
                                 label={
                                   <Grid container direction="row" alignItems="center" justifyContent="start" wrap="nowrap" sx={{width:"220px"}}>
-                                    <Grid item wrap="nowrap">
+                                    <Grid wrap="nowrap">
                                       <Typography variant="body2" sx={{fontWeight:'bold'}}>
                                         {item.idProperty}
                                       </Typography>
                                     </Grid>
-                                    <Grid item sx={{marginLeft:"auto"}}>
+                                    <Grid sx={{marginLeft:"auto"}}>
                                       <Typography variant="body2" align="center" sx={{color:'darkgrey'}}>
                                         {item.nameProperty}
                                       </Typography>

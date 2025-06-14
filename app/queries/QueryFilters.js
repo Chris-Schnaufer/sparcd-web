@@ -202,29 +202,29 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                    margin:0, overflowY:'scroll', padding:'5px'}}
         >
           { filters.map((item, idx) => 
-              <Grid item key={"filter-" + item + "-" + idx} >
+              <Grid key={"filter-" + item + "-" + idx} >
                 <Grid container direction="column" alignItems="center" justifyContent="center"
                       sx={{ minHeight:'310px', maxHeight:'310px', minWidth:'310px', maxWidth:'310px', padding:'5px',
                             border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
-                  <Grid item>
+                  <Grid>
                     {generateFilterTile(item)}
                   </Grid>
                 </Grid>
               </Grid>
               ) 
           }
-          <Grid item>
+          <Grid>
             <Grid id="queries-actions" container direction="column" alignItems="center" justifyContent="center"
                   sx={{ position:'relative', minHeight:'310px',minWidth:'250px', border:'solid 1px grey', borderRadius:'10px',
                         backgroundColor:'seashell' }}>
-              <Grid item>
+              <Grid>
                 <Tooltip title="Click to add a new filter">
                   <IconButton onClick={handleNewFilter}>
                     <AddCircleOutlineOutlinedIcon sx={{fontSize: 55, color:'grey'}} />
                   </IconButton>
                 </Tooltip>
               </Grid>
-              <Grid item>
+              <Grid>
                 <Button disabled={filters.length > 0 ? false:true} onClick={onQuery}>Perform Query</Button>
               </Grid>
             </Grid>

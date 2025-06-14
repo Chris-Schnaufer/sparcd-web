@@ -4,6 +4,7 @@
 
 import datetime
 import hashlib
+import io
 import json
 import os
 import sys
@@ -14,12 +15,14 @@ from urllib.parse import urlparse, quote as urlquote
 import uuid
 from cachelib.file import FileSystemCache
 import dateutil.parser
+from PIL import Image
 
 import requests
 from cryptography.fernet import Fernet
 from minio import Minio
 from minio.error import MinioException
-from flask import Flask, abort, request, session, url_for
+from flask import Flask, abort, render_template, request, send_file, send_from_directory, session, \
+                  url_for
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
@@ -31,6 +34,15 @@ from s3_access import S3Connection
 
 # Our prefix
 SPARCD_PREFIX = 'sparcd_'
+
+# Starting point for uploading files from server
+RESOURCE_START_PATH = os.path.abspath(os.path.dirname(__file__))
+
+# Allowed file extensions
+ALLOWED_FILE_EXTENSIONS=['.png','.jpg','.jepg','.ico','.gif','.html','.css','.js','.woff2']
+
+# Allowed image extensions
+ALLOWED_IMAGE_EXTENSIONS=['.png','.jpg','.jpeg','.ico','.gif']
 
 # Environment variable name for database
 ENV_NAME_DB = 'SPARCD_DB'
@@ -66,6 +78,15 @@ TEMP_FILE_MAX_WRITE_TRIES = 7
 TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
 # Uploads table timeout length
 TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
+
+# Environment varriable for where to find the UI
+ENV_NAME_BUILD_FOLDER = 'SPARCD_BUILD'
+# Default path to the UI build
+BUILD_FOLDER_DEFAULT = os.path.join(os.getcwd(), 'out')
+# Working amount of time after last action before session is expired
+WORKING_BUILD_PATH = os.environ.get(ENV_NAME_BUILD_FOLDER, BUILD_FOLDER_DEFAULT)
+# UI definitions for serving
+DEFAULT_TEMPLATE_PAGE = 'index.html'
 
 # List of known query form variable keys
 KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','locations',
@@ -179,7 +200,7 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     if login_info is not None:
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
-           client_ip in (login_info['client_ip'], '*') and \
+           client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
            login_info['user_agent'] == user_agent:
             # Update to the newest timestamp
             db.update_token_timestamp(token)
@@ -423,6 +444,128 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, p
     return loaded_config
 
 
+@app.route('/', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def index():
+    """Default page"""
+    print("RENDERING TEMPLATE",DEFAULT_TEMPLATE_PAGE,os.getcwd(),flush=True)
+    return render_template(DEFAULT_TEMPLATE_PAGE)
+
+
+@app.route('/favicon.ico', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def favicon():
+    """ Return the favicon """
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
+@app.route('/<string:filename>', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sendfile(filename: str):
+    """Return root files"""
+    print("RETURN FILENAME:",filename,flush=True)
+
+    # Check that the file is allowed
+    if not os.path.splitext(filename)[1].lower() in ALLOWED_FILE_EXTENSIONS:
+        return 'Resource not found', 404
+
+    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, filename.lstrip('/')))
+    print("   FILE PATH:", fullpath,flush=True)
+
+    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
+        return 'Resource not found', 404
+
+    return send_file(fullpath)
+
+
+@app.route('/_next/static/<path:path_fagment>', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sendnextfile(path_fagment: str):
+    """Return files"""
+    print("RETURN _next FILENAME:",path_fagment,flush=True)
+
+    # Check that the file is allowed
+    if not os.path.splitext(path_fagment)[1].lower() in ALLOWED_FILE_EXTENSIONS:
+        return 'Resource not found', 404
+
+    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, '_next','static',path_fagment.lstrip('/')))
+    print("   FILE PATH:", fullpath,flush=True)
+
+    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
+        return 'Resource not found', 404
+
+    return send_file(fullpath)
+
+
+@app.route('/_next/image', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sendnextimage():
+    """Return image files"""
+    image_path = request.args.get('url')
+    w_param = request.args.get('w')
+    q_param = request.args.get('q')
+    print("RETURN _next IMAGE:",image_path,flush=True)
+
+    # Normalize parameters
+    if w_param:
+        try:
+            w_param = float(w_param)
+        except ValueError:
+            print('   INVALID width parameters')
+            return 'Resource not found', 404
+    if q_param:
+        try:
+            q_param = int(q_param)
+            # make sure quality parameter has something "reasonable"
+            # See: https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#jpeg
+            if q_param <= 0 or q_param > 100:
+                q_param = 100
+            elif q_param < 5:
+                q_param = 5
+        except ValueError:
+            print('   INVALID quality parameters')
+            return 'Resource not found', 404
+    else:
+        q_param = 100
+
+    image_type = os.path.splitext(image_path)[1][1:].lower()
+
+    # Check that the file is allowed
+    if not '.'+image_type in ALLOWED_IMAGE_EXTENSIONS:
+        return 'Resource not found', 404
+
+    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, image_path.lstrip('/')))
+    print("   FILE PATH:", fullpath,flush=True)
+
+    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
+        return 'Resource not found', 404
+
+    # Check if sending image "as is"
+    if not w_param or w_param <= 1.0:
+        return send_file(fullpath)
+
+    # Resize the image and send it
+    if image_type.lower() == 'jpg':
+        image_type = 'jpeg'
+
+    img = Image.open(fullpath)
+
+    h_param = float(img.size[1]) * (w_param / float(img.size[0]))
+    img = img.resize((round(w_param), round(h_param)), Image.Resampling.LANCZOS)
+
+    imgByteArr = io.BytesIO()
+    img.save(imgByteArr, image_type.upper(), quality=q_param)
+    
+    imgByteArr.seek(0)  # move to the beginning of file after writing
+    
+    return send_file(imgByteArr, mimetype="image/" + image_type.lower())
+
+
+
 @app.route('/login', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def login_token():
@@ -442,7 +585,7 @@ def login_token():
     curtime = None
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    print('LOGIN', request)
+    print('LOGIN', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.remote_addr))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
@@ -538,7 +681,8 @@ def collections():
 
     print(('COLLECTIONS', request), flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.remote_addr))
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
         return "Not Found", 404

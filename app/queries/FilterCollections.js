@@ -52,7 +52,7 @@ export default function FilterCollections({data, onClose, onChange}) {
     if (!data) {
       onChange(selectedCollections);
     }
-  }, [selectedCollections]);
+  }, [data, onChange, selectedCollections]);
 
   /**
    * Handles selecting all collections to the filter
@@ -142,7 +142,7 @@ export default function FilterCollections({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid item sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>

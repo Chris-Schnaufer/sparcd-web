@@ -100,7 +100,7 @@ export default function Settings({curSettings, onChange, onClose}) {
       return () => {
           document.removeEventListener("click", onMouseClick);
       }
-  }, []);
+  });
 
   /**
    * Calculate our sizes and positions

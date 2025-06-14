@@ -62,7 +62,7 @@ export default function FilterElevations({data, onClose, onChange}) {
     if (!data) {
       onChange(selectedElevation);
     }
-  }, [selectedElevation]);
+  }, [data, onChange, selectedElevation]);
 
   /**
    * Handles the selection of a new type of comparison
@@ -110,7 +110,7 @@ export default function FilterElevations({data, onClose, onChange}) {
   // Return the UI for the elevation filter
   return (
     <FilterCard title="Elevation Filter" onClose={onClose} >
-      <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', overflow:'scroll',
                       paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
         <Stack spacing={1}>
@@ -128,13 +128,13 @@ export default function FilterElevations({data, onClose, onChange}) {
           }
           </TextField>
           <Grid container direction="row" alignItems="start" justifyItems="start">
-            <Grid item>
+            <Grid>
               <TextField id="elevation-value" value={selectedElevation.value} label="Elevation" variant="standard" 
                          onChange={handleElevationChange}
                          slotProps={{htmlInput: {style: {maxWidth:"130px"}} }}
               />
             </Grid>
-            <Grid item sx={{marginLeft:'auto'}}>
+            <Grid sx={{marginLeft:'auto'}}>
               <TextField id="elevation-value-units" select label="Units" defaultValue={selectedElevation.units}
                          onChange={handleChangeUnits}
               >

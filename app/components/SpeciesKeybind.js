@@ -40,7 +40,7 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, []);
+  }, [parentId]);
 
   // Captures the keypresses
   React.useEffect(() => {

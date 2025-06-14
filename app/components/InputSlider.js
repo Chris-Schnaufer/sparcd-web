@@ -63,12 +63,12 @@ export default function InputSlider({label, onChange}) {
   return (
     <Box sx={{ width: 300 }}>
       <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-        <Grid xs>
+        <Grid>
           <Typography id="input-slider" gutterBottom>
             {label}
           </Typography>
         </Grid>
-        <Grid xs>
+        <Grid>
           <Slider
             value={typeof value === 'number' ? value : 0}
             onChange={handleSliderChange}

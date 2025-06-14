@@ -7,11 +7,13 @@ FROM node:current-alpine as build
 
 WORKDIR /buildsite
 
+# Install needed tools (won't have an impact if everything is all set)
+RUN apk add npm nodejs
+RUN npm update -g npm
+
 # Install the package dependencies
 COPY ./package.json ./
-COPY ./package-lock.json ./
 
-RUN npm update -g npm
 RUN npm install
 
 # Copy other files where we want them
@@ -40,14 +42,18 @@ ARG ADMIN_NAME=admin
 ARG ADMIN_EMAIL=admin@arizona.edu
 
 # Copy over the built website
-COPY --from=build /buildsite/* ./
+COPY --from=build /buildsite/out ./
 
-RUN apk add python3 py-pip gdal
+# Copy the source code over
+COPY ./server/* ./
+
+# Install python stuff
+COPY ./requirements.txt ./
+RUN apk add python3 py-pip
+RUN apk add gdal-dev
 RUN apk add python3-dev && \
     apk add gcc g++ && \
-    apk add gdal-dev && \
     python3 -m pip install --upgrade --no-cache-dir -r requirements.txt --break-system-packages && \
-    apk del gdal-dev && \
     apk del gcc g++ && \
     apk del python3-dev
 
@@ -64,4 +70,4 @@ ENV SERVER_DIR=${WORKDIR} \
     SPARCD_CODE=${SECRET_KEY} \
     SPARCD_DB=${WORKDIR}/sparcd.sqlite 
 
-ENTRYPOINT gunicorn -w 4 -b ${WEB_SITE_URL} --access-logfile '-' sparcd:app --timeout 18000
+ENTRYPOINT gunicorn -w 4 -b ${WEB_SITE_URL} --env SPARCD_DB=${SPARCD_DB} --env SPARCD_CODE=${SPARCD_CODE} --access-logfile '-' sparcd:app --timeout 18000

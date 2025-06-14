@@ -64,7 +64,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, []);
+  }, [workspaceWidth]);
 
   /**
    * Handler for when the user's selection changes and prevents default behavior

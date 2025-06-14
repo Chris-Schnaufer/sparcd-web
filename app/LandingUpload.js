@@ -108,7 +108,7 @@ export default function LandingUpload({setUploadInfo, onChange}) {
   React.useEffect(() => {
       function handleUploadInfo() {setUploadInfo(sandboxItems);};
       handleUploadInfo();
-    },[]);
+    }, [sandboxItems, setUploadInfo]);
 
   // Render the UI
   return (

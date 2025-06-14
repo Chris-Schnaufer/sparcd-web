@@ -47,21 +47,20 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
 
   const handleCollectionSearch = searchCollections.bind(CollectionsManage);
 
-  console.log(theme);
-
   // Setup search
   React.useEffect(() => {
     searchSetup('Collection Name', handleCollectionSearch);
 
     return () => searchSetup();
-  }, []);
+  });
 
   // Initialize collections information
   React.useEffect(() => {
     if (collectionsItems && selectedCollection && (selectionIndex == -1 || selectionIndex >= collectionsItems.length)) {
+      console.log('HACK:SETTING SELECTION INDEX');
       setSelectionIndex(collectionsItems.findIndex((item) => item.name === selectedCollection));
     }
-  }, [selectionIndex, collectionsItems]);
+  }, [collectionsItems, selectedCollection, selectionIndex, setSelectionIndex]);
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {

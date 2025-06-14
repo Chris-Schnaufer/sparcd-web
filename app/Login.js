@@ -41,7 +41,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
     if (prev_remember !== rememberChecked) {
       setRememberChecked(prev_remember);
     }
-  }, [prev_url, prev_user, prev_remember]);
+  }, [prev_url, prev_user, prev_remember, rememberChecked]);
 
   /**
    * Handler that toggles the show password state

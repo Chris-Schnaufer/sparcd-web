@@ -61,9 +61,22 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   let curSpecies = species != undefined ? species : [];
 
   // Binding functions
-  getImageSize = getImageSize.bind(ImageEdit);
   handleInputChange = handleInputChange.bind(ImageEdit);
   handleBlur = handleBlur.bind(ImageEdit);
+
+  /**
+   * Sets the image size based upon the rendered image
+   * @function
+   */
+  const getImageSize = React.useCallback(() => {
+    const el = document.getElementById(imageId);
+    if (!el) {
+      setImageSize({width:40,height:40,top:0,left:0,right:40});
+    } else {
+      const elSize = el.getBoundingClientRect();
+      setImageSize({'left':elSize.left, 'top':elSize.top, 'width':elSize.width, 'height':elSize.height, 'right':elSize.right });
+    }
+  }, [imageId])
 
   // Window resize handler
   React.useLayoutEffect(() => {
@@ -76,7 +89,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, []);
+  }, [getImageSize]);
 
   /**
    * Handle when a draggable object is dragged over
@@ -158,20 +171,6 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
    */
   function adjustSaturation(value) {
     setSaturation((saturationRange.max-saturationRange.min) * (value / 100.0));
-  }
-
-  /**
-   * Sets the image size based upon the rendered image
-   * @function
-   */
-  function getImageSize() {
-    const el = document.getElementById(imageId);
-    if (!el) {
-      setImageSize({width:40,height:40,top:0,left:0,right:40});
-    } else {
-      const elSize = el.getBoundingClientRect();
-      setImageSize({'left':elSize.left, 'top':elSize.top, 'width':elSize.width, 'height':elSize.height, 'right':elSize.right });
-    }
   }
 
   /**

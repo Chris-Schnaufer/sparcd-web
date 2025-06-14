@@ -44,7 +44,7 @@ export default function FilterDate({title, data, onClose, onChange}) {
     if (!data) {
       onChange(selectedDateTime);
     }
-  }, [selectedDateTime]);
+  }, [data, onChange, selectedDateTime]);
 
   /**
    * Handles when the date or time is changed
@@ -59,7 +59,7 @@ export default function FilterDate({title, data, onClose, onChange}) {
   // Return the rendered UI
   return (
     <FilterCard title={title} onClose={onClose} >
-      <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',
+      <Grid sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',
                       overflowX:'clip', overflowY:'scroll', paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>

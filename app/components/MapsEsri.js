@@ -35,59 +35,11 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
   const locationItems = React.useContext(LocationsInfoContext);
   const [layerCollection, setLayerCollection] = React.useState(null); // The array of layers to display
 
-  // When the map div is available, setup the map
-  React.useLayoutEffect(() => {
-    const mapEl = document.getElementById('viewDiv');
-    if (mapEl) {
-      const layers = getLocationLayer();                      // Displayed layers
-      const map = new Map({basemap:mapName, layers:layers});  // Create the map of desired ty[e]
-
-      // Get the value of the selected map for initial choice on map chooser
-      const curMapName = mapChoices.find((item) => item.config.mapName === mapName);
-      const curMapValue = curMapName ? curMapName.value : mapChoices[0].value;
-
-      // Get the names of the maps and create the display control
-      const collectionNames = mapChoices.map((item) => {return {label:item.name, value:item.value};});
-      const valuePicker = new ValuePicker({
-        visibleElements: {
-          nextButton: false,
-          playButton: false,
-          previousButton: false
-        },
-        component: {
-          type: "combobox", // autocasts to ValuePickerCombobox
-          placeholder: "Map Type",
-          items: collectionNames
-        },
-        values: [curMapValue],
-        visible: true
-      });
-
-      // Add a watcher for when the map choice changes
-      reactiveUtils.watch(
-        () => valuePicker.values,
-        (values) => onChange(values[0])
-      );
-
-      // Create the view onto the map
-      const view = new MapView({
-        map: map,
-        container: 'viewDiv',
-        center: center,
-        zoom: 7
-      });
-
-      // Add the map picker to the display
-      view.ui.add(valuePicker, "top-right");
-
-    }
-  } ,[mapName]);
-
   /**
    * Generates the locations layer for display
    * @function
    */
-  function getLocationLayer() {
+  const getLocationLayer = React.useCallback(() => {
     let curCollection = layerCollection || [];
     if (!layerCollection) {
       let features = locationItems.map((item, idx) => 
@@ -144,7 +96,55 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
     }
 
     return curCollection;
-  }
+  }, [layerCollection, locationItems])
+
+  // When the map div is available, setup the map
+  React.useLayoutEffect(() => {
+    const mapEl = document.getElementById('viewDiv');
+    if (mapEl) {
+      const layers = getLocationLayer();                      // Displayed layers
+      const map = new Map({basemap:mapName, layers:layers});  // Create the map of desired ty[e]
+
+      // Get the value of the selected map for initial choice on map chooser
+      const curMapName = mapChoices.find((item) => item.config.mapName === mapName);
+      const curMapValue = curMapName ? curMapName.value : mapChoices[0].value;
+
+      // Get the names of the maps and create the display control
+      const collectionNames = mapChoices.map((item) => {return {label:item.name, value:item.value};});
+      const valuePicker = new ValuePicker({
+        visibleElements: {
+          nextButton: false,
+          playButton: false,
+          previousButton: false
+        },
+        component: {
+          type: "combobox", // autocasts to ValuePickerCombobox
+          placeholder: "Map Type",
+          items: collectionNames
+        },
+        values: [curMapValue],
+        visible: true
+      });
+
+      // Add a watcher for when the map choice changes
+      reactiveUtils.watch(
+        () => valuePicker.values,
+        (values) => onChange(values[0])
+      );
+
+      // Create the view onto the map
+      const view = new MapView({
+        map: map,
+        container: 'viewDiv',
+        center: center,
+        zoom: 7
+      });
+
+      // Add the map picker to the display
+      view.ui.add(valuePicker, "top-right");
+
+    }
+  } ,[center, getLocationLayer, mapChoices, mapName, onChange]);
 
   /**
    * Handles the popover for locations

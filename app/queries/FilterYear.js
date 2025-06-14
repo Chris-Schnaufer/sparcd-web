@@ -52,7 +52,7 @@ export default function FilterYear({data, onClose, onChange}) {
     if (!data) {
       onChange({start:selectedYearStart, end:selectedYearEnd});
     }
-  }, [selectedYearStart,selectedYearEnd]);
+  }, [data, onChange, selectedYearStart, selectedYearEnd]);
 
   /**
    * Handles the starting year changing
@@ -89,7 +89,7 @@ export default function FilterYear({data, onClose, onChange}) {
   // Return the UI for filtering by year
   return (
     <FilterCard title="Year Filter" onClose={onClose} >
-      <Grid item sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',
+      <Grid sx={{minHeight:'230px', maxHeight:'230px', height:'230px', minWidth:'250px', maxWidth:'250px',
                       overflowX:'clip', overflowY:'scroll', paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
         <Stack spacing={1}>
