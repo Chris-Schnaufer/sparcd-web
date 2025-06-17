@@ -196,8 +196,9 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
-    print('USER INFO',login_info)
+    print('USER INFO',login_info,flush=True)
     if login_info is not None:
+        print('HACK    ',SESSION_EXPIRE_SECONDS,client_ip,user_agent,flush=True)
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
            client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
@@ -585,9 +586,9 @@ def login_token():
     curtime = None
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    print('LOGIN', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.remote_addr))
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
         return "Not Found", 404
@@ -649,6 +650,8 @@ def login_token():
     db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip, \
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
+    if not user_info:
+        return "Not Found", 404
 
     # We have a new login, save everything
     session.clear()
@@ -769,7 +772,8 @@ def upload():
     print('UPLOAD', request, flush=True)
     app.config['SERVER_NAME'] = request.host
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.remote_addr))
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
         return "Not Found", 404
@@ -893,7 +897,8 @@ def query():
 
     print('QUERY', request)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.remote_addr))
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
         return "Not Found", 404

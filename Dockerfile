@@ -1,11 +1,9 @@
 
 # Build our basic install
-FROM node:current-alpine as build
+FROM node:current-alpine AS build
 
-# Build our basic install
-FROM node:current-alpine as build
-
-WORKDIR /buildsite
+ENV WORKDIR=/buildsite
+WORKDIR ${WORKDIR}
 
 # Install needed tools (won't have an impact if everything is all set)
 RUN apk add npm nodejs
@@ -27,7 +25,8 @@ RUN npm run build
 # Build the final image
 FROM node:current-alpine
 
-WORKDIR /website
+ENV WORKDIR=/website
+WORKDIR ${WORKDIR}
 
 # Allow Session secret key override
 ARG SECRET_KEY=this_is_not_a_secret_key_252627
@@ -43,22 +42,28 @@ ARG ADMIN_EMAIL=admin@arizona.edu
 
 # Copy over the built website
 COPY --from=build /buildsite/out ./
-
-# Copy the source code over
-COPY ./server/* ./
+RUN mkdir templates
+RUN mv index.html templates/
 
 # Install python stuff
 COPY ./requirements.txt ./
 RUN apk add python3 py-pip
-RUN apk add gdal-dev
-RUN apk add python3-dev && \
+RUN apk add gdal
+RUN apk add gdal-dev && \
+    apk add python3-dev && \
     apk add gcc g++ && \
     python3 -m pip install --upgrade --no-cache-dir -r requirements.txt --break-system-packages && \
     apk del gcc g++ && \
-    apk del python3-dev
+    apk del python3-dev && \
+    apk del gdal-dev
+
+# Copy the source code over
+COPY ./server/* ./
+COPY ./server/text_formatters ./text_formatters
 
 # Build the default database
-./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} $PWD sparcd.sqlite
+RUN rm *.sqlite    # Clean up any testing databases
+RUN ./create_db.py --admin ${ADMIN_NAME} --admin_email ${ADMIN_EMAIL} $PWD sparcd.sqlite
 RUN rm create_db.py
 
 # Expose the port
