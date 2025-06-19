@@ -74,8 +74,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
     """
     # Loop through and create all the database objects
     stmts = ('CREATE TABLE users(id INTEGER PRIMARY KEY ASC, name TEXT UNIQUE NOT NULL, ' \
-                            'email TEXT NOT NULL, settings TEXT DEFAULT "{}", ' \
-                            'administrator INT DEFAULT 0)',
+                            'email TEXT DEFAULT NULL, settings TEXT DEFAULT "{}", ' \
+                            'administrator INT DEFAULT 0, auto_added INT DEFAULT 1)',
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'password TEXT NOT NULL, s3_url TEXT NOT NULL, token TEXT UNIQUE, ' \
                             'timestamp INTEGER, client_ip TEXT, user_agent TEXT)',
@@ -86,7 +86,7 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE uploads(id INTEGER PRIMARY KEY ASC, collection TEXT NOT NULL, ' \
                             'name TEXT NOT NULL, json TEXT NOT NULL)',
         )
-    add_user_stmt = 'INSERT INTO users(name, email, administrator) values(?, ?, 1)'
+    add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 
     with sqlite3.connect(path) as conn:
         cursor = conn.cursor()

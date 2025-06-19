@@ -11,10 +11,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
     "@arcgis/core": "^4.32.10",
     "@arcgis/map-components": "^4.32.14",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^7.1.1",
     "@mui/material": "^7.1.1",
     "@mui/x-data-grid": "^8.5.1",
@@ -22,7 +22,8 @@
     "dayjs": "^1.11.13",
     "next": "^15.3.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "eslint": "^9",

@@ -20,6 +20,9 @@ class FirstLastSpeciesFormatter:
         Return:
             Returns the image analysis text
         """
+        if not results.get_first_image() or not results.get_last_image():
+            return ''
+
         first_dt = results.get_first_image()['image_dt']
         last_dt = results.get_last_image()['image_dt']
 

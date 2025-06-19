@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import { DataGrid, useGridApiRef } from '@mui/x-data-grid';
 import DownloadForOfflineOutlinedIcon from '@mui/icons-material/DownloadForOfflineOutlined';
 import Grid from '@mui/material/Grid';
@@ -11,6 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import { v4 as uuidv4 } from 'uuid';
 import PropTypes from 'prop-types';
 
 import QueryFilters from './queries/QueryFilters'
@@ -31,9 +34,11 @@ import { LocationsInfoContext, SpeciesInfoContext, TokenContext } from './server
 /**
  * Provides the UI for queries
  * @function
+ * @param {boolean} loadingCollections Indicates if collections are being loaded
  * @returns {object} The UI for generating queries
  */
-export default function Queries() {
+export default function Queries({loadingCollections}) {
+  const QUERY_RESULTS_SHOW_DELAY_SEC = 5
   const theme = useTheme();
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const filterRef = React.useRef();   // Used for sizeing
@@ -42,15 +47,20 @@ export default function Queries() {
   const speciesItems = React.useContext(SpeciesInfoContext);
   const [activeTab, setActiveTab] = React.useState(0);
   const [filters, setFilters] = React.useState([]); // Stores filter information
-  const [filterRedraw, setFilterRedraw] = React.useState(null); // Used to force redraw when new filter added
+  const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
   const [filterHeight, setFilterHeight] = React.useState(240); // Used to force redraw when new filter added
+  const [queryCancelled, setQueryCancelled] = React.useState(false); // Used to indicate the user cancelled the query
   const [queryResults, setQueryResults] = React.useState(null); // Used to store query results
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
+  const [waitingOnQuery, setWaitingOnQuery] = React.useState(null);  // Used for managing queries and the UI
   const [windowSize, setWindowSize] = React.useState({width: 640, height: 480});  // Default values are recalculated at display time
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
+  let activeQuery = null;
+
+  cancelQuery = cancelQuery.bind(this);
   handleFilterChange = handleFilterChange.bind(Queries);
   removeFilter = removeFilter.bind(Queries);
   handleFilterAccepted = handleFilterAccepted.bind(Queries);
@@ -141,7 +151,7 @@ export default function Queries() {
     }
 
     // Add the new filter to the array of filters
-    const newFilter = {type:filterChoice, id:crypto.randomUUID(), data:null}
+    const newFilter = {type:filterChoice, id:uuidv4(), data:null}
     const allFilters = filters;
     allFilters.push(newFilter);
 
@@ -153,7 +163,7 @@ export default function Queries() {
                   }
 
                   setFilters(allFilters);
-                  setFilterRedraw(newFilter.id);
+                  setQueryRedraw(newFilter.id);
                 });
   }
 
@@ -166,7 +176,7 @@ export default function Queries() {
     const remainingFilters = filters.filter((item) => item.id != filterId);
     setFilters(remainingFilters);
 
-    setFilterRedraw(crypto.randomUUID());
+    setQueryRedraw(uuidv4());
   }
 
   /**
@@ -261,12 +271,16 @@ export default function Queries() {
   function handleQuery() {
     const queryUrl = serverURL + '/query';
     const formData = getQueryFormData(filters);
+    const queryId = Date.now();
 
     formData.append('token', queryToken);
 
     console.log('QUERY');
-    for (const i of formData.keys()) console.log(i);
-    for (const i of formData.values()) console.log(i);
+
+    // Setup the UI for the query 
+    setWaitingOnQuery(queryId);
+    setQueryRedraw(queryId);
+    activeQuery = queryId;
 
     // Make the query
     try {
@@ -277,20 +291,56 @@ export default function Queries() {
           if (resp.ok) {
             return resp.json();
           } else {
+            if (activeQuery === queryId) {
+              activeQuery = null;
+              setWaitingOnQuery(null);
+            }
             throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
           }
         })
         .then((respData) => {
           // TODO: handle no results
           console.log('QUERY:',respData);
-          setQueryResults(respData);
+          if (activeQuery === queryId && Object.keys(respData).length > 0) {
+            const time_diff_sec = (waitingOnQuery - Date.now()) / 1000.0;
+            if (Math.round(time_diff_sec) < QUERY_RESULTS_SHOW_DELAY_SEC) {
+              setQueryResults(respData);
+            } else  {
+              window.setTimeout(() => setQueryResults(respData), time_diff_sec * 1000);
+            }
+            activeQuery = null;
+            setWaitingOnQuery(null);
+          } else {
+            console.log('HACK: QUERY CANCELLED OR EMPTY');
+            activeQuery = null;
+            setWaitingOnQuery(null);
+          }
         })
         .catch(function(err) {
+          console.log('HACK: CATCH');
+          if (activeQuery === queryId) {
+            activeQuery = null;
+            setWaitingOnQuery(null);
+          }
           console.log('Error: ',err);
         });
     } catch (error) {
+      console.log('HAVE ERROR:', error);
+      if (activeQuery === queryId) {
+        activeQuery = null;
+        setWaitingOnQuery(null);
+      }
       console.log('Error: ',error);
     }
+  }
+
+  /**
+   * Handles cancelling a query
+   * @function
+   */
+  function cancelQuery() {
+    setWaitingOnQuery(null);
+    setQueryCancelled(true);
   }
 
   /**
@@ -474,6 +524,7 @@ export default function Queries() {
 
   // Return the UI
   const curHeight = 350;//((totalHeight || 480) / 2.0) + 'px';
+  console.log('HACK: RETURN',queryRedraw,waitingOnQuery);
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
       <QueryFilters ref={filterRef} workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}
@@ -486,6 +537,40 @@ export default function Queries() {
       >
       { queryResults ? generateQueryResults(queryResults)  : null }
       </Grid>
+      { loadingCollections && 
+          <Grid id="query-loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+          >
+            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center" >
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    Loading collections, please wait...
+                  </Typography>
+                  <CircularProgress variant="indeterminate" />
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    This may take a while
+                  </Typography>
+              </Grid>
+            </div>
+          </Grid>
+      }
+      { waitingOnQuery && 
+          <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+          >
+            <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+              <Grid container direction="column" alignItems="center" justifyContent="center" >
+                  <Typography gutterBottom variant="body2" color="lightgrey">
+                    Working on your query, please wait...
+                  </Typography>
+                  <CircularProgress variant="indeterminate" />
+                  <Box>
+                    <Button sx={{'flex':'1'}} size="small" onClick={cancelQuery} >Cancel</Button>
+                  </Box>
+              </Grid>
+            </div>
+          </Grid>
+      }
     </Box>
   );
 }

@@ -560,7 +560,7 @@ export default function Home() {
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
               <CollectionsInfoContext.Provider value={collectionInfo}>
-                <Queries />
+                <Queries loadingCollections={loadingCollections}  />
               </CollectionsInfoContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>

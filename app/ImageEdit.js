@@ -14,6 +14,8 @@ import { styled } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { v4 as uuidv4 } from 'uuid';
+
 import { SpeciesInfoContext } from './serverInfo'
 import ImageAdjustments from './components/ImageAdjustments'
 import ImageEditSpecies from './components/ImageEditSpecies'
@@ -50,7 +52,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   const [showAdjustments, setShowAdjustments] = React.useState(false);  // Show image brightness, etc
   const [saturation, setSaturation] = React.useState(100);              // Image saturation
   const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Forces redraw due to species change
-  const [imageId, setImageId] =  React.useState('image-edit-image-'+crypto.randomUUID()); // Unique image ID
+  const [imageId, setImageId] =  React.useState('image-edit-image-'+uuidv4()); // Unique image ID
 
   const brightnessRange = {'default':100, 'min':0, 'max':200};
   const contrastRange = {'default':100, 'min':0, 'max':200};

@@ -123,8 +123,8 @@ DB.connect()
 # TODO: clean up old tokens
 del DB
 DB = None
-print(f'Using database at {DEFAULT_DB_PATH}')
-
+print(f'Using database at {DEFAULT_DB_PATH}', flush=True)
+print(f'Temporary folder at {tempfile.gettempdir()}', flush=True)
 
 def do_encrypt(plain: str) -> Optional[str]:
     """ Encrypts the plaintext string
@@ -198,7 +198,6 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     login_info = db.get_token_user_info(token)
     print('USER INFO',login_info,flush=True)
     if login_info is not None:
-        print('HACK    ',SESSION_EXPIRE_SECONDS,client_ip,user_agent,flush=True)
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
            client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
@@ -651,7 +650,9 @@ def login_token():
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
     if not user_info:
-        return "Not Found", 404
+        print('HACK:     AUTO ADDING USER',user,flush=True)
+        user_info = db.auto_add_user(user)
+        print('HACK:       ',user_info,flush=True)
 
     # We have a new login, save everything
     session.clear()

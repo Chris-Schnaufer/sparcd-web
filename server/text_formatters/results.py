@@ -55,6 +55,16 @@ class Results:
         # problem ocurrs
         self._all_locations = all_locations
         self._all_species = all_species
+        self._results = results
+        self._images = []
+        self._locations = []
+        self._species = []
+        self._years = []
+        self._interval_minutes = []
+        self._location_images = []
+        self._species_images = []
+        self._year_images = []
+        self._s3_info = {'url': s3_url, 'user': s3_user, 'pw': s3_pw}
 
         # Check that we have results
         if results is None:
@@ -64,6 +74,8 @@ class Results:
         try:
             _ = results[0]
         except TypeError:
+            return
+        except IndexError:
             return
 
         try:
@@ -111,6 +123,10 @@ class Results:
         """ Returns the S3 password """
         return self._s3_info['pw']
 
+    def have_results(self):
+        """ Returns whether or not we have results """
+        return self._results != None and len(self._results) > 0
+
     def _initialize(self, results: tuple, all_locations: tuple, all_species: tuple) -> tuple:
         """ Returns the image, locations, years, and species of the search results
         Arguments:
@@ -152,6 +168,9 @@ class Results:
         cur_species = {}
         for one_image in sorted_images:
             for one_species in one_image['species']:
+                if 'name' not in one_species or 'scientificName' not in one_species or not \
+                                        one_species['name'] or not one_species['scientificName']:
+                    continue
                 if not one_species['scientificName'] in cur_species:
                     cur_species[one_species['scientificName']] = {
                                                 'first_image':one_image,
@@ -209,6 +228,9 @@ class Results:
         for one_image in images:
             locations_filtered[one_image['loc']].append(one_image)
             for one_species in one_image['species']:
+                if 'name' not in one_species or 'scientificName' not in one_species or not \
+                                        one_species['name'] or not one_species['scientificName']:
+                    continue
                 species_filtered[one_species['scientificName']].append(one_image)
             years_filtered[one_image['image_dt'].year].append(one_image)
 
@@ -223,7 +245,7 @@ class Results:
         Return:
             The tuple of images sorted by date
         """
-        if self._images:
+        if self._images is not None:
             return self._images
 
         raise RuntimeError('Call made to Results.get_images after bad initialization')
@@ -233,7 +255,7 @@ class Results:
         Return:
             Returns the tuple of location IDs
         """
-        if self._locations:
+        if self._locations is not None:
             return self._locations
 
         raise RuntimeError('Call made to Results.get_locations after bad initialization')
@@ -243,7 +265,7 @@ class Results:
         Return:
             Returns the tuple of species
         """
-        if self._species:
+        if self._species is not None:
             return self._species
 
         raise RuntimeError('Call made to Results.get_species after bad initialization')
@@ -253,7 +275,7 @@ class Results:
         Return:
             Returns the tuple of species
         """
-        if self._species:
+        if self._species is not None:
             return sorted(self._species, key=lambda item: item['name'])
 
         raise RuntimeError('Call made to Results.get_species after bad initialization')
@@ -263,21 +285,21 @@ class Results:
         Return:
             Returns the tuple of years
         """
-        if self._years:
+        if self._years is not None:
             return self._years
 
         raise RuntimeError('Call made to Results.get_years after bad initialization')
 
     def get_all_locations(self) -> tuple:
         """ Returns the list of all the locations """
-        if self._all_locations:
+        if self._all_locations is not None:
             return self._all_locations
 
         raise RuntimeError('Call made to Results.get_all_locations after bad initialization')
 
     def get_all_species(self) -> tuple:
         """ Returns the list of all the species """
-        if self._all_species:
+        if self._all_species is not None:
             return self._all_species
 
         raise RuntimeError('Call made to Results.get_all_species after bad initialization')
@@ -289,7 +311,7 @@ class Results:
         Return:
             A tuple containing the images for that location
         """
-        if self._location_images:
+        if self._location_images is not None:
             if location_id in self._location_images:
                 return self._location_images[location_id]
             return ()
@@ -303,7 +325,7 @@ class Results:
         Return:
             A tuple containing the images for that species
         """
-        if self._species_images:
+        if self._species_images is not None:
             if species_sci_name in self._species_images:
                 return self._species_images[species_sci_name]
             return ()
@@ -318,7 +340,7 @@ class Results:
             Returns the tuple of images for the specified year. An empty tuple is returned if the
             year doesn't have any images associated with it
         """
-        if self._year_images:
+        if self._year_images is not None:
             if year in self._year_images:
                 return self._year_images[year]
             return ()
@@ -330,7 +352,7 @@ class Results:
         Return:
             Returns the first image in the result set
         """
-        if self._images:
+        if self._images is not None:
             if len(self._images) > 0:
                 return self._images[0]
             return None
@@ -342,7 +364,7 @@ class Results:
         Return:
             Returns the last image in the result set
         """
-        if self._images:
+        if self._images is not None:
             if len(self._images) > 0:
                 return self._images[len(self._images) - 1]
             return None
@@ -354,7 +376,7 @@ class Results:
         Return:
             Returns the first year from the result set
         """
-        if self._years:
+        if self._years is not None:
             if len(self._years) > 0:
                 return self._years[0]
             return None
@@ -366,7 +388,7 @@ class Results:
         Return:
             Returns the last unique year from the result set
         """
-        if self._years:
+        if self._years is not None:
             if len(self._years) > 0:
                 return self._years[len(self._years) - 1]
             return None
@@ -381,7 +403,7 @@ class Results:
         Return:
             The location instance or None if it's not found
         """
-        if self._all_locations:
+        if self._all_locations is not None:
             found_loc = next(iter(one_loc for one_loc in self._all_locations if \
                                                             one_loc['idProperty'] == location_id))
             if found_loc:
@@ -398,7 +420,7 @@ class Results:
         Return:
             The name of the location or None if it's not found
         """
-        if self._all_locations:
+        if self._all_locations is not None:
             found_loc = self.get_image_location(location_id)
             if found_loc and 'nameProperty' in found_loc:
                 return found_loc['nameProperty']

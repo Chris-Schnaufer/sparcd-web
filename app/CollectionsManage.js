@@ -27,6 +27,7 @@ import { pad } from './utils'
 /**
  * Renders the UI for managing the list of uploaded folders
  * @function
+ * @param {boolean} loadingCollections Indicates if collections are being loaded
  * @param {object} selectedCollection The currently selected collection
  * @param {function} onEditUpload Called when the user wants to edit an upload of a collection
   * @param {function} searchSetup Call when settting up or clearing search elements

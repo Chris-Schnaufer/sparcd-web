@@ -145,7 +145,7 @@ class SPARCdDatabase:
         Arguments:
             username: the name of the user to lookup
         Returns:
-            A dict containing the user's name, email, settings, and admin level
+            A dict containing the user's name, email, settings, and admin level.
         """
         if self._conn is None:
             raise RuntimeError('get_user: attempting to access database before connecting')
@@ -160,6 +160,35 @@ class SPARCdDatabase:
             return {'name': res[0], 'email':res[1], 'settings':res[2], 'admin':res[3]}
 
         return None
+
+    def auto_add_user(self, username: str, email: str=None) -> Optional[dict]:
+        """ Add a user that doesn't exist. The user received default permissions as defined
+            in the DB
+        Arguments:
+            username: the name of the user to add
+        Returns:
+            A dict containing the user's name, email, settings, and admin level
+        Note:
+            Assumes the user to be added has already been vetted. It is not an error if the user
+            already exists in the database - however, the user's email won't be updated if the
+            user already exists.
+        """
+        if self._conn is None:
+            raise RuntimeError('auto_add_user: attempting to access database before connecting')
+
+        cursor = self._conn.cursor()
+        try:
+            cursor.execute('INSERT INTO users(name, email) VALUES(?,?)', (username,email))
+            self._conn.commit()
+        except sqlite3.IntegrityError as ex:
+            # TODO: Track this exception here to prevent something?
+            # If the user already exists, we ignore the error and continue
+            if not ex.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
+                raise ex
+        finally:
+            cursor.close()
+
+        return self.get_user(username)
 
     def get_password(self, token: str) -> str:
         """ Returns the password associated with the token
@@ -276,7 +305,6 @@ class SPARCdDatabase:
             cursor.execute('UPDATE table_timeout SET timestamp=strftime("%s", "now") ' \
                                 'WHERE name="collections"')
 
-        print('HACKL:COLL: COMMIT')
         self._conn.commit()
         cursor.close()
 
