@@ -34,9 +34,10 @@ const defaultSettings = { date:'MDY',
  * @param {object} curSettings The working settings
  * @param {function} onChange Handler for when a setting is changed
  * @param {function} onClose Handler for when the settings are to be closed
+ * @param {function} onLogout Handler for the user wants to log out
  * @returns {object} Returns the UI to render
  */
-export default function Settings({curSettings, onChange, onClose}) {
+export default function Settings({curSettings, onChange, onClose, onLogout}) {
   const theme = useTheme();
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
@@ -218,8 +219,10 @@ export default function Settings({curSettings, onChange, onClose}) {
           </Grid>
         </CardContent>
         <CardActions>
-          <Grid container direction="row" alignItems="center" justifyContent="center">
+          <Grid container id="settings-actions-wrapper" direction="row" sx={{justifyContent:'space-between', alignItems:'center', width:'100%'}}
+          >
             <Button variant="contained" onClick={() => onClose()}>Close</Button>
+            <Button variant="contained" onClick={() => onLogout()}>Logout</Button>
           </Grid>
         </CardActions>
       </Card>

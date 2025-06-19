@@ -388,6 +388,14 @@ export default function Home() {
     }
   }
 
+  function handleLogout() {
+    setUserSettings(null);
+    setLastToken(null);
+    setEditing(false);
+    setLoggedIn(false);
+    loginStore.clearLoginToken();
+  }
+
   function editCollectionUpload(collectionId, uploadId, breadcrumbName) {
     const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(lastToken) + 
                                           '&id=' + encodeURIComponent(collectionId) + 
@@ -478,6 +486,10 @@ export default function Home() {
     console.log(resp);
     */
     setUserSettings(userSettings);
+  }
+
+  function handleRememberChanged(newRemember) {
+    setDbRemember(newRemember);
   }
 
   function handleSettings(userSettings) {
@@ -581,12 +593,13 @@ export default function Home() {
         <MobileDeviceContext.Provider value={mobileDevice}>
           <NarrowWindowContext.Provider value={narrowWindow}>
             <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
-                      size={narrowWindow?"small":"normal"} 
+                      onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                       breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb}/>
             {!curLoggedIn ? 
-               <LoginValidContext.Provider value={loginValidStates}>
-                <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin} />
-               </LoginValidContext.Provider>
+              <LoginValidContext.Provider value={loginValidStates}>
+                <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
+                       onRememberChange={handleRememberChanged} />
+              </LoginValidContext.Provider>
               :
               renderAction(curAction, editing)
             }

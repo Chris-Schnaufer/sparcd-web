@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata = {
   title: 'SPARCd',
   description: 'Scientific Photo Analysis for Research & Conservation database',
+  icons: {
+    shortcut: ['/favicon.ico'],
+  }
 }
 
 export default function RootLayout({ children }) {

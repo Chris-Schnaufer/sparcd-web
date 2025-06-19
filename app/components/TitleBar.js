@@ -24,9 +24,10 @@ import styles from './components.module.css'
  * @param {function} [onSearch] The function to call to perform a search
  * @param {function} [onBreadcrumb] The breadcrumb click handler
  * @param {function} onSettings The settings click handler
+ * @param {function} onLogout The handler for the user wanting to logout
  * @returns {object} The rendered UI
  */
-export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings}) {
+export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout}) {
   const [showSettings, setShowSettings] = React.useState(false);
 
   /**
@@ -131,7 +132,8 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
           </Grid>
         </Grid>
       </Box>
-      {showSettings && onSettings != null && <Settings onChange={onSettings} onClose={handleSettingsClose} />
+      {showSettings && onSettings != null && <Settings onChange={onSettings} onClose={handleSettingsClose} 
+                                                       onLogout={() => {handleSettingsClose();onLogout();}} />
       }
     </header>
     );

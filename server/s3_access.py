@@ -2,11 +2,13 @@
 """
 
 import csv
+import concurrent.futures
 import dataclasses
 from io import StringIO
 import json
 import os
 import tempfile
+import traceback
 from typing import Optional
 import uuid
 from minio import Minio, S3Error
@@ -101,53 +103,93 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
     """
     user_collections = []
 
-    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-    os.close(temp_file[0])
-    for one_coll in collections:
-        new_coll = one_coll
+    all_uploads_paths = {}
 
+    for one_coll in collections:
         # Get the uploads and their information
-        coll_uploads = []
         uploads_path = os.path.join(one_coll['base_path'], S3_UPLOADS_PATH_PART)
         for one_obj in minio.list_objects(one_coll['bucket'], uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
-                # Get the data on this upload
-
-                # Upload information
-                upload_info_path = os.path.join(one_obj.object_name, 'UploadMeta.json')
-                coll_info_data = get_s3_file(minio, one_coll['bucket'], upload_info_path, \
-                                             temp_file[1])
-                if coll_info_data is not None:
-                    coll_info = json.loads(coll_info_data)
+                if one_coll['bucket'] not in all_uploads_paths:
+                    all_uploads_paths[one_coll['bucket']] = {'bucket':one_coll['bucket'], \
+                                                            'paths':[one_obj.object_name], \
+                                                            'collection':one_coll}
                 else:
-                    print(f'Unable to get upload information: {upload_info_path}')
-                    continue
+                    all_uploads_paths[one_coll['bucket']]['paths'].append(one_obj.object_name)
 
-                # Location data
-                upload_info_path = os.path.join(one_obj.object_name, DEPLOYMENT_CSV_FILE_NAME)
-                csv_data = get_s3_file(minio, one_coll['bucket'], upload_info_path, \
-                                             temp_file[1])
-                if csv_data is not None:
-                    reader = csv.reader(StringIO(csv_data))
-                    for csv_info in reader:
-                        if csv_info and len(csv_info) >= 23:
-                            coll_uploads.append({
-                                         'path':one_obj.object_name,
-                                         'info':coll_info,
-                                         'location':csv_info[1],
-                                         'elevation':csv_info[12],
-                                         'key':os.path.basename(one_obj.object_name.rstrip('/\\'))
-                                        })
-                            break
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        cur_futures = {executor.submit(get_upload_data_thread, minio, all_uploads_paths[one_upload]['bucket'], \
+                                                    all_uploads_paths[one_upload]['paths'], all_uploads_paths[one_upload]['collection']):
+            one_upload for one_upload in all_uploads_paths}
+
+        for future in concurrent.futures.as_completed(cur_futures):
+            try:
+                upload_results = future.result()
+                if 'uploads' not in upload_results['collection'] or not \
+                                                            upload_results['collection']['uploads']:
+                    upload_results['collection']['uploads'] = upload_results['uploads']
+                    user_collections.append(upload_results['collection'])
                 else:
-                    print(f'Unable to get deployment information: {upload_info_path}')
-
-        new_coll['uploads'] = coll_uploads
-        user_collections.append(new_coll)
-
-    os.unlink(temp_file[1])
+                    upload_results['collection']['uploads'] = \
+                            [*upload_results['collection']['uploads'], *upload_results['uploads']]
+            # pylint: disable=broad-exception-caught
+            except Exception as ex:
+                print(f'Generated exception: {ex}', flush=True)
+                traceback.print_exception(ex)
 
     return user_collections
+
+def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, collection: object \
+                                                                                        ) -> object:
+    """  Gets upload information for the selected paths
+    Arguments:
+        minio - the S3 instance
+        bucket - the bucket to load from
+        upload_paths - the paths to check in the bucket and load data from
+        collection - the collection object that represents the bucket
+    Return:
+        Returns an object containing the collection object and the upload information
+    """
+    # Get the data on each upload
+    upload_info = []
+
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
+
+    for one_path in upload_paths:
+        # Upload information
+        upload_info_path = os.path.join(one_path, 'UploadMeta.json')
+        coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if coll_info_data is not None:
+            try:
+                coll_info = json.loads(coll_info_data)
+            except json.JSONDecodeError:
+                print(f'Unable to load JSON information: {upload_info_path}')
+                continue
+        else:
+            print(f'Unable to get upload information: {upload_info_path}')
+            continue
+
+        # Location data
+        upload_info_path = os.path.join(one_path, DEPLOYMENT_CSV_FILE_NAME)
+        csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if csv_data is not None:
+            reader = csv.reader(StringIO(csv_data))
+            for csv_info in reader:
+                if csv_info and len(csv_info) >= 23:
+                    upload_info.append({
+                                 'path':one_path,
+                                 'info':coll_info,
+                                 'location':csv_info[1],
+                                 'elevation':csv_info[12],
+                                 'key':os.path.basename(one_path.rstrip('/\\'))
+                                })
+                    break
+        else:
+            print(f'Unable to get deployment information: {upload_info_path}')
+
+    os.unlink(temp_file[1])
+    return {'collection': collection, 'uploads': upload_info}
 
 
 def get_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:

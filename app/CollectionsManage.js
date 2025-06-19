@@ -51,8 +51,6 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   // Setup search
   React.useEffect(() => {
     searchSetup('Collection Name', handleCollectionSearch);
-
-    return () => searchSetup();
   });
 
   // Initialize collections information

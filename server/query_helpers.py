@@ -180,7 +180,6 @@ def query_output(results: Results) -> tuple:
         return tuple()
 
     if not results.have_results():
-        print('HACK: DONT HAVE ANY RESULTS')
         return tuple()
 
     return {'DrSandersonOutput': get_dr_sanderson_output(results),

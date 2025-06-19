@@ -25,12 +25,15 @@ import {LoginValidContext} from './checkLogin'
   * @param {string} [prev_user] Username that was previously used to log in
   * @param {boolean} [prev_remember] Flag indicating the remember-me flag was set
   * @param {function} onLogin The login function to call when the user clicks the login button
+  * @param {function} onRememberChange Called when the remember checkbox changes
   * @returns {object} The rendered UI
   */
-export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberChecked, setRememberChecked] = useState(prev_remember);
+export default function Login({prev_url, prev_user, prev_remember, onLogin, onRememberChange}) {
   const valuesValid = useContext(LoginValidContext);
+  const [rememberChecked, setRememberChecked] = useState(prev_remember);
+  const [showPassword, setShowPassword] = useState(false);
+  const [workspaceTop, setWorkspaceTop] = useState(0);
+  const [workspaceHeight, setWorkspaceHeight] = useState(null);
 
   useLayoutEffect(() => {
     const focusId = !prev_url ? 'url_entry' : (!prev_user ? 'username_entry' : 'password_entry')
@@ -40,6 +43,28 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
     }
     if (prev_remember !== rememberChecked) {
       setRememberChecked(prev_remember);
+    }
+
+    if (window !== undefined) {
+      const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+      let top = 0;
+      let height = newSize.height;
+      let titleEl = document.getElementById('sparcd-header');
+      if (titleEl) {
+        let titleSize = titleEl.getBoundingClientRect();
+        top = titleSize.bottom - titleSize.top;
+        height -= titleSize.bottom - titleSize.top;
+      }
+      let footerEl = document.getElementById('sparcd-footer');
+      if (footerEl) {
+        let footerSize = footerEl.getBoundingClientRect();
+        height -= footerSize.bottom - footerSize.top;
+      }
+      let workspaceEl = document.getElementById('login-wrapper');
+      if (workspaceEl) {
+        setWorkspaceTop(top);
+        setWorkspaceHeight(height);
+      }
     }
   }, [prev_url, prev_user, prev_remember, rememberChecked]);
 
@@ -74,6 +99,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
    */
   const rememberChanged = (event) => {
     setRememberChecked(event.target.checked);
+    onRememberChange(event.target.checked);
   }
 
   /**
@@ -94,8 +120,11 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin}) {
   }
 
   // Return the UI
+  let curWorkspaceHeight = workspaceHeight ? workspaceHeight : 650;
+  let curWorkspaceTop = workspaceTop ? workspaceTop : 63;
   return (
-    <div className={styles.login_background}>
+    <div id="login-wrapper" className={styles.login_background}
+         style={{position:'absolute', top:curWorkspaceTop+'px', height:curWorkspaceHeight+'px'}} >
     <div className={styles.login_wrapper}>
       <div className={styles.login_dialog_wrapper}>
         <div className={styles.login_dialog}>

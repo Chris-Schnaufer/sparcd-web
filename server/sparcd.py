@@ -2,6 +2,7 @@
 """This script contains the API for the SPARC'd server
 """
 
+import concurrent.futures
 import datetime
 import hashlib
 import io
@@ -10,6 +11,7 @@ import os
 import sys
 import tempfile
 import time
+import traceback
 from typing import Optional
 from urllib.parse import urlparse, quote as urlquote
 import uuid
@@ -444,6 +446,93 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, p
     return loaded_config
 
 
+def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_name: str, \
+                       user_token: str, filters: tuple) -> tuple:
+    """ Filters the collections in an efficient manner
+    Arguments:
+        db - connections to the current database
+        cur_coll - the list of applicable collections
+        s3_url - the URL to the S3 instance
+        user_name - the user's name for S3
+        user_token - the users security token
+        filters - the filters to apply to the data
+    Returns:
+        Returns the filtered results
+    """
+    all_results = []
+    s3_uploads = []
+
+    # Load all the DB data first
+    for one_coll in cur_coll:
+        cur_bucket = one_coll['json']['bucketProperty']
+        uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
+        if uploads_info is not None and uploads_info:
+            uploads_info = [{'bucket':cur_bucket,       \
+                             'name':one_upload['name'],                     \
+                             'info':json.loads(one_upload['json'])}         \
+                                    for one_upload in uploads_info]
+        else:
+            s3_uploads.append(cur_bucket)
+            continue
+
+        # Filter on current DB uploads
+        if len(uploads_info) > 0:
+            cur_results = query_helpers.filter_uploads(uploads_info, filters)
+            if cur_results:
+                all_results = all_results + cur_results
+
+
+    # Load the S3 uploads in an aynchronous fashion
+    if len(s3_uploads) > 0:
+        user_secret = do_decrypt(db.get_password(user_token))
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
+                                                                        user_secret, cur_bucket):
+                            cur_bucket for cur_bucket in s3_uploads}
+
+            for future in concurrent.futures.as_completed(cur_futures):
+                try:
+                    uploads_results = future.result()
+                    if 'uploads_info' in uploads_results and \
+                                                        len(uploads_results['uploads_info']) > 0:
+                        uploads_info = [{'bucket':uploads_results['bucket'],
+                                         'name':one_upload['name'],
+                                         'info':one_upload,
+                                         'json':json.dumps(one_upload)
+                                        } for one_upload in uploads_results['uploads_info']]
+                        db.save_uploads(uploads_results['bucket'], uploads_info)
+
+                        # Filter on current DB uploads
+                        if len(uploads_info) > 0:
+                            cur_results = query_helpers.filter_uploads(uploads_info, filters)
+                            if cur_results:
+                                all_results = all_results + cur_results
+                # pylint: disable=broad-exception-caught
+                except Exception as ex:
+                    print(f'Generated exception: {ex}', flush=True)
+                    traceback.print_exception(ex)
+
+    return all_results
+
+
+def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: str) -> object:
+    """ Used to load upload information from an S3 instance
+    Arguments:
+        s3_url - the URL to connect to
+        user_name - the name of the user to connect with
+        user_secret - the secret used to connect
+        bucket - the bucket to look in
+    Return:
+        Returns an object with the loaded uploads
+    """
+    uploads_info = S3Connection.list_uploads(s3_url, \
+                                        user_name, \
+                                        user_secret, \
+                                        bucket)
+
+    return {'bucket': bucket, 'uploads_info': uploads_info}
+
+
 @app.route('/', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def index():
@@ -456,7 +545,7 @@ def index():
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def favicon():
     """ Return the favicon """
-    return send_from_directory(os.path.join(app.root_path, 'static'),
+    return send_from_directory(app.root_path,
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
@@ -473,7 +562,8 @@ def sendfile(filename: str):
     fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, filename.lstrip('/')))
     print("   FILE PATH:", fullpath,flush=True)
 
-    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    # Make sure we're only serving something that's in the same location that we are in and that
+    # it exists
     if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
         return 'Resource not found', 404
 
@@ -490,10 +580,12 @@ def sendnextfile(path_fagment: str):
     if not os.path.splitext(path_fagment)[1].lower() in ALLOWED_FILE_EXTENSIONS:
         return 'Resource not found', 404
 
-    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, '_next','static',path_fagment.lstrip('/')))
+    fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, '_next', 'static',\
+                                                                        path_fagment.lstrip('/')))
     print("   FILE PATH:", fullpath,flush=True)
 
-    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    # Make sure we're only serving something that's in the same location that we are in and that
+    # it exists
     if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
         return 'Resource not found', 404
 
@@ -540,7 +632,8 @@ def sendnextimage():
     fullpath = os.path.realpath(os.path.join(RESOURCE_START_PATH, image_path.lstrip('/')))
     print("   FILE PATH:", fullpath,flush=True)
 
-    # Make sure we're only serving something that's in the same location that we are in and that it exists
+    # Make sure we're only serving something that's in the same location that we are in and
+    # that it exists
     if not fullpath or not os.path.exists(fullpath) or not fullpath.startswith(RESOURCE_START_PATH):
         return 'Resource not found', 404
 
@@ -557,12 +650,12 @@ def sendnextimage():
     h_param = float(img.size[1]) * (w_param / float(img.size[0]))
     img = img.resize((round(w_param), round(h_param)), Image.Resampling.LANCZOS)
 
-    imgByteArr = io.BytesIO()
-    img.save(imgByteArr, image_type.upper(), quality=q_param)
-    
-    imgByteArr.seek(0)  # move to the beginning of file after writing
-    
-    return send_file(imgByteArr, mimetype="image/" + image_type.lower())
+    img_byte_array = io.BytesIO()
+    img.save(img_byte_array, image_type.upper(), quality=q_param)
+
+    img_byte_array.seek(0)  # move to the beginning of file after writing
+
+    return send_file(img_byte_array, mimetype="image/" + image_type.lower())
 
 
 
@@ -722,7 +815,8 @@ def collections():
         cur_uploads = []
         last_upload_date = None
         for one_upload in one_coll['uploads']:
-            last_upload_date = get_later_timestamp(last_upload_date, one_upload['info']['uploadDate'])
+            last_upload_date = get_later_timestamp(last_upload_date, \
+                                                                one_upload['info']['uploadDate'])
             cur_uploads.append({'name': one_upload['info']['uploadUser'] + ' on ' + \
                                                 get_upload_date(one_upload['info']['uploadDate']),
                                 'description': one_upload['info']['description'],
@@ -971,7 +1065,7 @@ def query():
             cur_coll = [coll for coll in cur_coll if coll['name'] in one_filter[1]]
 
     # Get uploads information to further filter images
-    all_results = []
+    all_results = filter_collections(db, cur_coll, s3_url, user_info["name"], token, filters)
     for one_coll in cur_coll:
         cur_bucket = one_coll['json']['bucketProperty']
         uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
