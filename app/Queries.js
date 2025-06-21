@@ -524,7 +524,6 @@ export default function Queries({loadingCollections}) {
 
   // Return the UI
   const curHeight = 350;//((totalHeight || 480) / 2.0) + 'px';
-  console.log('HACK: RETURN',queryRedraw,waitingOnQuery);
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
       <QueryFilters ref={filterRef} workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}

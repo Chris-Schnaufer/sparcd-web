@@ -109,6 +109,11 @@ const loginStore = {
 };
 
 export default function Home() {
+  const DEFAULT_DISPLAY_WIDTH = 800.0;  // Used as default until the window is ready
+  const DEFAULT_DISPLAY_HEIGHT = 600.0; // Used as default until the window is ready
+  const DEFAULT_HEADER_HEIGHT = 63.0;   // Used as default until the window is ready
+  const DEFAULT_FOOTER_HEIGHT = 76.0;   // Used as default until the window is ready
+  const footerRef = React.useRef();   // Used for sizeing
   const [breadcrumbs, setBreadcrumbs] = React.useState([]);
   const [checkedToken, setCheckedToken] = React.useState(false);
   const [collectionInfo, setCollectionInfo] = React.useState(null);
@@ -130,9 +135,15 @@ export default function Home() {
   const [sandboxInfo, setSandboxInfo] = React.useState(null);
   const [savedLoginFetched, setSavedLoginFetched] = React.useState(false);
   const [savedTokenFetched, setSavedTokenFetched] = React.useState(false);
+  const [sizeFooter, setSizeFooter] = React.useState({top:DEFAULT_DISPLAY_HEIGHT-76.0,left:0.0, width:DEFAULT_DISPLAY_WIDTH, height:76.0});
+  const [sizeTitle, setSizeTitle] = React.useState({top:0.0, left:0.0, width:DEFAULT_DISPLAY_WIDTH, height:DEFAULT_HEADER_HEIGHT});
+  const [sizeWindow, setSizeWindow] = React.useState({DEFAULT_DISPLAY_WIDTH:640, DEFAULT_DISPLAY_HEIGHT:480});
+  const [sizeWorkspace, setSizeWorkspace] = React.useState({top:DEFAULT_HEADER_HEIGHT,
+                                                            left:0.0,
+                                                            width:DEFAULT_DISPLAY_WIDTH, 
+                                                            height:DEFAULT_DISPLAY_HEIGHT-DEFAULT_HEADER_HEIGHT-DEFAULT_FOOTER_HEIGHT});
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [userSettings, setUserSettings] =  React.useState(null);
-  const [windowSize, setWindowSize] = React.useState({width:640, height:480});
 
   const loginValidStates = loginValid;
   let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
@@ -150,21 +161,18 @@ export default function Home() {
   // Sets the narrow flag when the window is less than 600 pixels
   React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
 
-  // TODO: Global window resize handler?
-  // Recalcuate available space in the window
+  // Calcuate available space in the window and what the control sizes are
   React.useLayoutEffect(() => {
-    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setWindowSize(newSize);
-  }, []);
+    calculateLayoutSizes();
+  }, [footerRef]);
 
   // Adds a resize handler to the window, and automatically removes it
   React.useEffect(() => {
       function onResize () {
-          const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-
           // TODO: transition to MaterialUI sizes          
+          const newSize = {'width':window.innerWidth,'height':window.innerHeight};
           setIsNarrow(newSize.width <= 640);
-          setWindowSize(newSize);
+          calculateLayoutSizes();
       }
 
       window.addEventListener("resize", onResize);
@@ -172,7 +180,7 @@ export default function Home() {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, []);
+  }, [footerRef]);
 
   // Load saved token and see if session is still valid
   React.useLayoutEffect(() => {
@@ -215,6 +223,41 @@ export default function Home() {
     }
   }, [checkedToken, curLoggedIn, loadCollections, loginUserToken, savedTokenFetched, savedLoginFetched]);
 
+  /**
+   * Calculates the sizes of the window, header, footer, and workspace area (not used by header or footer)
+   * @function
+   */
+  function calculateLayoutSizes() {
+    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setSizeWindow(newSize);    
+
+    // Get the title size
+    let titleSize = {top:0.0, left:0.0, width:newSize.width, height:DEFAULT_HEADER_HEIGHT};
+    const titleEl = document.getElementById('sparcd-header');
+    if (titleEl) {
+      titleSize = titleEl.getBoundingClientRect();
+      setSizeTitle({top:0.0, left:0.0, width:window.width, height:titleSize});
+    }
+
+    // Get the title size
+    let footerSize = {top:newSize.height-DEFAULT_FOOTER_HEIGHT, left:0.0, width:newSize.width, height:DEFAULT_FOOTER_HEIGHT};
+    const footerEl = document.getElementById('sparcd-footer');
+    if (footerEl) {
+      footerSize = footerEl.getBoundingClientRect();
+      setSizeFooter({top:newSize.width-footerSize, left:0.0, width:newSize.width, height:footerSize});
+    }
+
+    // Set the workspace size
+    const workspaceSize = {top:titleSize.height, left:titleSize.left, width:titleSize.width, 
+                            height:newSize.height-titleSize.height-footerSize.height}
+    setSizeWorkspace(workspaceSize);
+  }
+
+  /**
+   * Restores the indicated navigation breadcrumb
+   * @function
+   * @param {object} breadcrumb The breadcrumb to restore
+   */
   function restoreBreadcrumb(breadcrumb) {
     const curCrumbs = breadcrumbs;
     let curRestore = null;
@@ -229,6 +272,14 @@ export default function Home() {
     setBreadcrumbs(curCrumbs);
   }
 
+  /**
+   * Sets the current action based upon the users selection
+   * @function
+   * @param {object} action The working user action
+   * @param {object} actionData Data associated with the action
+   * @param {boolean} areEditing Is this an editing command
+   * @param {string} breadcrumbName What is the display name of this action
+   */
   function setCurrentAction(action, actionData, areEditing, breadcrumbName) {
     if (Object.values(UserActions).indexOf(action) > -1) {
       if (!actionData) {
@@ -288,15 +339,31 @@ export default function Home() {
     }
   }
 
-
+  /**
+   * Sets the information of the sandbox items
+   * @function
+   * @param {array} sandboxInfo Array of sandbox items
+   */
   function updateSandboxInfo(sandboxInfo) {
     setSandboxInfo(sandboxInfo);
   }
 
+  /**
+   * Sets the information of the collection items
+   * @function
+   * @param {array} collectionInfo Array of collection items
+   */
   function updateCollectionInfo(collectionInfo) {
     setCollectionInfo(collectionInfo);
   }
 
+  /**
+   * Common function for logging the user in
+   * @function
+   * @param {object} formData The form data for logging in
+   * @param {function} onSuccess Function to call upon success
+   * @param {function} onFailure Function to call when there's a login failure
+   */
   function commonLoginUser(formData, onSuccess, onFailure) {
     const loginUrl = serverURL + '/login';
     try {
@@ -343,6 +410,15 @@ export default function Home() {
     }
   }
 
+  /**
+   * Attempts to login the user with credentials
+   * @function
+   * @param {string} url The url of the storage to access (used as the login validator by the server)
+   * @param {string} user The usernanme for logging in
+   * @param {string} password The user's associated password
+   * @param {function} onSuccess Function to call upon success
+   * @param {function} onFailure Function to call when there's a login failure
+   */
   function loginUser(url, user, password, onSuccess, onFailure) {
     const formData = new FormData();
 
@@ -354,12 +430,27 @@ export default function Home() {
   }
 
   // For some reason changing this to useCallback() causes the build to fail 
+  /**
+   * Attempts to login the user with a stored token
+   * @function
+   * @param {string} token The token to try to log in with
+   * @param {function} onSuccess Function to call upon success
+   * @param {function} onFailure Function to call when there's a login failure
+   */
   function loginUserToken(token, onSuccess, onFailure) {
     const formData = new FormData();
     formData.append('token', token);
     commonLoginUser(formData, onSuccess, onFailure);
   }
 
+  /**
+   * Handles logging in the user and saves the login information
+   * @function
+   * @param {string} url The url of the storage to access (used as the login validator by the server)
+   * @param {string} user The usernanme for logging in
+   * @param {string} password The user's associated password
+   * @param {boolean} remember Set to a truthy value to indicate saving non-sensitive login information
+   */
   function handleLogin(url, user, password, remember) {
     setDbUser(user);
     setDbURL(url);
@@ -388,6 +479,10 @@ export default function Home() {
     }
   }
 
+  /**
+   * Logs the user out
+   * @function
+   */
   function handleLogout() {
     setUserSettings(null);
     setLastToken(null);
@@ -396,6 +491,13 @@ export default function Home() {
     loginStore.clearLoginToken();
   }
 
+  /**
+   * Common function that loads the upload information for editing purposes
+   * @function
+   * @param {string} collectionId The ID of the collection containing the upload 
+   * @param {string} uploadId The ID of the upload to edit
+   * @param {string} breadcrumbName The name of the navigation breadcrumb to use
+   */
   function editCollectionUpload(collectionId, uploadId, breadcrumbName) {
     const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(lastToken) + 
                                           '&id=' + encodeURIComponent(collectionId) + 
@@ -437,15 +539,30 @@ export default function Home() {
     }
   }
 
+  /**
+   * Calls the callback to perform a search
+   * @function
+   * @param {string} searchTerm The search term to pass to the callback
+   */
   function handleSearch(searchTerm) {
     return curSearchHandler(searchTerm);
   }
 
+  /**
+   * Clears the search and the controls
+   * @function
+   */
   function clearSearch() {
     setCurSearchTitle(null);
     setCurSearchHandler(null);
   }
 
+  /**
+   * Enables the setting up of searching feature
+   * @function
+   * @param {string} searchLabel The label of the search
+   * @param {function} searchHandler Function to call when the user wants to search
+   */
   function setupSearch(searchLabel, searchHandler) {
     if (searchLabel == undefined && searchHandler == undefined) {
       clearSearch();
@@ -460,6 +577,10 @@ export default function Home() {
     setCurSearchHandler(() => searchHandler);
   }
 
+  /**
+   * Fetches the user's settings from the server
+   * @function
+   */
   function getUserSettings() {
     const settingsUrl = serverURL + '/settings';
     // Get the information on the upload
@@ -474,6 +595,11 @@ export default function Home() {
     */
   }
 
+  /**
+   * Updates the user's settings on the server
+   * @function
+   * @param {object} userSettings The settings to save on the server for the user
+   */
   function updateUserSettings(userSettings) {
     const settingsUrl = serverURL + '/settings';
     // Get the information on the upload
@@ -488,10 +614,20 @@ export default function Home() {
     setUserSettings(userSettings);
   }
 
+  /**
+   * Sets the remember login information flag to true or false (is it truthy, or not?)
+   * @function
+   * @param {boolean} newRemember Set to true for non-sensitive login details to be remembered, or false
+   */
   function handleRememberChanged(newRemember) {
     setDbRemember(newRemember);
   }
 
+  /**
+   * Handles displaying the user settings
+   * @function
+   * @param {object} userSettings The user settings to have managed
+   */
   function handleSettings(userSettings) {
     const mySettingsId = settingsRequestId = settingsRequestId+1;
     const workingTimeoutId = settingsTimeoutId;
@@ -519,6 +655,13 @@ export default function Home() {
     }
   }
 
+  /**
+   * Returns the UI components for the specified action
+   * @function
+   * @param {object} action The well known user action
+   * @param {boolean} editing The state of the user editing something
+   * @return {object} The rendered action UI
+   */
   function renderAction(action, editing) {
     // TODO: Store lastToken fetched (and be sure to update it)
     switch(action) {
@@ -586,6 +729,7 @@ export default function Home() {
     }
   }
 
+  // Render the UI
   const narrowWindow = isNarrow;
   return (
     <main className={styles.main} style={{position:'relative'}}>
@@ -603,7 +747,7 @@ export default function Home() {
               :
               renderAction(curAction, editing)
             }
-            <FooterBar/>
+            <FooterBar ref={footerRef} />
             <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
                   sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,
                        visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}

@@ -82,23 +82,27 @@ export default function FilterLocations({data, onClose, onChange}) {
    * Handles the user selecting or deselecting a location
    * @function
    * @param {object} event The triggering event data
-   * @param {string} locationName The name of the location to add or remove from the filter
+   * @param {object} location The location to add or remove from the filter
    */
-  function handleCheckboxChange(event, locationName) {
+  function handleCheckboxChange(event, location) {
 
     if (event.target.checked) {
-      const curIdx = selectedLocations.findIndex((item) => locationName === item);
+      const curIdx = selectedLocations.findIndex((item) => location.nameProperty === item.nameProperty && 
+                                                           location.idProperty === item.idProperty &&
+                                                           location.latProperty === item.latProperty &&
+                                                           location.lngProperty === item.lngProperty &&
+                                                           lcoation.elevationProperty === item.elevationProperty);
       // Add the location in if we don't have it already
       if (curIdx < 0) {
         const curlocations = selectedLocations;
-        curlocations.push(locationName);
+        curlocations.push(location.nameProperty);
         setSelectedLocations(curlocations);
         onChange(curlocations);
         setSelectionRedraw(selectionRedraw + 1);
       }
     } else {
       // Remove the location if we have it
-      const curlocations = selectedLocations.filter((item) => item !== locationName);
+      const curlocations = selectedLocations.filter((item) => item !== location.nameProperty);
       if (curlocations.length < selectedLocations.length) {
         setSelectedLocations(curlocations);
         onChange(curlocations);
@@ -117,6 +121,7 @@ export default function FilterLocations({data, onClose, onChange}) {
       const ucSearch = event.target.value.toUpperCase();
       const filtered = locationItems.filter((item) => item.nameProperty.toUpperCase().includes(ucSearch) || 
                                                       item.idProperty.toUpperCase().includes(ucSearch));
+      console.log('HACK: filtered:',ucSearch, filtered);
       setDisplayedLocations(filtered);
     } else {
       setDisplayedLocations(locationItems);
@@ -153,7 +158,7 @@ export default function FilterLocations({data, onClose, onChange}) {
               <FormControlLabel key={'filter-locations-' + item.nameProperty + item.latProperty + item.lngProperty + '-' + idx}
                                 control={<Checkbox size="small" 
                                                    checked={selectedLocations.findIndex((curLocation) => curLocation===item.nameProperty) > -1 ? true : false}
-                                                   onChange={(event) => handleCheckboxChange(event,item.nameProperty)}
+                                                   onChange={(event) => handleCheckboxChange(event,item)}
                                           />} 
                                 label={
                                   <Grid container direction="row" alignItems="center" justifyContent="start" wrap="nowrap" sx={{width:"220px"}}>
