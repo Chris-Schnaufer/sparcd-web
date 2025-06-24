@@ -18,6 +18,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import wildcatResearch from '../public/wildcatResearch.png'
 import {urlValid, userValid, passwordValid} from './checkLogin'
 import {LoginValidContext} from './checkLogin'
+import { SizeContext } from './serverInfo';
 
 /** Returns the Login dialog
   * @function
@@ -29,6 +30,7 @@ import {LoginValidContext} from './checkLogin'
   * @returns {object} The rendered UI
   */
 export default function Login({prev_url, prev_user, prev_remember, onLogin, onRememberChange}) {
+  const uiSizes = useContext(SizeContext);
   const valuesValid = useContext(LoginValidContext);
   const [rememberChecked, setRememberChecked] = useState(prev_remember);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,28 +47,14 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
       setRememberChecked(prev_remember);
     }
 
-    if (window !== undefined) {
-      const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-      let top = 0;
-      let height = newSize.height;
-      let titleEl = document.getElementById('sparcd-header');
-      if (titleEl) {
-        let titleSize = titleEl.getBoundingClientRect();
-        top = titleSize.bottom - titleSize.top;
-        height -= titleSize.bottom - titleSize.top;
-      }
-      let footerEl = document.getElementById('sparcd-footer');
-      if (footerEl) {
-        let footerSize = footerEl.getBoundingClientRect();
-        height -= footerSize.bottom - footerSize.top;
-      }
+    if (uiSizes !== null) {
       let workspaceEl = document.getElementById('login-wrapper');
       if (workspaceEl) {
-        setWorkspaceTop(top);
-        setWorkspaceHeight(height);
+        setWorkspaceTop(uiSizes.workspace.top);
+        setWorkspaceHeight(uiSizes.workspace.height);
       }
     }
-  }, [prev_url, prev_user, prev_remember, rememberChecked]);
+  }, [prev_url, prev_user, prev_remember, rememberChecked, uiSizes]);
 
   /**
    * Handler that toggles the show password state

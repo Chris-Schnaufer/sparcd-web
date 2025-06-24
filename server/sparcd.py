@@ -888,6 +888,7 @@ def upload():
         all_images = load_timed_info(save_path)
         if all_images is not None:
             all_images = [all_images[one_key] for one_key in all_images.keys()]
+            print('HACK:UPLOAD 1:',save_path,all_images[0],flush=True)
 
     if all_images is None:
         # Get the collection information from the server
@@ -895,6 +896,7 @@ def upload():
         all_images = S3Connection.get_images(s3_url, user_info["name"], \
                                                 do_decrypt(db.get_password(token)), \
                                                 collection_id, collection_upload)
+        print('HACK:UPLOAD 2:',all_images[0],flush=True)
 
         # Save the images so we can reload them later
         save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
@@ -915,6 +917,7 @@ def upload():
         del one_img['s3_url']
         del one_img['key']
 
+    print('HACK:UPLOAD 3:',all_images[0],flush=True)
     return json.dumps(all_images)
 
 

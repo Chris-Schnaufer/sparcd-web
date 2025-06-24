@@ -192,7 +192,7 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
     return {'collection': collection, 'uploads': upload_info}
 
 
-def get_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
+def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
     """ Finds the images by recursing the specified paths
     Arguments:
         minio: the S3 client instance
@@ -206,16 +206,23 @@ def get_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
 
     # Get the image names and urls
     # pylint: disable=modified-iterating-list
+    once = False #HACK
     for cur_path in cur_paths:
         for one_obj in minio.list_objects(bucket, cur_path):
             if one_obj.is_dir:
                 if not one_obj.object_name == cur_path:
+                    print('HACK:GET_S3_IMAGES:',one_obj.object_name)
                     cur_paths.append(one_obj.object_name)
             else:
                 _, file_name = os.path.split(one_obj.object_name)
                 name, ext = os.path.splitext(file_name)
                 if ext.lower().endswith('.jpg'):
                     s3_url = minio.presigned_get_object(bucket, one_obj.object_name)
+                    #HACK
+                    if not once:
+                        print('HACK:     ',one_obj.object_name)
+                        once = True
+                    #HACK
                     images.append({'name':name,
                                    'bucket':bucket, \
                                    's3_path':one_obj.object_name,
@@ -317,9 +324,14 @@ class S3Connection:
 
         minio = Minio(url, access_key=user, secret_key=password)
 
-        images = get_images(minio, bucket, [upload_path])
+        images = get_s3_images(minio, bucket, [upload_path])
 
         images_dict = {obj['s3_path']: obj for obj in images}
+        #HACK
+        for one_key in images_dict.keys():
+            print('HACK:GETIMAGES:',images_dict[one_key])
+            break
+        #HACK
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -330,11 +342,17 @@ class S3Connection:
         if csv_data is not None:
 
             reader = csv.reader(StringIO(csv_data))
+            once = False #HACK
             for csv_info in reader:
                 common_name = get_common_name(csv_info[19])
 
                 # Update the image with a species if we find it
                 cur_img = images_dict.get(csv_info[3])
+                #HACK
+                if not once:
+                    print('HACK:    ',csv_info[3])
+                    once = True
+                #HACK
                 if cur_img is not None:
 
                     # Add the species

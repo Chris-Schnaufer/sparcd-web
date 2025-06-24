@@ -514,14 +514,14 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         </Grid>
         <Grid sx={{marginLeft:'auto'}}>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.location && curUpload.location.length ? curUploadLocation.idProperty : '<location>'}
+            {curUpload.location && curUpload.location.length ? curUpload.location.idProperty : '<location>'}
           </Typography>
           <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
             <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
           </IconButton>
         </Grid>
       </Grid>
-      { curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 
+      { curEditState == editingStates.listImages ? 
         <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',

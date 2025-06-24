@@ -39,6 +39,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
   const [expandedUpload, setExpandedUpload] = React.useState(false);
+  const [searchIsSetup, setSearchIsSetup] = React.useState(false);
   const [selectionIndex, setSelectionIndex] = React.useState(-1);
   const [sidebarWidth, setSidebarWidth] =  React.useState(200);// Default value is recalculated at display time
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
@@ -49,9 +50,12 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const handleCollectionSearch = searchCollections.bind(CollectionsManage);
 
   // Setup search
-  React.useEffect(() => {
-    searchSetup('Collection Name', handleCollectionSearch);
-  });
+  React.useLayoutEffect(() => {
+    if (!searchIsSetup) {
+      searchSetup('Collection Name', handleCollectionSearch);
+      setSearchIsSetup(true);
+    }
+  }, [searchIsSetup]);
 
   // Initialize collections information
   React.useEffect(() => {

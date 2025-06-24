@@ -29,7 +29,7 @@ import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils'
 
 import { resp } from './queryresult'; //TODO: remove when obtaining real data
-import { LocationsInfoContext, SpeciesInfoContext, TokenContext } from './serverInfo'
+import { LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from './serverInfo'
 
 /**
  * Provides the UI for queries
@@ -45,6 +45,7 @@ export default function Queries({loadingCollections}) {
   const locationItems = React.useContext(LocationsInfoContext);
   const queryToken = React.useContext(TokenContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
+  const uiSizes = React.useContext(SizeContext);
   const [activeTab, setActiveTab] = React.useState(0);
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
@@ -78,13 +79,15 @@ export default function Queries({loadingCollections}) {
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setWindowSize(newSize);
-    calcTotalSize(newSize);
-    setWorkspaceWidth(newSize.width);
-  }, [totalHeight]);
+//    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setWindowSize(uiSizes.window);
+//    calcTotalSize(newSize);
+    setWorkspaceWidth(uiSizes.workspace.width);
+    setTotalHeight(uiSizes.workspace.height);
+    setWorkingTop(uiSizes.workspace.top);
+  }, [totalHeight, uiSizes]);
 
-  // Adds a handler for when the window is resized, and automatically removes the handler
+/*  // Adds a handler for when the window is resized, and automatically removes the handler
   React.useLayoutEffect(() => {
       function onResize () {
         const newSize = {'width':window.innerWidth,'height':window.innerHeight};
@@ -109,29 +112,7 @@ export default function Queries({loadingCollections}) {
           window.removeEventListener("resize", onResize);
       }
   }, [totalHeight]);
-
-  /**
-   * Calculates the total UI size available for the workarea
-   * @function
-   * @param {object} curSize The total width and height of the window
-   */
-  function calcTotalSize(curSize) {
-    const elWorkspace = document.getElementById('queries-workspace-wrapper');
-    if (elWorkspace) {
-      const elWorkspaceSize = elWorkspace.getBoundingClientRect();
-      let workingHeight = elWorkspaceSize.height;
-      const elFooter = document.getElementById('sparcd-footer');
-      if (elFooter) {
-        const elFooterSize = elFooter.getBoundingClientRect();
-        workingHeight -= elFooterSize.height;
-      }
-      setTotalHeight(workingHeight);
-      setWorkingTop(0);
-    }
-
-    setWorkspaceWidth(curSize.width);
-  }
-
+*/
   /**
    * Adds a new filter to the list of filters
    * @function

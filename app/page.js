@@ -20,7 +20,7 @@ import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, NarrowWindowContext, 
-         SandboxInfoContext, TokenContext, UploadEditContext } from './serverInfo';
+         SandboxInfoContext, SizeContext, TokenContext, UploadEditContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -519,9 +519,10 @@ export default function Home() {
             const curUpload = curCollection.uploads.find((item) => item.key === uploadId);
             if (curUpload) {
               // Add our token in
-              const cur_images = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
+              const curImages = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
+              console.log('HACK:CURIMAGES:',respData);
               setCurrentAction(UserActions.UploadEdit, 
-                               {collectionId, name:curUpload.name, location:curUpload.location, images:cur_images},
+                               {collectionId, name:curUpload.name, location:curUpload.location, images:curImages},
                                true,
                                breadcrumbName);
             } else {
@@ -735,6 +736,7 @@ export default function Home() {
     <main className={styles.main} style={{position:'relative'}}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
+        <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
           <NarrowWindowContext.Provider value={narrowWindow}>
             <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                       onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
@@ -762,6 +764,7 @@ export default function Home() {
               </div>
             </Grid>
           </NarrowWindowContext.Provider>
+        </SizeContext.Provider>
         </MobileDeviceContext.Provider>
       </ThemeProvider>
     </main>

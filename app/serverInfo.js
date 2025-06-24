@@ -1867,7 +1867,8 @@ export const geographicCoordinates = [
   {"name":"UTM", "value":"URL"},
   {"name":"Latitude & Longitude", "value":"LATLON"},
 ];
-
+/** React context for sizing of pages */
+export const SizeContext = createContext(null);
 /** React context for user login token */
 export const TokenContext = createContext(null);
 /** React context for running on a mobile device */
