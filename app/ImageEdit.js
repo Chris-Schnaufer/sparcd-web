@@ -37,7 +37,7 @@ const Input = styled(MuiInput)`
  * @param {function} onClose Called when the user is done editing the image
  * @param {boolean} adjustments Set truthiness to true to allow image adjustments
  * @param {boolean} dropable Set truthiness to true to allow species drag-drop to add to existing species
- * @param {boolean} navigation Set truthiness to true to display the previous and next navigation elements
+ * @param {object} navigation Set truthiness to true to display the previous and next navigation elements by providing handlers
  * @param {array} species Array of species already available for the image
  * @param {function} onSpeciesChange Function to call when a species is added or a count is modified
  * @returns {object} The UI to render

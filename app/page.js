@@ -326,6 +326,15 @@ export default function Home() {
           // Save response data
           setLoadingCollections(false);
           const curCollections = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+          for (let one_coll of curCollections) {
+            one_coll.uploads = one_coll.uploads.sort((first, second) => (first.date.date.year > second.date.date.year ||
+                                                                         first.date.date.month > second.date.date.month ||
+                                                                         first.date.date.day > second.date.date.day || 
+                                                                         first.date.time.hour > second.date.time.hour || 
+                                                                         first.date.time.minute > second.date.time.minute || 
+                                                                         first.date.time.second > second.date.time.second || 
+                                                                         first.tdate.ime.nano > second.date.time.nano) ? -1 : 1);
+          }
           console.log('COLLECTIONS',curCollections);
           setCollectionInfo(curCollections);
         })

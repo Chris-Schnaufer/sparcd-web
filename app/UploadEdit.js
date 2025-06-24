@@ -521,7 +521,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           </IconButton>
         </Grid>
       </Grid>
-      { curEditState == editingStates.listImages ? 
+      { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
         <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
@@ -533,9 +533,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'maxWidth':workspaceWidth,
                        'width':workspaceWidth, 
                        'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
-          <Grid size={{ xs: 12, sm: 12, md:12 }}>
             {generateImageTiles(handleEditingImage)}
-          </Grid>
         </Grid>
         : null
       }
@@ -547,10 +545,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
           <Grid >
-            <ImageEdit id={navigationRedraw}
-                       url={curImageEdit.url}
+            <ImageEdit url={curImageEdit.url}
                        name={curImageEdit.name}
-                       parentX={workplaceStartX} parentId='image-edit-edit'
+                       parentId='image-edit-edit'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
                        onClose={() => {setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}

@@ -223,13 +223,12 @@ def get_upload_date(date_json: object) -> str:
     if 'date' in date_json and date_json['date']:
         cur_date = date_json['date']
         if 'year' in cur_date and 'month' in cur_date and 'day' in cur_date:
-            return_str += str(cur_date['year']) + '-' + str(cur_date['month']) + \
-                          '-' + str(cur_date['day'])
+            return_str += f'{cur_date["year"]:4d}-{cur_date["month"]:02d}-{cur_date["day"]:02d}'
 
     if 'time' in date_json and date_json['time']:
         cur_time = date_json['time']
         if 'hour' in cur_time and 'minute' in cur_time:
-            return_str += ' at ' + str(cur_time['hour']) + ':' + str(cur_time['minute'])
+            return_str += f' at {cur_time["hour"]:02d}:{cur_time["minute"]:02d}'
 
     return return_str
 
@@ -824,7 +823,8 @@ def collections():
                                 'imagesWithSpeciesCount': one_upload['info']['imagesWithSpecies'],
                                 'location': one_upload['location'],
                                 'edits': one_upload['info']['editComments'],
-                                'key': one_upload['key']
+                                'key': one_upload['key'],
+                                'date': one_upload['info']['uploadDate']
                               })
         cur_col['uploads'] = cur_uploads
         cur_col['last_upload_ts'] = last_upload_date
