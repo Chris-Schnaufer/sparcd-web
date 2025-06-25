@@ -79,40 +79,12 @@ export default function Queries({loadingCollections}) {
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-//    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
     setWindowSize(uiSizes.window);
-//    calcTotalSize(newSize);
     setWorkspaceWidth(uiSizes.workspace.width);
     setTotalHeight(uiSizes.workspace.height);
     setWorkingTop(uiSizes.workspace.top);
   }, [totalHeight, uiSizes]);
 
-/*  // Adds a handler for when the window is resized, and automatically removes the handler
-  React.useLayoutEffect(() => {
-      function onResize () {
-        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-
-        setWindowSize(newSize);
-
-        calcTotalSize(newSize);
-
-        const newWorkspaceWidth = newSize.width;
-        setWorkspaceWidth(newWorkspaceWidth);
-
-        // Calculate the filter panel size
-        if (filterRef && filterRef.current) {
-          let filterHeight = filterRef.current.offsetHeight;
-          setFilterHeight(filterHeight);
-        }
-      }
-
-      window.addEventListener("resize", onResize);
-  
-      return () => {
-          window.removeEventListener("resize", onResize);
-      }
-  }, [totalHeight]);
-*/
   /**
    * Adds a new filter to the list of filters
    * @function

@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { LocationsInfoContext, NarrowWindowContext, SpeciesInfoContext, UploadEditContext } from './serverInfo'
+import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, UploadEditContext } from './serverInfo'
 import ImageEdit from './ImageEdit'
 import ImageTile from './components/ImageTile'
 import LocationSelection from './LocationSelection'
@@ -31,12 +31,13 @@ import * as utils from './utils'
 export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const theme = useTheme();
   const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
-  const sidebarSpeciesRef = React.useRef();  // Used for sizeing
-  const sidebarTopRef = React.useRef();   // Used for sizeing
+  const sidebarSpeciesRef = React.useRef(null);  // Used for sizeing
+  const sidebarTopRef = React.useRef(null);   // Used for sizeing
   const curUpload = React.useContext(UploadEditContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
+  const uiSizes = React.useContext(SizeContext);
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
@@ -75,17 +76,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @param {object} curSize The working height and width of the window
    */
   const calcTotalHeight = React.useCallback((curSize) => {
-    const elHeader = document.getElementById('sparcd-header');
-    const elFooter = document.getElementById('sparcd-footer');
-    const elHeaderSize = elHeader.getBoundingClientRect();
-    const elFooterSize = elFooter.getBoundingClientRect();
+    setTotalHeight(uiSizes.workspace.height);
+    setWorkingTop(uiSize.workspace.top);
 
-    let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height);
-
-    setTotalHeight(maxHeight);
-    setWorkingTop(elHeaderSize.height);
-
-    // Get the top sidebar and add in the species sidebar if it's on top as wel;l
+    // Get the top sidebar and add in the species sidebar if it's on top as well
+    console.log('HACK:TOPSIDEBAR:',sidebarTopRef,sidebarTopRef.current);
     const elTopSidebar = document.getElementById('top-sidebar');
     if (elTopSidebar) {
       const elTopSidebarSize = elTopSidebar.getBoundingClientRect();
@@ -94,6 +89,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       setSidebarHeightTop(0);
     }
 
+    console.log('HACK:SPECIESSIDEBAR:',sidebarSpeciesRef,sidebarSpeciesRef.current);
     const elSpeciesSidebar = document.getElementById('species-sidebar');
     if (elSpeciesSidebar) {
       const elSpeciesSidebarSize = elSpeciesSidebar.getBoundingClientRect();

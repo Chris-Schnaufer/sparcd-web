@@ -13,7 +13,7 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { SandboxInfoContext } from './serverInfo'
+import { SandboxInfoContext, SizeContext } from './serverInfo'
 import UploadSidebarItem from './components/UploadSidebarItem'
 
 /**
@@ -27,6 +27,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
   const theme = useTheme();
   const sidebarRef = React.useRef();
   const sandboxItems = React.useContext(SandboxInfoContext);
+  const uiSizes = React.useContext(SizeContext);
   const [sidebarWidth, setSidebarWidth] = React.useState(150);  // Default value is recalculated at display time
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
   const [workingTop, setWorkingTop] = React.useState(null);  // Default value is recalculated at display time
@@ -36,12 +37,13 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setWorkspaceWidth(newSize.width - 150);
-    setWindowSize(newSize);
-    calcTotalSize(newSize);
-  }, []);
-
+//    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
+    setWorkspaceWidth(uiSizes.window.width - 150);
+    setWindowSize(uiSize.window);
+    calcTotalSize(uiSize);
+    console.log('HACK:LAYOUTEFFECT');
+  }, [uiSize]);
+/*
   // Adds a handler for when the window is resized, and automatically removes the handler
   React.useLayoutEffect(() => {
       function onResize () {
@@ -65,7 +67,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
           window.removeEventListener("resize", onResize);
       }
   }, [workspaceWidth]);
-
+*/
   /**
    * Handler for when the user's selection changes and prevents default behavior
    * @function
@@ -100,34 +102,32 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
   /**
    * Calculates the total UI size available for the workarea
    * @function
-   * @param {object} curSize The total width and height of the window
+   * @param {object} curSize The total width and height of the window layout items
    */
   function calcTotalSize(curSize) {
-    const elHeader = document.getElementById('sparcd-header');
-    const elFooter = document.getElementById('sparcd-footer');
-    const elHeaderSize = elHeader.getBoundingClientRect();
-    const elFooterSize = elFooter.getBoundingClientRect();
 
     let maxHeight = (curSize.height - elHeaderSize.height - elFooterSize.height) + 'px';
   
-    setTotalHeight(maxHeight);
-    setWorkingTop(elHeaderSize.height);
+    setTotalHeight(curSize.workspace.height);
+    setWorkingTop(curSize.workspace.top);
 
+    console.log('HACK:SIDEBARREF',sidebarRef, sidebarRef.current);
     const elLeftSidebar = document.getElementById('left-sidebar');
     if (elLeftSidebar) {
       const elLeftSidebarSize = elLeftSidebar.getBoundingClientRect();
       setSidebarWidth(elLeftSidebarSize.width);
+      setWorkspaceWidth(windowSize.width - elLeftSidebarSize.width);
     }
   }
-
+/*
   // Get the available workspace size if we don't have it already
   if (!totalHeight) {
     calcTotalSize(windowSize);
     setWorkspaceWidth(windowSize.width - sidebarWidth);
   }
-
+*/
   // Render the UI
-  const curHeight = totalHeight || 480;
+  const curHeight = (totalHeight || 480) + 'px';
   const curStart = (workingTop || 25) + 'px';
   const workplaceStartX = sidebarWidth;
   const curSelectionIndex = selectionIndex;
