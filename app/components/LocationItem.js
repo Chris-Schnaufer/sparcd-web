@@ -28,46 +28,40 @@ export default function LocationItem({shortName,longName,lat,lng,elevation, onTT
   const theme = useTheme();
 
   return (
-    <React.Fragment>
-      <Grid container>
-        <Grid size={{sm:6, md:6, lg:6}}>
+      <Grid container direction="row" justifyContent='space-between' sx={{width:'100%'}} >
           <Box display="flex" justifyContent="flex-start">
             {shortName}
           </Box>
-        </Grid>
-      <Grid size={{sm:6, md:6, lg:6}} zeroMinWidth>
-        <Box display="flex" justifyContent="flex-end">
-          <Typography variant="body" sx={{ fontSize:'small', overflow:"clip"}}>
-            {longName}
-          </Typography>
-          &nbsp;
-          <Tooltip
-            onOpen={() => onTTOpen(propsTT["data-option-index"])}
-            onClose={() => onTTClose(propsTT["data-option-index"])}
-            title={
-              dataTT && dataTT.index==propsTT["data-option-index"] ?
-                <React.Fragment>
-                  <Typography color={theme.palette.text.primary} sx={{fontSize:'small'}}>{shortName}</Typography>
-                  <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{lat+ ", " + lng}</Typography>
-                  <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{'Elevation: '+elevation}</Typography>
-                </React.Fragment>
-                : 
-                <React.Fragment>
-                  <Typography color={theme.palette.text.secondary} sx={{fontSize:'small'}}>{shortName}</Typography>
-                  <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{"------, ------"}</Typography>
-                  <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{'Elevation: ----'}</Typography>
-                  <div style={{...theme.palette.upload_edit_locations_spinner_background}}>
-                  <CircularProgress size={40} sx={{position:'absolute', left:'17px', top:'12px'}}/>
-                  </div>
-                </React.Fragment>
-            }
-          >
-          <InfoOutlinedIcon color="info" fontSize="small" id="InfoOutlinedIcon"/>
-          </Tooltip>
-        </Box>
-        </Grid>
+          <Box display="flex" justifyContent="flex-end" >
+            <Typography variant="body" sx={{ fontSize:'small', overflow:"clip"}}>
+              {longName}
+            </Typography>
+            &nbsp;
+            <Tooltip
+              onOpen={() => onTTOpen(propsTT["data-option-index"])}
+              onClose={() => onTTClose(propsTT["data-option-index"])}
+              title={
+                dataTT && dataTT.index==propsTT["data-option-index"] ?
+                  <React.Fragment>
+                    <Typography color={theme.palette.text.primary} sx={{fontSize:'small'}}>{shortName}</Typography>
+                    <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{lat+ ", " + lng}</Typography>
+                    <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{'Elevation: '+elevation}</Typography>
+                  </React.Fragment>
+                  : 
+                  <React.Fragment>
+                    <Typography color={theme.palette.text.secondary} sx={{fontSize:'small'}}>{shortName}</Typography>
+                    <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{"------, ------"}</Typography>
+                    <Typography color={theme.palette.text.secondary} sx={{fontSize:'x-small'}}>{'Elevation: ----'}</Typography>
+                    <div style={{...theme.palette.upload_edit_locations_spinner_background}}>
+                    <CircularProgress size={40} sx={{position:'absolute', left:'17px', top:'12px'}}/>
+                    </div>
+                  </React.Fragment>
+              }
+            >
+            <InfoOutlinedIcon color="info" fontSize="small" id="InfoOutlinedIcon"/>
+            </Tooltip>
+          </Box>
       </Grid>
-    </React.Fragment>
   );
 
 }

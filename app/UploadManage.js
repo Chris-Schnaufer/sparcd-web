@@ -37,37 +37,11 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-//    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
     setWorkspaceWidth(uiSizes.window.width - 150);
-    setWindowSize(uiSize.window);
-    calcTotalSize(uiSize);
-    console.log('HACK:LAYOUTEFFECT');
+    setWindowSize(uiSizes.window);
+    calcTotalSize(uiSizes);
   }, [uiSize]);
-/*
-  // Adds a handler for when the window is resized, and automatically removes the handler
-  React.useLayoutEffect(() => {
-      function onResize () {
-        const oldWorkspaceWidth = workspaceWidth;
-        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
 
-        setWindowSize(newSize);
-
-        calcTotalSize(newSize);
-        if (sidebarRef.current) {
-          setSidebarWidth(sidebarRef.current.offsetWidth);
-        }
-
-        const newWorkspaceWidth = newSize.width - sidebarRef.current.offsetWidth;
-        setWorkspaceWidth(newWorkspaceWidth);
-      }
-
-      window.addEventListener("resize", onResize);
-  
-      return () => {
-          window.removeEventListener("resize", onResize);
-      }
-  }, [workspaceWidth]);
-*/
   /**
    * Handler for when the user's selection changes and prevents default behavior
    * @function
@@ -111,7 +85,6 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
     setTotalHeight(curSize.workspace.height);
     setWorkingTop(curSize.workspace.top);
 
-    console.log('HACK:SIDEBARREF',sidebarRef, sidebarRef.current);
     const elLeftSidebar = document.getElementById('left-sidebar');
     if (elLeftSidebar) {
       const elLeftSidebarSize = elLeftSidebar.getBoundingClientRect();
@@ -119,13 +92,7 @@ export default function UploadManage({selectedUpload, onEditUpload}) {
       setWorkspaceWidth(windowSize.width - elLeftSidebarSize.width);
     }
   }
-/*
-  // Get the available workspace size if we don't have it already
-  if (!totalHeight) {
-    calcTotalSize(windowSize);
-    setWorkspaceWidth(windowSize.width - sidebarWidth);
-  }
-*/
+
   // Render the UI
   const curHeight = (totalHeight || 480) + 'px';
   const curStart = (workingTop || 25) + 'px';

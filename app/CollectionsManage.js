@@ -19,7 +19,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { CollectionsInfoContext, NarrowWindowContext } from './serverInfo'
+import { CollectionsInfoContext, NarrowWindowContext, SizeContext } from './serverInfo'
 import UploadSidebarItem from './components/UploadSidebarItem'
 
 import { pad } from './utils'
@@ -38,6 +38,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const sidebarRef = React.useRef();
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
+  const uiSizes = React.useContext(SizeContext);
   const [expandedUpload, setExpandedUpload] = React.useState(false);
   const [searchIsSetup, setSearchIsSetup] = React.useState(false);
   const [selectionIndex, setSelectionIndex] = React.useState(-1);
@@ -67,32 +68,9 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
-    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setWindowSize(newSize);
-    calcTotalSize(newSize);
-    setWorkspaceWidth(newSize.width -  sidebarWidth);
-  }, [narrowWindow,totalHeight,sidebarWidth]);
-
-  // Adds a handler for when the window is resized, and automatically removes the handler
-  React.useLayoutEffect(() => {
-      function onResize () {
-        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-
-        setWindowSize(newSize);
-
-        calcTotalSize(newSize);
-
-        const newWorkspaceWidth = newSize.width - sidebarWidth;
-        setWorkspaceWidth(newWorkspaceWidth);
-      }
-
-      window.addEventListener("resize", onResize);
-  
-      return () => {
-          window.removeEventListener("resize", onResize);
-      }
-  }, [narrowWindow,totalHeight,sidebarWidth]);
-
+    setWindowSize(uiSizes.window);
+    calcTotalSize(uiSizes);
+  }, [narrowWindow, uiSizes]);
 
   /**
    * Searches for collections that meet the search criteria and scrolls it into view
@@ -140,17 +118,11 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   /**
    * Calculates the total UI size available for the workarea
    * @function
-   * @param {object} curSize The total width and height of the window
+   * @param {object} curSizes The working sizes of the UI layout
    */
-  function calcTotalSize(curSize) {
-    const elWorkspace = document.getElementById('image-edit-workspace-wrapper');
-    const elFooter = document.getElementById('sparcd-footer');
-    if (elWorkspace) {
-      const elWorkspaceSize = elWorkspace.getBoundingClientRect();
-      const elFooterSize = elFooter.getBoundingClientRect();
-      setTotalHeight(elWorkspaceSize.height - elFooterSize.height);
-      setWorkingTop(0);
-    }
+  function calcTotalSize(curSizes) {
+    setTotalHeight(uiSizes.workspace.height);
+    setWorkingTop(uiSizes.workspace.top);
 
     let curSidebarWidth = 0;
     if (sidebarRef.current) {
@@ -158,7 +130,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
       setSidebarWidth(curSidebarWidth);
     }
 
-    setWorkspaceWidth(curSize.width - curSidebarWidth);
+    setWorkspaceWidth(uiSizes.workspace.width - curSidebarWidth);
   }
 
   /**
@@ -213,26 +185,6 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     curSelectionIndex = collectionsItems.findIndex((item) => item.name === selectedCollection);
     setSelectionIndex(curSelectionIndex);
   }
-/*
-                        <Box sx={{border:"1px solid black", width:"100%", minHeight:'3em', maxHeight:'3em', overflow:"scroll"}} >
-                          {item.uploads.map((uploadItem, uploadIdx) =>
-                              <Grid container key={'upload-'+uploadItem.name+'-'+uploadIdx} direction="column" spacing={1}>
-                                <Grid>
-                                  <Typography variant="body" sx={{padding:"0 5px"}}>
-                                    {uploadItem.name}
-                                  </Typography>
-                                </Grid>
-                              </Grid>
-                          )}
-                        </Box>
-
-                          <Grid>
-                            <Typography variant="body">
-                              {item.email}
-                            </Typography>
-                          </Grid>
-
-*/
 
   // Render the UI
   const curHeight = (totalHeight || 480) + 'px';

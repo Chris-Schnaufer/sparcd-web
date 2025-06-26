@@ -283,7 +283,7 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
         Returns the loaded collection data if valid, otherwise None is returned
     """
     coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
-    loaded_colls = load_timed_info(coll_file_path)
+    loaded_colls = load_timed_info(coll_file_path, TIMEOUT_COLLECTIONS_SEC)
     if loaded_colls is None:
         return None
 
@@ -307,10 +307,11 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
     return user_coll
 
 
-def load_timed_info(load_path: str):
+def load_timed_info(load_path: str, timeout_sec: int=TEMP_FILE_EXPIRE_SEC):
     """ Loads the timed data from the specified file
     Arguments:
         load_path: the path to load data from
+        timeout_sec: the timeout length of the file contents
     Return:
         The loaded data or None if a problem occurs
     """
@@ -351,7 +352,7 @@ def load_timed_info(load_path: str):
     old_ts = dateutil.parser.isoparse(loaded_data['timestamp'])
     ts_diff = datetime.datetime.utcnow() - old_ts
 
-    if ts_diff.total_seconds() > TEMP_FILE_EXPIRE_SEC:
+    if ts_diff.total_seconds() > timeout_sec:
         print(f'INFO: Expired timed file {load_path}')
         try:
             os.unlink(load_path)
@@ -742,9 +743,7 @@ def login_token():
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
     if not user_info:
-        print('HACK:     AUTO ADDING USER',user,flush=True)
         user_info = db.auto_add_user(user)
-        print('HACK:       ',user_info,flush=True)
 
     # We have a new login, save everything
     session.clear()
@@ -842,6 +841,83 @@ def collections():
     return json.dumps(return_colls)
 
 
+@app.route('/locations', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def locations():
+    """ Returns the list of locations
+    Arguments: (GET)
+        token - the session token
+    Return:
+        Returns the list of locations
+    Notes:
+        If the token is invalid, or a problem occurs, a 404 error is returned
+    """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+
+    token = request.args.get('token')
+    if not token:
+        return "Not Found", 404
+
+    print(('LOCATIONS', request), flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the locations to return
+    s3_url = web_to_s3_url(user_info["url"])
+    locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+
+    # Return the locations
+    return json.dumps(locations)
+
+
+@app.route('/species', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def species():
+    """ Returns the list of species
+    Arguments: (GET)
+        token - the session token
+    Return:
+        Returns the list of species
+    Notes:
+        If the token is invalid, or a problem occurs, a 404 error is returned
+    """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+
+    token = request.args.get('token')
+    if not token:
+        return "Not Found", 404
+
+    print(('LOCATIONS', request), flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the species to return
+    s3_url = web_to_s3_url(user_info["url"])
+    species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+    # Return the collections
+    return json.dumps(species)
+
+
 @app.route('/upload', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def upload():
@@ -888,7 +964,6 @@ def upload():
         all_images = load_timed_info(save_path)
         if all_images is not None:
             all_images = [all_images[one_key] for one_key in all_images.keys()]
-            print('HACK:UPLOAD 1:',save_path,all_images[0],flush=True)
 
     if all_images is None:
         # Get the collection information from the server
@@ -896,7 +971,6 @@ def upload():
         all_images = S3Connection.get_images(s3_url, user_info["name"], \
                                                 do_decrypt(db.get_password(token)), \
                                                 collection_id, collection_upload)
-        print('HACK:UPLOAD 2:',all_images[0],flush=True)
 
         # Save the images so we can reload them later
         save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
@@ -917,7 +991,6 @@ def upload():
         del one_img['s3_url']
         del one_img['key']
 
-    print('HACK:UPLOAD 3:',all_images[0],flush=True)
     return json.dumps(all_images)
 
 

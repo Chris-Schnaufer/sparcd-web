@@ -34,7 +34,6 @@ export default function LandingCollections({loadingCollections, onChange}) {
     onChange(event.target.value);
   }
 
-  // TODO: cache these
   const collectionItems = curCollectionsInfo;
   const firstItem = collectionItems && collectionItems.length > 0 ? collectionItems[0] : null;
 

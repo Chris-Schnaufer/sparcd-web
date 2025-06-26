@@ -11,7 +11,7 @@ export const UploadEditContext = createContext(null);
 /** React context for Collections information */
 export const CollectionsInfoContext = createContext(null);
 /** React context for locations information */
-export const LocationsInfoContext = createContext([
+export const LocationsInfoContext = createContext(null);/*[
   {
     "nameProperty": "Apache Pass - Fort Bowie",
     "idProperty": "DOS09",
@@ -1524,12 +1524,12 @@ export const LocationsInfoContext = createContext([
     "lngProperty": -108.982,
     "elevationProperty": 1713.0
   }
-].sort((a,b) => a.idProperty.localeCompare(b.idProperty)));
+].sort((a,b) => a.idProperty.localeCompare(b.idProperty)));*/
 
 /** React context for sandbox uploaded folders */
 export const SandboxInfoContext = createContext(null);
 /** React context for species information */
-export const SpeciesInfoContext = createContext([
+export const SpeciesInfoContext = createContext(null);/*[
   {
     "name": "Badger",
     "scientificName": "Taxidea taxus",
@@ -1860,7 +1860,7 @@ export const SpeciesInfoContext = createContext([
     "speciesIconURL": "https://i.imgur.com/4qz5mI0.png",
     "keyBinding": null
   }
-].sort((a,b) => a.name.localeCompare(b.name)));
+].sort((a,b) => a.name.localeCompare(b.name)));*/
 
 /** React context for geographic coordinate choices */
 export const geographicCoordinates = [

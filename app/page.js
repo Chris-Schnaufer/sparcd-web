@@ -19,8 +19,8 @@ import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
-import { BaseURLContext, CollectionsInfoContext, MobileDeviceContext, NarrowWindowContext, 
-         SandboxInfoContext, SizeContext, TokenContext, UploadEditContext } from './serverInfo';
+import { BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, NarrowWindowContext, 
+         SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -127,6 +127,9 @@ export default function Home() {
   const [isNarrow, setIsNarrow] = React.useState(null);
   const [lastToken, setLastToken] = React.useState(null);
   const [loadingCollections, setLoadingCollections] = React.useState(false);
+  const [loadingLocations, setLoadingLocations] = React.useState(false);
+  const [loadingSpecies, setLoadingSpecies] = React.useState(false);
+  const [locationInfo, setLocationInfo] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
@@ -143,6 +146,7 @@ export default function Home() {
                                                             width:DEFAULT_DISPLAY_WIDTH, 
                                                             height:DEFAULT_DISPLAY_HEIGHT-DEFAULT_HEADER_HEIGHT-DEFAULT_FOOTER_HEIGHT});
   const [serverURL, setServerURL] = React.useState(utils.getServer());
+  const [speciesInfo, setSpeciesInfo] = React.useState(null);
   const [userSettings, setUserSettings] =  React.useState(null);
 
   const loginValidStates = loginValid;
@@ -192,7 +196,7 @@ export default function Home() {
         loginUserToken(lastLoginToken,
           () => {setCheckedToken(true);
                  // Load collections
-                 window.setTimeout(() => loadCollections(lastLoginToken), 500);
+                 window.setTimeout(() => {loadCollections(lastLoginToken);loadLocations(lastLoginToken);loadSpecies(lastLoginToken);}, 500);
                 },
           () => {
             loginStore.clearLoginToken()
@@ -221,7 +225,7 @@ export default function Home() {
         setDbRemember(loInfo.remember === 'true');
       }
     }
-  }, [checkedToken, curLoggedIn, loadCollections, loginUserToken, savedTokenFetched, savedLoginFetched]);
+  }, [checkedToken, curLoggedIn, loadCollections, loadLocations, loadSpecies, loginUserToken, savedTokenFetched, savedLoginFetched]);
 
   /**
    * Calculates the sizes of the window, header, footer, and workspace area (not used by header or footer)
@@ -339,12 +343,86 @@ export default function Home() {
           setCollectionInfo(curCollections);
         })
         .catch((err) => {
-          console.log('Error: ',err);
+          console.log('Collections Error: ',err);
           setLoadingCollections(false);
       });
     } catch (error) {
-      console.log('Error: ',error);
+      console.log('Collections Error: ',error);
       setLoadingCollections(false);
+    }
+  }
+
+  // For some reason changing this to useCallback() causes the build to fail 
+  /**
+   * Fetches the locations from the server
+   * @function
+   */
+  function loadLocations(token) {
+    const cur_token = token || lastToken;
+    console.log('LOADLOCATIONS')
+    setLoadingLocations(true);
+    const locationsUrl =  serverURL + '/locations?token=' + encodeURIComponent(cur_token)
+    try {
+      const resp = fetch(locationsUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get locations: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          // Save response data
+          setLoadingLocations(false);
+          const curLocations = respData.sort((first, second) => first.nameProperty.localeCompare(second.nameProperty, undefined, { sensitivity: "base" }));
+          console.log('LOCATIONS',curLocations);
+          setLocationInfo(curLocations);
+        })
+        .catch((err) => {
+          console.log('Locations Error: ',err);
+          setLoadingLocations(false);
+      });
+    } catch (error) {
+      console.log('Locations Error: ',error);
+      setLoadingLocations(false);
+    }
+  }
+
+  // For some reason changing this to useCallback() causes the build to fail 
+  /**
+   * Fetches the species from the server
+   * @function
+   */
+  function loadSpecies(token) {
+    const cur_token = token || lastToken;
+    console.log('LOADSPECIES')
+    setLoadingSpecies(true);
+    const speciesUrl =  serverURL + '/species?token=' + encodeURIComponent(cur_token)
+    try {
+      const resp = fetch(speciesUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get species: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          // Save response data
+          setLoadingSpecies(false);
+          const curSpecies = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
+          console.log('SPECIES',curSpecies);
+          setSpeciesInfo(curSpecies);
+        })
+        .catch((err) => {
+          console.log('Species Error: ',err);
+          setLoadingSpecies(false);
+      });
+    } catch (error) {
+      console.log('Species Error: ',error);
+      setLoadingSpecies(false);
     }
   }
 
@@ -480,7 +558,7 @@ export default function Home() {
           loginStore.clearLoginInfo();
         }
         // Load collections
-        window.setTimeout(() => loadCollections(new_token), 500);
+        window.setTimeout(() => {loadCollections(new_token);loadLocations(new_token);loadSpecies(new_token);}, 500);
       }, () => {
         // If log in fails
         console.log('LOGIN BY USER FAILED');
@@ -677,37 +755,41 @@ export default function Home() {
     switch(action) {
       case UserActions.None:
         return (
-           <BaseURLContext.Provider value={serverURL}>
-             <TokenContext.Provider value={lastToken}>
+          <BaseURLContext.Provider value={serverURL}>
+            <TokenContext.Provider value={lastToken}>
               <CollectionsInfoContext.Provider value={collectionInfo}>
                 <SandboxInfoContext.Provider value={sandboxInfo}>
                   <Landing loadingCollections={loadingCollections} onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
                 </SandboxInfoContext.Provider>
               </CollectionsInfoContext.Provider>
-             </TokenContext.Provider>
-           </BaseURLContext.Provider>
+            </TokenContext.Provider>
+          </BaseURLContext.Provider>
         );
       case UserActions.Upload:
         return (
-           <BaseURLContext.Provider value={serverURL}>
-             <TokenContext.Provider value={lastToken}>
+          <BaseURLContext.Provider value={serverURL}>
+            <TokenContext.Provider value={lastToken}>
               <SandboxInfoContext.Provider value={sandboxInfo}>
                 <UploadManage selectedUpload={curActionData} onEditUpload={editCollectionUpload} />
               </SandboxInfoContext.Provider>
-             </TokenContext.Provider>
-           </BaseURLContext.Provider>
+            </TokenContext.Provider>
+          </BaseURLContext.Provider>
         );
       case UserActions.UploadEdit:
         return (
-           <BaseURLContext.Provider value={serverURL}>
-             <TokenContext.Provider value={lastToken}>
+          <BaseURLContext.Provider value={serverURL}>
+            <TokenContext.Provider value={lastToken}>
               <UploadEditContext.Provider value={curActionData}>
-                <UploadEdit selectedUpload={curActionData.uploadName}
+                <LocationsInfoContext.Provider value={locationInfo}>
+                  <SpeciesInfoContext.Provider value={speciesInfo}>
+                    <UploadEdit selectedUpload={curActionData.uploadName}
                             onCancel={() => setCurrentAction(UserActions.Upload, curActionData, false)} 
                             searchSetup={setupSearch} />
+                  </SpeciesInfoContext.Provider>
+                </LocationsInfoContext.Provider>
               </UploadEditContext.Provider>
-             </TokenContext.Provider>
-           </BaseURLContext.Provider>
+            </TokenContext.Provider>
+          </BaseURLContext.Provider>
         );
       case UserActions.Collection:
         return (
@@ -722,18 +804,24 @@ export default function Home() {
       );
       case UserActions.Query:
         return (
-           <BaseURLContext.Provider value={serverURL}>
-             <TokenContext.Provider value={lastToken}>
+          <BaseURLContext.Provider value={serverURL}>
+            <TokenContext.Provider value={lastToken}>
               <CollectionsInfoContext.Provider value={collectionInfo}>
-                <Queries loadingCollections={loadingCollections}  />
+                <LocationsInfoContext.Provider value={locationInfo}>
+                  <SpeciesInfoContext.Provider value={speciesInfo}>
+                    <Queries loadingCollections={loadingCollections}  />
+                  </SpeciesInfoContext.Provider>
+                </LocationsInfoContext.Provider>
               </CollectionsInfoContext.Provider>
-             </TokenContext.Provider>
-           </BaseURLContext.Provider>
+            </TokenContext.Provider>
+          </BaseURLContext.Provider>
         );
       case UserActions.Maps:
         return (
             <TokenContext.Provider value={lastToken}>
-              <Maps />
+              <LocationsInfoContext.Provider value={locationInfo}>
+                <Maps />
+              </LocationsInfoContext.Provider>
             </TokenContext.Provider>
         );
     }

@@ -42,7 +42,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
   const [editingLocation, setEditingLocation] = React.useState(true);   // Changing collection locations flag
+  const [maxTilesDisplay, setMaxTilesDisplay] = React.useState(40);     // Set the maximum number of tiles to display
   const [navigationRedraw, setNavigationRedraw] = React.useState(null); // Forcing redraw on navigation
+  const [observerActive, setObserverActive] = React.useState(false);    // Used to indicate that we've set the observer
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [sidebarWidthLeft, setSidebarWidthLeft] = React.useState(150);  // Width of left sidebar
   const [sidebarHeightTop, setSidebarHeightTop] = React.useState(50);   // Height of top sidebar
@@ -69,6 +71,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const handleSpeciesChange = speciesChange.bind(UploadEdit);
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
+  let workingTileCount = 40;
 
   /**
    * Calculates the total available height for the workspace
@@ -77,10 +80,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    */
   const calcTotalHeight = React.useCallback((curSize) => {
     setTotalHeight(uiSizes.workspace.height);
-    setWorkingTop(uiSize.workspace.top);
+    setWorkingTop(uiSizes.workspace.top);
 
     // Get the top sidebar and add in the species sidebar if it's on top as well
-    console.log('HACK:TOPSIDEBAR:',sidebarTopRef,sidebarTopRef.current);
     const elTopSidebar = document.getElementById('top-sidebar');
     if (elTopSidebar) {
       const elTopSidebarSize = elTopSidebar.getBoundingClientRect();
@@ -89,7 +91,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       setSidebarHeightTop(0);
     }
 
-    console.log('HACK:SPECIESSIDEBAR:',sidebarSpeciesRef,sidebarSpeciesRef.current);
     const elSpeciesSidebar = document.getElementById('species-sidebar');
     if (elSpeciesSidebar) {
       const elSpeciesSidebarSize = elSpeciesSidebar.getBoundingClientRect();
@@ -101,7 +102,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         setSidebarWidthLeft(elSpeciesSidebarSize.width);
       }
     }
-  }, [narrowWindow])
+  }, [narrowWindow, uiSizes])
 
   /**
    * Common add a species to the current image function
@@ -123,25 +124,58 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     }
   }, [curImageEdit])
 
+  /**
+   * Handles the user scrolling past the end of the images, so we load more
+   * @function
+   */
+  const onMoreImages = React.useCallback(() => {
+    if (curUpload && curUpload.images && maxTilesDisplay < curUpload.images.length) {
+      // Figure out how many tiles across we are
+      let rowTilesCount = 4;
+      const el = document.getElementById('image-edit-workspace');
+      if (el && el.children && el.children.length > 1) {
+        const childTop = el.children[0].getBoundingClientRect().top;
+        rowTilesCount = 1;
+        while (rowTilesCount < 40 && rowTilesCount < curUpload.images.length) {
+          if (el.children[rowTilesCount].getBoundingClientRect().top != childTop) {
+            break;
+          }
+          rowTilesCount++;
+        }
+      }
+
+      workingTileCount = workingTileCount + 40;
+      setMaxTilesDisplay(workingTileCount + (workingTileCount % rowTilesCount));
+    }
+  }, [curUpload, maxTilesDisplay]);
+
+  // Check if we need to setup an interaction observer
+  React.useLayoutEffect(() => {
+    if (!observerActive) {
+      const el = document.getElementById('upload-edit-observer');
+      if (el) {
+        const observerOptions = {
+          root: document.getElementById('image-edit-workspace'),
+          rootMargin: "5px",
+          threshold: 0.0,
+        };
+        const observer = new IntersectionObserver(onMoreImages, observerOptions);
+        observer.observe(el);
+        setObserverActive(observer);
+      }
+    }
+  });
+
   // Render time width and height measurements
   React.useLayoutEffect(() => {
-    const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-    setWorkspaceWidth(newSize.width - (narrowWindow ? 0 : 150));
-    setWindowSize(newSize);
-    calcTotalHeight(newSize);
-  }, [narrowWindow, calcTotalHeight])
+    setWorkspaceWidth(uiSizes.workspace.width);
+    setWindowSize(uiSizes.window);
+    calcTotalHeight(uiSizes);
+  }, [uiSizes])
 
   // Measurements when resizing the window
   React.useLayoutEffect(() => {
       function onResize () {
-        let leftWidth = 0;
-        let topHeight = 0;
-        const newSize = {'width':window.innerWidth,'height':window.innerHeight};
-
-        setWindowSize(newSize);
-
-        calcTotalHeight(newSize);
-
         // Calculate the top sidebar and add in the species sidebar if it's on top as well
         if (sidebarTopRef && sidebarTopRef.current) {
           topHeight = sidebarTopRef.current.offsetHeight;
@@ -160,7 +194,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           }
         }
 
-        const newWorkspaceWidth = newSize.width - leftWidth;
+        const newWorkspaceWidth = uiSizes.workspace.width - leftWidth;
         setWorkspaceWidth(newWorkspaceWidth);
       }
 
@@ -169,7 +203,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, [narrowWindow, calcTotalHeight]);
+  }, [narrowWindow, uiSizes]);
 
   /**
    * Updates the server with a new location for the upload
@@ -354,7 +388,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     }
     curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
 
-    const speciesUrl = serverURL + '/uploadSpecies';
+    const speciesUrl = serverURL + '/updateSpecies';
     // TODO: save new species count on server
     /* TODO: make call and wait for response & return correct result
              need to handle null, 'invalid', and token values
@@ -443,12 +477,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
     searchSetup();
   }
-
+/*
   // Calculate the total available height if we don't have anything yet
   if (!totalHeight) {
     calcTotalHeight(windowSize);
   }
-
+*/
   // Variables to help with generating the UI
   const curHeight = totalHeight;
   const curStart = workingTop;
@@ -462,10 +496,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    */
   function generateImageTiles(clickHandler) {
     // TODO: generate only the amount needed to display and override the scroll bar
+    const maxTiles = curUpload.images ? Math.min(maxTilesDisplay, curUpload.images.length) : maxTilesDisplay;
+    const workingImages = curUpload.images ? curUpload.images.slice(0, maxTiles) : null;
     return (
-      <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}>
-      { curUpload.images ? 
-        curUpload.images.map((item) => {
+      <React.Fragment>
+      { workingImages ? 
+        workingImages.map((item) => {
           let imageSpecies = item.species && item.species.length > 0;
           return (
             <Grid size={{ xs: 12, sm: 4, md:3 }} key={item.name}>
@@ -482,16 +518,28 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             </Container>
           </Grid>
       }
-      </Grid>
+      { workingImages && maxTiles < curUpload.images.length &&
+          <Grid id='upload-edit-observer' size={{ xs: 12, sm: 12, md:12 }}>
+            <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
+              <div style={{height:'10px', width:'100px'}} />
+            </Container>
+          </Grid>
+      }
+      </React.Fragment>
     );
   }
+
+//  let el = document.getElementById('image-edit-workspace');
+//  if (el) {
+//    console.log('HACK:SCROLL:',el.scrollTop,el.scrollLeft,el.offsetHeight,el.offsetWidth);
+//  }
 
   // TODO: Make species bar on top when narrow screen
   const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
   const imageVisibility = (curEditState == editingStates.editImage || curEditState == editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
   // Return the rendered page
   return (
-    <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart+'px', width: '100vw' }} >
+    <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart+'px', height: uiSizes.workspace.height+'px', width: uiSizes.workspace.width+'px' }} >
       <SpeciesSidebar species={speciesItems}
                       position={narrowWindow?'top':'left'}
                       speciesSidebarRef={sidebarSpeciesRef}
@@ -501,8 +549,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                       onZoom={(event, speciesItem) => {setSpeciesZoomName(speciesItem.name);setSpeciesKeybindName(null);event.preventDefault();}}
       />
       <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' rows='1' 
-          style={{ ...theme.palette.top_sidebar, 'top':curStart+'px', 'minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px',
-                   'position':'sticky', 'left':workplaceStartX, 'verticalAlignment':'middle', 'visibility':topbarVisiblity }} >
+          style={{ ...theme.palette.top_sidebar, top:curStart+'px', minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
+                   position:'sticky', marginLeft:workplaceStartX, verticalAlignment:'middle', visibility:topbarVisiblity }} >
         <Grid>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
             {curUpload.name}
@@ -510,7 +558,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         </Grid>
         <Grid sx={{marginLeft:'auto'}}>
           <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.location && curUpload.location.length ? curUpload.location.idProperty : '<location>'}
+            {curUpload.location && curUpload.location.length ? curUpload.location : '<location>'}
           </Typography>
           <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
             <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
@@ -518,16 +566,16 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         </Grid>
       </Grid>
       { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
-        <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start"
-              style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
+        <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start" rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}
+              style={{ 'marginTop':'23px', 'marginLeft':'10px', 'marginRight':'10px',
                        'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
                        'maxHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
                        'height':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
                        'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px', 
                        'left':workplaceStartX,
-                       'minWidth':workspaceWidth,
-                       'maxWidth':workspaceWidth,
-                       'width':workspaceWidth, 
+                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
             {generateImageTiles(handleEditingImage)}
         </Grid>
@@ -561,15 +609,16 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           <Grid id='image-edit-location' container spacing={0} direction="column" alignItems="center" justifyContent="center"
                 style={{ 'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px', 
                         'top':(curStart+sidebarHeightTop)+'px',
-                         'left':workplaceStartX+'px','minWidth':workspaceWidth+'px', 'maxWidth':workspaceWidth+'px', 'width':workspaceWidth+'px',
+                         'left':workplaceStartX+'px',
+                         'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                         'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                         'width':(workspaceWidth-sidebarWidthLeft)+'px',
                          'position':'absolute'}}>
-              <Grid size={{ xs: 12, sm: 12, md:12 }}>
-                <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={curUploadLocation} 
-                                   onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
-                                   dataTT={tooltipData} onContinue={onLocationContinue}
-                                   onCancel={curEditState == editingStates.none ? handleCancel : () => setEditingLocation(false)}
-                />
-            </Grid>
+            <LocationSelection title={curUpload.name} locations={locationItems} defaultLocation={curUploadLocation} 
+                               onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
+                               dataTT={tooltipData} onContinue={onLocationContinue}
+                               onCancel={curEditState == editingStates.none ? handleCancel : () => setEditingLocation(false)}
+            />
           </Grid>
         : null }
       { speciesZoomName ? 
@@ -577,7 +626,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
                        'top':curStart+'px', 
-                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'left':workplaceStartX,
+                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
               <Grid size={{ xs: 12, sm: 12, md:12 }}>
                 <ImageEdit url={speciesItems.find((item)=>item.name===speciesZoomName).speciesIconURL} name={speciesZoomName}
@@ -594,7 +646,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
                        'top':curStart+'px', 
-                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'left':workplaceStartX,
+                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
               <Grid size={{ xs: 12, sm: 12, md:12 }}>
                 <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
