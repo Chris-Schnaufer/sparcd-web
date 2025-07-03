@@ -71,6 +71,19 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
     calcTotalSize(uiSizes);
   }, [narrowWindow, uiSizes]);
 
+
+   // Scrolls the selected collection into view
+  React.useLayoutEffect(() => {
+    if (selectionIndex >= 0 && selectionIndex < collectionsItems.length) {
+      const collectionName = collectionsItems[selectionIndex].name;
+      let el = document.getElementById("collection-"+collectionName);
+      if (el) {
+        el.scrollIntoView({behavior: 'instant', block: 'center', inline: 'center'});
+      }
+    }
+  }, [selectionIndex])
+
+
   /**
    * Searches for collections that meet the search criteria and scrolls it into view
    * @function

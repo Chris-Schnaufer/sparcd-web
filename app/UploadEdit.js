@@ -520,7 +520,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
       { workingImages && maxTiles < curUpload.images.length &&
           <Grid id='upload-edit-observer' size={{ xs: 12, sm: 12, md:12 }}>
-            <Container sx={{border:'1px solid grey', borderRadius:'5px', color:'darkslategrey', background:'#E0F0E0'}}>
+            <Container sx={{border:0, color:'transparent'}}>
               <div style={{height:'10px', width:'100px'}} />
             </Container>
           </Grid>
@@ -568,9 +568,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'height':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
                        'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px', 
                        'left':workplaceStartX,
-                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
-                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
-                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
+                       'minWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                       'maxWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                       'width':(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
                        'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
             {generateImageTiles(handleEditingImage)}
         </Grid>
@@ -581,7 +581,10 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
                        'top':(curStart)+'px', 
-                       'left':workplaceStartX, 'minWidth':workspaceWidth, 'maxWidth':workspaceWidth, 'width':workspaceWidth, 
+                       'left':workplaceStartX,
+                       'minWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
+                       'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
           <Grid >
             <ImageEdit url={curImageEdit.url}

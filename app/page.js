@@ -177,6 +177,7 @@ export default function Home() {
           const newSize = {'width':window.innerWidth,'height':window.innerHeight};
           setIsNarrow(newSize.width <= 640);
           calculateLayoutSizes();
+          console.log('HACK:RESIZE:');
       }
 
       window.addEventListener("resize", onResize);
@@ -255,6 +256,8 @@ export default function Home() {
     const workspaceSize = {top:titleSize.height, left:titleSize.left, width:titleSize.width, 
                             height:newSize.height-titleSize.height-footerSize.height}
     setSizeWorkspace(workspaceSize);
+
+    console.log('HACK:CALCULATELAYOUT:',newSize,titleSize,footerSize,workspaceSize);
   }
 
   /**
