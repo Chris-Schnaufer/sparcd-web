@@ -575,4 +575,4 @@ class S3Connection:
                     traceback.print_exception(ex)
 
         # Final callback to indicate processing is done
-        callback(None, None, None)
+        callback(callback_data, None, None, None)
