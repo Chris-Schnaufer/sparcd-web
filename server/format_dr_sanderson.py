@@ -114,6 +114,8 @@ def get_dr_sanderson_pictures(results: Results) -> str:
                 image_data.append({'location': results.get_location_name(one_image['loc']),
                                    'species': one_species['name'],
                                    'image': one_image['image_dt'].strftime(date_format) + \
-                                                        os.path.splitext(one_image['name'])[1]})
+                                                        os.path.splitext(one_image['name'])[1],
+                                   'path': one_image['bucket'] + ':' + one_image['s3_path']
+                                  })
 
     return image_data

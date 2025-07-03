@@ -224,9 +224,9 @@ def query_output(results: Results, results_id: str) -> tuple:
             },
             # Download file information
             'downloads': {
-                'DrSandersonOutput': 'drsanderson.csv',
-                'DrSandersonAllPictures': 'drsanderson_all.gz',
-                'csvRaw': 'raw.csv',
+                'DrSandersonOutput': 'drsanderson.txt',
+                'DrSandersonAllPictures': 'drsanderson_all.csv',
+                'csvRaw': 'allresults.csv',
                 'csvLocation': 'locations.csv',
                 'csvSpecies': 'species.csv',
                 'imageDownloads': 'images.gz',

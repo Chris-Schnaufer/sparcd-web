@@ -374,10 +374,13 @@ export default function Queries({loadingCollections}) {
    */
   const handleDownload = React.useCallback((tabId) => {
     console.log('HACK:HANDLEDOWNLOAD',tabId);
-    const downloadUrl =  serverURL + '/query_dl?t=' + encodeURIComponent(queryToken) + '?q=' + encodeURIComponent(tabId);
+    const downloadUrl =  serverURL + '/query_dl?t=' + encodeURIComponent(queryToken) + '&q=' + encodeURIComponent(tabId) + 
+                                                                '&d=' + encodeURIComponent(queryResults['downloads'][tabId]);
     var element = document.createElement('a');
     element.setAttribute('href', downloadUrl);
-    element.setAttribute('download', query_results['downlaods'][tabId]);
+    element.setAttribute('download', queryResults['downloads'][tabId]);
+    element.setAttribute('target','_blank');
+    element.setAttribute('rel','noopener');
 
     element.style.display = 'none';
     document.body.appendChild(element);
@@ -385,7 +388,7 @@ export default function Queries({loadingCollections}) {
     element.click();
 
     document.body.removeChild(element);
-  }, [queryToken, serverURL]);
+  }, [queryResults, queryToken, serverURL]);
 
   /**
    * Generates a panel for displaying the query results based upon different tabs

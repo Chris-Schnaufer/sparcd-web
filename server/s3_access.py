@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 import traceback
-from typing import Optional
+from typing import Optional, Callable
 import uuid
 from minio import Minio, S3Error
 
@@ -134,7 +134,7 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                             [*upload_results['collection']['uploads'], *upload_results['uploads']]
             # pylint: disable=broad-exception-caught
             except Exception as ex:
-                print(f'Generated exception: {ex}', flush=True)
+                print(f'Generated update user collections exception: {ex}', flush=True)
                 traceback.print_exception(ex)
 
     return user_collections
@@ -190,6 +190,27 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
 
     os.unlink(temp_file[1])
     return {'collection': collection, 'uploads': upload_info}
+
+
+def download_data_thread(minio: Minio, file_info: tuple, dest_root_path: str) -> tuple:
+    """ Downloads the indicated file from S3
+    Arguments:
+        minio - the S3 instance
+        file_info: a tuple containing the bucket, path, and (optional) destination path
+        dest_root_path: folder under which to place downloaded file
+    Return:
+        The orignal bucket and path, and the path to the downloaded file
+    """
+    dest_file = os.path.join(dest_root_path, file_info[2] if len(file_info) >= 3 else file_info[1])
+
+    # Make sure the destination folders exist
+    base = os.path.dirname(dest_file)
+    if not os.path.exists(base):
+        os.makedirs(base, exist_ok=True)
+
+    # Download the file (bucket, path, destination)
+    minio.fget_object(file_info[0], file_info[1], dest_file)
+    return file_info[0], file_info[1], dest_file
 
 
 def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
@@ -518,3 +539,40 @@ class S3Connection:
         minio = Minio(url, access_key=user, secret_key=password)
 
         return [minio.presigned_get_object(one_obj[0], one_obj[1]) for one_obj in object_info]
+
+    @staticmethod
+    def download_images_cb(url: str, user: str, password:str, files: tuple, dest_path: str, \
+                                                            callback: Callable, callback_data) -> None:
+        """ Downloads files into the destination path and calls the callback for each file
+            downloaded
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            files: a tuple containing the bucket, path, and (optionally) the destination path of the
+                    downloaded file
+            dest_path: the starting location to download files to
+            callback: called for each file downloaded
+            callback_data: data to pass to the callback as the first parameter (caller can use None)
+        Notes:
+            If a destination path is not specified for a file, the S3 path is used (starting at the
+            root of the dest_path)
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        # Download the files one at a time and call the callback
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            cur_futures = {executor.submit(download_data_thread, minio, one_file, dest_path):
+                                                                                one_file for one_file in files}
+
+            for future in concurrent.futures.as_completed(cur_futures):
+                try:
+                    bucket, source_path, downloaded_file = future.result()
+                    callback(callback_data, bucket, source_path, downloaded_file)
+                # pylint: disable=broad-exception-caught
+                except Exception as ex:
+                    print(f'Generated download images callback exception: {ex}', flush=True)
+                    traceback.print_exception(ex)
+
+        # Final callback to indicate processing is done
+        callback(None, None, None)

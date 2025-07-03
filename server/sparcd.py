@@ -23,8 +23,8 @@ import requests
 from cryptography.fernet import Fernet
 from minio import Minio
 from minio.error import MinioException
-from flask import Flask, abort, render_template, request, send_file, send_from_directory, session, \
-                  url_for
+from flask import Flask, abort, render_template, request, Response, send_file, send_from_directory,\
+                  session, url_for
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
@@ -545,14 +545,14 @@ def query_raw2csv(raw_data: tuple) -> str:
     for one_row in raw_data:
         # TODO: utm vs lat-lon
         cur_row = [one_row['image'], one_row['date'], one_row['locName'], one_row['locId'],
-                          '', one_row['locX'], one_row['locY'], one_row['locElevation']]
+                    '', str(one_row['locX']), str(one_row['locY']), str(one_row['locElevation'])]
         cur_idx = 1
         while True:
-            if 'scientific' + cur_idx in cur_row and 'common' + cur_idx in cur_row and 
-                    'count' + cur_idx in cur_row:
-                cur_row.append(cur_row['scientific' + cur_idx])
-                cur_row.append(cur_row['common' + cur_idx])
-                cur_row.append(cur_row['count' + cur_idx])
+            if 'scientific' + str(cur_idx) in one_row and 'common' + str(cur_idx) in one_row and \
+                    'count' + str(cur_idx) in one_row:
+                cur_row.append(one_row['scientific' + str(cur_idx)])
+                cur_row.append(one_row['common' + str(cur_idx)])
+                cur_row.append(str(one_row['count' + str(cur_idx)]))
             else:
                 break
 
@@ -571,14 +571,15 @@ def query_location2csv(location_data: tuple) -> str:
     all_results = ''
     for one_row in location_data:
         # TODO: utm vs lat-lon
-        cur_row = [one_row['name'], one_row['id'], one_row['locX'], one_row['locY'], one_row['locElevation']]
+        cur_row = [one_row['name'], one_row['id'], str(one_row['locX']), str(one_row['locY']), \
+                                                                    str(one_row['locElevation'])]
 
         all_results += ','.join(cur_row) + '\n'
 
     return all_results
 
 
-def query_species2csv(species_data: tupe) -> str:
+def query_species2csv(species_data: tuple) -> str:
     """ Returns the CSV of the specified species query results
     Arguments:
         species_data: the species data to convert
@@ -586,6 +587,18 @@ def query_species2csv(species_data: tupe) -> str:
     all_results = ''
     for one_row in species_data:
         all_results += ','.join([one_row['common'], one_row['scientific']]) + '\n'
+
+    return all_results
+
+
+def query_allpictures2csv(allpictures_data: tuple) -> str:
+    """ Returns the CSV of the specified Sanderson all pictures query results
+    Arguments:
+        allpictures_data: the all pictures data to convert
+    """
+    all_results = ''
+    for one_row in allpictures_data:
+        all_results += ','.join([one_row['location'], one_row['species'], one_row['image']]) + '\n'
 
     return all_results
 
@@ -606,6 +619,46 @@ def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: s
                                         bucket)
 
     return {'bucket': bucket, 'uploads_info': uploads_info}
+
+
+def gzip_cb(info: tuple, bucket: str, s3_path: str, local_path: str):
+    """ Handles the downloaded file as part of the GZIP creation
+    Arguments:
+        info: additional information from the calling function
+        bucket: the bucket downloaded from
+        s3_path: the S3 path of the downloaded file
+        local_path: where the data is locally
+    """
+
+
+def get_zip_dl_info(file_str: str) -> tuple:
+    """ Returns the file information for downloading purposes
+    Arguments:
+        file_str: the file path information to split apart
+    Return:
+        A tuple containing the bucket, S3 path, and target file
+    """
+    bucket, s3_path = file_str.split(':')
+    if 'Uploads' in s3_path:
+        target_path = s3_path[s3_path.index('Uploads')+8:] # Length of "Uploads/"
+    else:
+        target_path = s3_path
+
+    return bucket, s3_path, target_path
+
+
+def generate_zip(url: str, user: str, password: str, s3_files: tuple):
+    """ Creates a gz file containing the images
+    Arguments:
+        s3_files: the list of files to compress in the format of bucket:path
+    Returns:
+        The contents of the compressed files
+    """
+    save_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX + 'gz_')
+    S3Connection.download_images_cb(url, user, password, \
+                                        [get_zip_dl_info(one_file) for one_file in s3_files], \
+                                        save_folder, gzip_cb, None)
+
 
 
 @app.route('/', methods = ['GET'])
@@ -1273,8 +1326,8 @@ def query():
 
 
 @app.route('/query_dl', methods = ['GET'])
-@cross_origin(origins="http://localhost:3000", supports_credentials=True)
-def image():
+@cross_origin(origins="*", supports_credentials=True)
+def query_dl():
     """ Returns the results of a query
     Arguments: (GET)
         token - the session token
@@ -1287,12 +1340,13 @@ def image():
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
     tab = request.args.get('q')
+    target = request.args.get('d')
+    print('QUERY DOWNLOAD', request, flush=True)
 
     # Check what we have from the requestor
     if not token or not tab:
-        return "Not Found", 404
+        return "Not Found", 406
 
-    print('QUERY DOWNLOAD', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
                                     ))
@@ -1305,28 +1359,48 @@ def image():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
+    # Get the query information
+    query_info_path, _ = db.get_query(token)
+    print('           ',query_info_path, flush=True)
+
     # Try and load the query results
-    query_results = load_timed_info(query_info[0], QUERY_RESULTS_TIMEOUT_SEC)
+    query_results = load_timed_info(query_info_path, QUERY_RESULTS_TIMEOUT_SEC)
     if not query_results:
         return "Not Found", 404
 
     match(tab):
         case 'DrSandersonOutput':
-            return Response(query_results[tab], mimetype='text/text')
+            dl_name = target if target else 'drsanderson.txt'
+            return Response(query_results[tab], mimetype='text/text', \
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
-        case 'DrSandersonAllPictures';
-            return Response(, mimetype='application/gzip')
+        case 'DrSandersonAllPictures':
+            dl_name = target if target else 'drsanderson_all.csv'
+            return Response(query_allpictures2csv(query_results[tab]), mimetype='application/csv', \
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvRaw':
-            return Response(query_raw2csv(query_results[tab]), mimetype='text/csv')
+            dl_name = target if target else 'allresults.csv'
+            return Response(query_raw2csv(query_results[tab]), mimetype='text/csv', \
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvLocation':
-            return Response(query_location2csv(query_results[tab]), mimetype='text/csv')
+            dl_name = target if target else 'locations.csv'
+            return Response(query_location2csv(query_results[tab]), mimetype='text/csv', \
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvSpecies':
-            return Response(query_species2csv(query_results[tab]), mimetype='text/csv')
+            dl_name = target if target else 'species.csv'
+            return Response(query_species2csv(query_results[tab]), mimetype='text/csv', \
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'imageDownloads':
-            return Response(, mimetype='application/gzip')
+            s3_url = web_to_s3_url(user_info["url"])
+            return Response(generate_zip(s3_url, user_info["name"], \
+                                            do_decrypt(db.get_password(token)), \
+                                            [row['name'] for row in query_results[tab]] \
+                                        ), \
+                                mimetype='application/gzip', \
+                                headers={"Content-disposition": "attachment"})
 
     return "Not Found", 404
