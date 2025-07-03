@@ -85,6 +85,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'json TEXT NOT NULL)',
              'CREATE TABLE uploads(id INTEGER PRIMARY KEY ASC, collection TEXT NOT NULL, ' \
                             'name TEXT NOT NULL, json TEXT NOT NULL)',
+             'CREATE TABLE queries(id INTEGER PRIMARY KEY ASC, timestamp INTEGER, ' \
+                            'token TEXT, path TEXT NOT NULL)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 

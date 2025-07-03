@@ -409,3 +409,90 @@ class SPARCdDatabase:
         cursor.close()
 
         return True
+
+    def save_query_path(self, token: str, file_path: str) -> bool:
+        """ Stores the specified query file path in the database
+        Arguments:
+            token: a token associated with the path - can be used to manage paths
+            file_path: the path to the saved query information
+        Return:
+            True is returned if the path is saved and False if a problem occurrs
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to save query paths in the database before connecting')
+
+        # Check for expired collection uploads
+        cursor = self._conn.cursor()
+        cursor.execute('INSERT INTO queries(token,path,timestamp) ' \
+                                'VALUES (?,?,strftime("%s", "now"))', (token, file_path))
+
+        cursor.execute('COMMIT TRANSACTION')
+        cursor.close()
+
+        return True
+
+    def get_clear_queries(self, token: str) -> tuple:
+        """ Returns a tuple of saved query paths associated with this token and removes
+            them from the database
+        Arguments:
+            token: a token associated with the paths to clean return
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to save query paths in the database before connecting')
+
+        # Check for queries associated with the token
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id, path FROM queries WHERE token=(?)', (token,))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return []
+
+        path_ids = [row[0] for row in res]
+        return_paths = [row[1] for row in res]
+
+        # Clean up the queries
+        tries = 0
+        while tries < 10:
+            try:
+                cursor.execute('DELETE FROM queries where id in (' + \
+                                                    ','.join(['?'] * len(path_ids)) + ')', path_ids)
+                break
+            except sqlite3.Error as ex:
+                if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
+                    tries += 1
+                    sleep(1)
+                else:
+                    print(f'Saved queries delete sqlite error detected: {ex.sqlite_errorcode}')
+                    print('    Not processing request further: delete')
+                    print('   ',ex)
+                    tries = 10
+        if tries >= 10:
+            cursor.execute('ROLLBACK TRANSACTION')
+
+        cursor.execute('COMMIT TRANSACTION')
+        cursor.close()
+
+        return return_paths
+
+
+    def get_query(self, token: str) -> tuple:
+        """ Returns a tuple of saved query paths associated with this token
+        Arguments:
+            token: a token associated with the paths to clean return
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to save query paths in the database before connecting')
+
+        # Check for queries associated with the token
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT path,(strftime("%s", "now")-timestamp) AS elapsed_sec FROM queries ' \
+                                    'WHERE token=(?) ORDER BY elapsed_sec DESC LIMIT 1', (token,))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 2:
+            return []
+
+        cursor.close()
+
+        return res[0], res[1]

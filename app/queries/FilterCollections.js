@@ -36,14 +36,17 @@ export function FilterCollectionsFormData(data, formData) {
  * Returns the UI for filtering by date
  * @function
  * @param {object} {data} Any stored collections data
+ * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
  * @returns {object} The UI specific for filtering by collection
  */
-export default function FilterCollections({data, onClose, onChange}) {
+export default function FilterCollections({data, parentId, onClose, onChange}) {
   const theme = useTheme();
+  const cardRef = React.useRef();   // Used for sizeing
   const collectionItems = React.useContext(CollectionsInfoContext);
   const [displayedCollections, setDisplayedCollections] = React.useState(collectionItems); // The visible collections
+  const [listHeight, setListHeight] = React.useState(200);
   const [selectedCollections, setSelectedCollections] = React.useState(data ? data : collectionItems.map((item)=>item.bucket)); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
@@ -53,6 +56,26 @@ export default function FilterCollections({data, onClose, onChange}) {
       onChange(selectedCollections);
     }
   }, [data, onChange, selectedCollections]);
+
+  // Calculate how large the list can be
+  React.useLayoutEffect(() => {
+    if (parentId && cardRef && cardRef.current) {
+      const parentEl = document.getElementById(parentId);
+      if (parentEl) {
+        const parentRect = parentEl.getBoundingClientRect();
+        let usedHeight = 0;
+        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions', '#filter-collection-search-wrapper'];
+        for (let curId of childrenQueryIds) {
+          let childEl = cardRef.current.querySelector(curId);
+          if (childEl) {
+            let childRect = childEl.getBoundingClientRect();
+            usedHeight += childRect.height;
+          }
+        }
+        setListHeight(parentRect.height - usedHeight);
+      }
+    }
+  }, [parentId, cardRef]);
 
   /**
    * Handles selecting all collections to the filter
@@ -134,7 +157,7 @@ export default function FilterCollections({data, onClose, onChange}) {
 
   // Return the collection filter UI
   return (
-    <FilterCard title="Collections Filter" onClose={onClose}
+    <FilterCard cardRef={cardRef} title="Collections Filter" onClose={onClose}
                 actions={
                   <React.Fragment>
                     <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
@@ -142,7 +165,7 @@ export default function FilterCollections({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:'160px', maxHeight:'160px', height:'160px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>
@@ -158,7 +181,7 @@ export default function FilterCollections({data, onClose, onChange}) {
           }
         </FormGroup>
       </Grid>
-      <FormControl fullWidth variant="standard">
+      <FormControl id='filter-collection-search-wrapper' fullWidth variant="standard">
         <TextField
           variant="standard"
           id="file-collections-search"

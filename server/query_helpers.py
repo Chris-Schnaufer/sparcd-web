@@ -169,10 +169,11 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     return [cur_upload['info']|{'images':cur_images} for cur_upload,cur_images in matches]
 
 
-def query_output(results: Results) -> tuple:
+def query_output(results: Results, results_id: str) -> tuple:
     """ Formats the results into something that can be returned to the caller
     Arguments:
         results: the results class containing the results of the filter_uploads function
+        results_id: the unique identifier for this result
     Return:
         Returns a tuple containing the formatted results
     """
@@ -182,7 +183,8 @@ def query_output(results: Results) -> tuple:
     if not results.have_results():
         return tuple()
 
-    return {'DrSandersonOutput': get_dr_sanderson_output(results),
+    return {'id': results_id,
+            'DrSandersonOutput': get_dr_sanderson_output(results),
             'DrSandersonAllPictures': get_dr_sanderson_pictures(results),
             'csvRaw': get_csv_raw(results),
             'csvLocation': get_csv_location(results),
@@ -219,5 +221,14 @@ def query_output(results: Results) -> tuple:
                                 'locY':'Northing', 'locElevation':'Elevation'},
                 'csvSpecies': {'common':'Common Name', 'scientific':'Scientific Name'},
                 'imageDownloads': {'name':'Name'}
+            },
+            # Download file information
+            'downloads': {
+                'DrSandersonOutput': 'drsanderson.csv',
+                'DrSandersonAllPictures': 'drsanderson_all.gz',
+                'csvRaw': 'raw.csv',
+                'csvLocation': 'locations.csv',
+                'csvSpecies': 'species.csv',
+                'imageDownloads': 'images.gz',
             }
           }

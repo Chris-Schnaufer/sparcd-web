@@ -529,11 +529,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     );
   }
 
-//  let el = document.getElementById('image-edit-workspace');
-//  if (el) {
-//    console.log('HACK:SCROLL:',el.scrollTop,el.scrollLeft,el.offsetHeight,el.offsetWidth);
-//  }
-
   // TODO: Make species bar on top when narrow screen
   const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
   const imageVisibility = (curEditState == editingStates.editImage || curEditState == editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';

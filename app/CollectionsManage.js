@@ -61,7 +61,6 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   // Initialize collections information
   React.useEffect(() => {
     if (collectionsItems && selectedCollection && (selectionIndex == -1 || selectionIndex >= collectionsItems.length)) {
-      console.log('HACK:SETTING SELECTION INDEX');
       setSelectionIndex(collectionsItems.findIndex((item) => item.name === selectedCollection));
     }
   }, [collectionsItems, selectedCollection, selectionIndex, setSelectionIndex]);

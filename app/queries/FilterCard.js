@@ -21,12 +21,12 @@ import { useTheme } from '@mui/material/styles';
  * @param {object} {children} The child elements of the filter (filter specific UI elements)
  * @returns {object} The UI of the filter
  */
-export default function FilterCard({title, onClose, actions, children}) {
+export default function FilterCard({title, onClose, actions, children, cardRef}) {
   const theme = useTheme();
 
   return (
-    <Card id="filter-content" sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}}>
-      <CardHeader title={
+    <Card id="filter-content" ref={cardRef} sx={{backgroundColor:'seashell', border:"none", boxShadow:"none"}} >
+      <CardHeader id='filter-conent-header' title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
                       <Grid>
                         <Typography gutterBottom variant="h6" component="h4" noWrap="true">
@@ -56,11 +56,11 @@ export default function FilterCard({title, onClose, actions, children}) {
                     }
                 style={{paddingTop:'0px', paddingBottom:'0px'}}
       />
-      <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
+      <CardContent id='filter-content-content' sx={{paddingTop:'0px', paddingBottom:'0px'}}>
         {children}
       </CardContent>
       { actions ? 
-            <CardActions>
+            <CardActions id='filter-content-actions'>
               {actions}
             </CardActions>
         : null

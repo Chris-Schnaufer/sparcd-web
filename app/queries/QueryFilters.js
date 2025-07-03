@@ -75,22 +75,6 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
     }
 
     filterAdd(filterSelected);
-
-//    // Add the new filter to the array of filters
-//    const newFilter = {type:filterSelected, id:crypto.randomUUID(), data:null}
-//    const allFilters = filters;
-//    allFilters.push(newFilter);
-//
-//    // Set the timeout to remove the spinner and update the UI
-//    window.setTimeout(() => {
-//                  elFilter.style.visibility = 'hidden';
-//                  if (elFilterWait) {
-//                    elFilterWait.style.visibility = 'hidden';
-//                  }
-//
-//                  setFilters(allFilters);
-//                  setFilterRedraw(newFilter.id);
-//                });
   }
 
   /**
@@ -123,11 +107,12 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
    * @param {object} filterInfo The information on the filter to return the UI for
    * @returns {object} The filter-specific UI to render
    */
-  function generateFilterTile(filterInfo) {
+  function generateFilterTile(filterInfo, parentId) {
     switch(filterInfo.type) {
       case 'Collection Filter':
         return (
           <FilterCollections data={filterInfo.data}
+                             parentId={parentId}
                              onClose={() => filterRemove(filterInfo.id)} 
                              onChange={(data) => filterChanged(filterInfo.id, data)}/>
 
@@ -135,6 +120,7 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
       case 'Day of Week Filter':
         return (
           <FilterDayOfWeek data={filterInfo.data}
+                           parentId={parentId}
                            onClose={() => filterRemove(filterInfo.id)} 
                            onChange={(data) => filterChanged(filterInfo.id, data)}/>
 
@@ -156,24 +142,28 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
       case 'Hour Filter':
         return (
             <FilterHour data={filterInfo.data}
+                        parentId={parentId}
                         onClose={() => filterRemove(filterInfo.id)} 
                         onChange={(data) => filterChanged(filterInfo.id, data)}/>
         );
       case 'Location Filter':
         return (
             <FilterLocations data={filterInfo.data}
+                           parentId={parentId}
                            onClose={() => filterRemove(filterInfo.id)} 
                            onChange={(data) => filterChanged(filterInfo.id, data)}/>
         );
       case 'Month Filter':
         return (
             <FilterMonth data={filterInfo.data}
+                         parentId={parentId}
                          onClose={() => filterRemove(filterInfo.id)} 
                          onChange={(data) => filterChanged(filterInfo.id, data)}/>
         );
       case 'Species Filter':
         return (
             <FilterSpecies data={filterInfo.data}
+                           parentId={parentId}
                            onClose={() => filterRemove(filterInfo.id)} 
                            onChange={(data) => filterChanged(filterInfo.id, data)}/>
         );
@@ -202,16 +192,12 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
                    margin:0, overflowY:'scroll', padding:'5px'}}
         >
           { filters.map((item, idx) => 
-              <Grid key={"filter-" + item + "-" + idx} >
-                <Grid container direction="column" alignItems="center" justifyContent="center"
-                      sx={{ minHeight:'310px', maxHeight:'310px', minWidth:'310px', maxWidth:'310px', padding:'5px',
-                            border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
-                  <Grid>
-                    {generateFilterTile(item)}
-                  </Grid>
-                </Grid>
+              <Grid id={'filter-' + item.type + '-' + idx} key={"filter-" + item.type + "-" + idx} container direction="column" alignItems="center" justifyContent="start"
+                    sx={{ minHeight:(workingHeight-40)+'px', maxHeight:(workingHeight-40)+'px', minWidth:'310px', maxWidth:'310px', padding:'5px',
+                          border:'solid 1px grey', borderRadius:'10px', backgroundColor:'seashell' }}>
+                  {generateFilterTile(item, 'filter-' + item.type + '-' + idx)}
               </Grid>
-              ) 
+            ) 
           }
           <Grid>
             <Grid id="queries-actions" container direction="column" alignItems="center" justifyContent="center"

@@ -6,6 +6,8 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { DataGrid, useGridApiRef } from '@mui/x-data-grid';
 import DownloadForOfflineOutlinedIcon from '@mui/icons-material/DownloadForOfflineOutlined';
+import ExpandLessOutlinedIcon from '@mui/icons-material/ExpandLessOutlined';
+import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
 import Grid from '@mui/material/Grid';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -41,15 +43,19 @@ export default function Queries({loadingCollections}) {
   const QUERY_RESULTS_SHOW_DELAY_SEC = 5
   const theme = useTheme();
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
-  const filterRef = React.useRef();   // Used for sizeing
+  const dividerRef = React.useRef();   // Used for sizeing
+  const expandCollapseRef = React.useRef();   // Used for sizeing
   const locationItems = React.useContext(LocationsInfoContext);
   const queryToken = React.useContext(TokenContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const uiSizes = React.useContext(SizeContext);
   const [activeTab, setActiveTab] = React.useState(0);
+  const [dividerHeight, setDividerHeight] = React.useState(20); // Used to size controls
+  const [expandCollapseWidth, setExpandCollapseWidth] = React.useState(24);
   const [filters, setFilters] = React.useState([]); // Stores filter information
-  const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
   const [filterHeight, setFilterHeight] = React.useState(240); // Used to force redraw when new filter added
+  const [isExpanded, setIsExpanded] = React.useState(false); // Used to indicate the filters are expanded
+  const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
   const [queryCancelled, setQueryCancelled] = React.useState(false); // Used to indicate the user cancelled the query
   const [queryResults, setQueryResults] = React.useState(null); // Used to store query results
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
@@ -83,7 +89,17 @@ export default function Queries({loadingCollections}) {
     setWorkspaceWidth(uiSizes.workspace.width);
     setTotalHeight(uiSizes.workspace.height);
     setWorkingTop(uiSizes.workspace.top);
-  }, [totalHeight, uiSizes]);
+
+    if (expandCollapseRef && expandCollapseRef.current) {
+      const curRect = expandCollapseRef.current.getBoundingClientRect();
+      setExpandCollapseWidth(curRect.width);
+    }
+
+    if (dividerRef && dividerRef.current) {
+      const curRect = dividerRef.current.getBoundingClientRect();
+      setDividerHeight(curRect.height);
+    }
+  }, [uiSizes, expandCollapseRef, dividerRef]);
 
   /**
    * Adds a new filter to the list of filters
@@ -167,6 +183,14 @@ export default function Queries({loadingCollections}) {
                                 elFilterWait.style.visibility = 'hidden';
                               }
                             }, 100);
+  }
+
+  /**
+   * Handles the expansion and collapse of the filter and results areas
+   * @function
+   */
+  function handleExpandCollapse() {
+    setIsExpanded(!isExpanded);
   }
 
   /**
@@ -258,6 +282,7 @@ export default function Queries({loadingCollections}) {
             const time_diff_sec = (waitingOnQuery - Date.now()) / 1000.0;
             if (Math.round(time_diff_sec) < QUERY_RESULTS_SHOW_DELAY_SEC) {
               setQueryResults(respData);
+              setIsExpanded(false);
             } else  {
               window.setTimeout(() => setQueryResults(respData), time_diff_sec * 1000);
             }
@@ -314,7 +339,7 @@ export default function Queries({loadingCollections}) {
         {...other}
       >
       {value === index && (
-        <Box id='tabpanel-box' sx={{ height:'395px' }}>
+        <Box id='tabpanel-box'>
           {children}
         </Box>
       )}
@@ -343,6 +368,26 @@ export default function Queries({loadingCollections}) {
   }
 
   /**
+   * Handles the user downloading information
+   * @function
+   * @param {string} tabId The tab name to download
+   */
+  const handleDownload = React.useCallback((tabId) => {
+    console.log('HACK:HANDLEDOWNLOAD',tabId);
+    const downloadUrl =  serverURL + '/query_dl?t=' + encodeURIComponent(queryToken) + '?q=' + encodeURIComponent(tabId);
+    var element = document.createElement('a');
+    element.setAttribute('href', downloadUrl);
+    element.setAttribute('download', query_results['downlaods'][tabId]);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+    document.body.removeChild(element);
+  }, [queryToken, serverURL]);
+
+  /**
    * Generates a panel for displaying the query results based upon different tabs
    * @function
    * @param {object} queryResults The results of the performed query
@@ -357,7 +402,7 @@ export default function Queries({loadingCollections}) {
       return (
           <textarea id={'query-results-'+tabName} readOnly wrap="off"
             style={{resize:"none", fontFamily:'monospace', fontSize:'small', fontWeight:'lighter', 
-                    position:'absolute', left:0, top:0, right:0, bottom:0, padding:'5px'}}
+                    position:'absolute', left:0, top:0, right:0, bottom:0, padding:'5px 5px 10px 5px'}}
             value={queryResults[tabName]}
           />
       );
@@ -426,11 +471,11 @@ export default function Queries({loadingCollections}) {
    * @param {object} queryResults The results of a query to display
    * @returns {object} The UI of the query results
    */
-  function generateQueryResults(queryResults) {
+  function generateQueryResults(queryResults, maxHeight) {
     return (
       <Grid container size="grow" alignItems="start" justifyContent="start">
-        <Grid size={2}  sx={{backgroundColor:"#EAEAEA"}}>
-          <Tabs id='testing' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
+        <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight+'px'}}>
+          <Tabs id='query-results-tabs' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
           { queryResults.tabs.order.map((item, idx) => 
               <Tab label={
@@ -441,11 +486,11 @@ export default function Queries({loadingCollections}) {
                               </Typography>
                             </Grid>
                             <Tooltip title={'Download CSV of '+queryResults.tabs[item]}>
-                              <a href={serverURL + '/querydownload?tab' + item} download={item + '.csv'}  style={{marginLeft:'auto'}}>
+                              <div onClick={() => handleDownload(item)} style={{marginLeft:'auto'}}>
                                 <Grid sx={{borderRadius:'5px','&:hover':{backgroundColor:'rgba(0,0,255,0.05)'} }}>
                                   <DownloadForOfflineOutlinedIcon sx={{padding:'5px'}} />
                                 </Grid>
-                              </a>
+                              </div>
                             </Tooltip>
                           </Grid>
                          }
@@ -454,11 +499,11 @@ export default function Queries({loadingCollections}) {
           }
           </Tabs>
         </Grid>
-        <Grid size={10} sx={{minHeight:'395px',maxHeight:'395px',overflowX:'scroll',display:'flex'}}>
+        <Grid size={10} sx={{overflowX:'scroll',display:'flex'}}>
           { queryResults.tabs.order.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 
-                          style={{overflow:'scroll', width:'100%', position:'relative',margin:'0 16px auto 8px'}}>
+                          style={{overflow:'scroll', width:'100%', position:'relative',margin:'0 16px auto 8px', height:(maxHeight-20)+'px'}}>
                   {generateResultPanel(queryResults, item, idx)}
                 </TabPanel>
               )}
@@ -476,18 +521,26 @@ export default function Queries({loadingCollections}) {
   }
 
   // Return the UI
-  const curHeight = 350;//((totalHeight || 480) / 2.0) + 'px';
+  const curHeight = queryResults && isExpanded === false ? 100 : Math.max(320, uiSizes.workspace.height * 0.80);//((totalHeight || 480) / 2.0) + 'px';
   return (
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
-      <QueryFilters ref={filterRef} workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}
+      <QueryFilters workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}
                     filterChanged={handleFilterChange} filterRemove={removeFilter} filterAdd={handleFilterAccepted}
                     onQuery={handleQuery} />
+      <Grid id="queries-workspace-divider" ref={dividerRef} container direction="row" sx={{justifyContent:'start', alignItems:'center', spacing:2, paddingLeft:'10px'}} >
+        <span style={{border:'1px solid lightgrey',height:'0px',minWidth:'40px',width:((workspaceWidth - expandCollapseWidth) / 2.0) - 10 + 'px'}} />
+        <Typography ref={expandCollapseRef} variant="body" onClick={handleExpandCollapse} sx={{ color:queryResults ? 'grey' : 'lightgrey', fontSize:'1.5em', 
+                    transform:isExpanded ? 'rotate(-90deg)' : 'rotate(90deg)', margin:'0px 2px 0px 5px', cursor:queryResults ? 'pointer' : 'default' }}>
+          &raquo;
+        </Typography>
+        <span style={{border:'1px solid lightgrey',height:'0px',minWidth:'40px',width:((workspaceWidth - expandCollapseWidth) / 2.0) - 10 + 'px'}} />
+      </Grid>
       <Grid container id="query-results-wrapper" direction="row" alignItems="start" justifyContent="start" wrap="nowrap"
             spacing={2}
-            sx={{minHeight:(totalHeight-curHeight)+"px", maxHeight:(totalHeight-curHeight)+"px", backgroundColor:'white',
-                 margin:0, overflow:'clip', padding:'5px', borderTop:'1px solid grey'}}
+            sx={{minHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10)+"px", maxHeight:(uiSizes.workspace.height-curHeight-dividerHeight-10)+"px",
+                 backgroundColor:'white', margin:0, overflow:'clip', padding:'5px'}}
       >
-      { queryResults ? generateQueryResults(queryResults)  : null }
+      { queryResults ? generateQueryResults(queryResults, uiSizes.workspace.height-curHeight-dividerHeight-10)  : null }
       </Grid>
       { loadingCollections && 
           <Grid id="query-loading-collections-wrapper" container direction="row" alignItems="center" justifyContent="center" 
@@ -508,7 +561,7 @@ export default function Queries({loadingCollections}) {
       }
       { waitingOnQuery && 
           <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
-                sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+                sx={{position:'absolute', top:0, left:0, width:'100vw', height:uiSizes.workspace.height+'px', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
           >
             <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
               <Grid container direction="column" alignItems="center" justifyContent="center" >

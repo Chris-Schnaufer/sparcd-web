@@ -55,12 +55,15 @@ export function FilterDayOfWeekFormData(data, formData) {
 /**
  * Returns the UI for filtering by day of the week
  * @param {object} {data} Saved day of the week data
+ * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
  * @returns {object} The UI specific for filtering by day of the week
  */
-export default function FilterDayOfWeek({data, onClose, onChange}) {
+export default function FilterDayOfWeek({data, parentId, onClose, onChange}) {
   const theme = useTheme();
+  const cardRef = React.useRef();   // Used for sizeing
+  const [listHeight, setListHeight] = React.useState(200);
   const [selectedDays, setSelectedDays] = React.useState(data ? data : dayNames); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
@@ -70,6 +73,26 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
       onChange(selectedDays);
     }
   }, [data, onChange, selectedDays]);
+
+  // Calculate how large the list can be
+  React.useLayoutEffect(() => {
+    if (parentId && cardRef && cardRef.current) {
+      const parentEl = document.getElementById(parentId);
+      if (parentEl) {
+        const parentRect = parentEl.getBoundingClientRect();
+        let usedHeight = 0;
+        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions'];
+        for (let curId of childrenQueryIds) {
+          let childEl = cardRef.current.querySelector(curId);
+          if (childEl) {
+            let childRect = childEl.getBoundingClientRect();
+            usedHeight += childRect.height;
+          }
+        }
+        setListHeight(parentRect.height - usedHeight);
+      }
+    }
+  }, [parentId, cardRef]);
 
   /**
    * Handles selecting all the day of the week choices
@@ -120,7 +143,7 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
 
   // Return the UI for choosing the day of the week
   return (
-    <FilterCard title="Day of Week Filter" onClose={onClose} 
+    <FilterCard cardRef={cardRef} title="Day of Week Filter" onClose={onClose} 
                 actions={
                   <React.Fragment>
                     <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
@@ -128,7 +151,7 @@ export default function FilterDayOfWeek({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>

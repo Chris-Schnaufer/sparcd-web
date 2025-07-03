@@ -61,12 +61,15 @@ export function FilterHourFormData(data, formData) {
 /**
  * Returns the UI for filtering by hours
  * @param {object} {data} Saved hour data
+ * @param {string} parentId The ID of the parent of this filter
  * @param {function} onClose The handler for closing this filter
  * @param {function} onChange The handler for when the filter data changes
  * @returns {object} The UI specific for filtering by hour
  */
-export default function FilterHour({data, onClose, onChange}) {
+export default function FilterHour({data, parentId, onClose, onChange}) {
   const theme = useTheme();
+  const cardRef = React.useRef();   // Used for sizeing
+  const [listHeight, setListHeight] = React.useState(200);
   const [selectedHours, setSelectedHours] = React.useState(data ? data : hoursNames); // The user's selections
   const [selectionRedraw, setSelectionRedraw] = React.useState(0); // Used to redraw the UI
 
@@ -76,6 +79,26 @@ export default function FilterHour({data, onClose, onChange}) {
       onChange(selectedHours);
     }
   }, [data, onChange, selectedHours]);
+
+  // Calculate how large the list can be
+  React.useLayoutEffect(() => {
+    if (parentId && cardRef && cardRef.current) {
+      const parentEl = document.getElementById(parentId);
+      if (parentEl) {
+        const parentRect = parentEl.getBoundingClientRect();
+        let usedHeight = 0;
+        const childrenQueryIds = ['#filter-conent-header', '#filter-content-actions'];
+        for (let curId of childrenQueryIds) {
+          let childEl = cardRef.current.querySelector(curId);
+          if (childEl) {
+            let childRect = childEl.getBoundingClientRect();
+            usedHeight += childRect.height;
+          }
+        }
+        setListHeight(parentRect.height - usedHeight);
+      }
+    }
+  }, [parentId, cardRef]);
 
   /**
    * Handles selecting all the filter choices
@@ -127,7 +150,7 @@ export default function FilterHour({data, onClose, onChange}) {
 
   // Return the UI for filtering by the hour
   return (
-    <FilterCard title="Hour Filter" onClose={onClose}
+    <FilterCard cardRef={cardRef} title="Hour Filter" onClose={onClose}
                 actions={
                   <React.Fragment>
                     <Button sx={{'flex':'1'}} size="small" onClick={handleSelectAll}>Select All</Button>
@@ -135,7 +158,7 @@ export default function FilterHour({data, onClose, onChange}) {
                   </React.Fragment>
                 }
     >
-      <Grid sx={{minHeight:'210px', maxHeight:'210px', height:'210px', minWidth:'250px', overflow:'scroll',
+      <Grid sx={{minHeight:listHeight+'px', maxHeight:listHeight+'px', height:listHeight+'px', minWidth:'250px', overflow:'scroll',
                       border:'1px solid black', borderRadius:'5px', paddingLeft:'5px',
                       backgroundColor:'rgb(255,255,255,0.3)'
                     }}>

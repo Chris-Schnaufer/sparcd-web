@@ -80,6 +80,8 @@ TEMP_FILE_MAX_WRITE_TRIES = 7
 TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
 # Uploads table timeout length
 TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
+# Timeout for query results on disk
+QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
 
 # Environment varriable for where to find the UI
 ENV_NAME_BUILD_FOLDER = 'SPARCD_BUILD'
@@ -515,6 +517,79 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_na
     return all_results
 
 
+def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
+    """ Cleans up old queries off the file system
+    Arguments:
+        db - connections to the current database
+    """
+    expired_queries = db.get_clear_queries(token)
+    if expired_queries:
+        for one_query_path in expired_queries:
+            print('HACK:OLDQUERY',one_query_path,flush=True)
+            if os.path.exists(one_query_path):
+                try:
+                    os.unlink(one_query_path)
+                # pylint: disable=broad-exception-caught
+                except Exception as ex:
+                    print(f'Unable to remove old query file: {one_query_path}')
+                    print(ex)
+
+
+def query_raw2csv(raw_data: tuple) -> str:
+    """ Returns the CSV of the specified raw query results
+    Arguments:
+        raw_data: the query data to convert
+    """
+    all_results = ''
+
+    for one_row in raw_data:
+        # TODO: utm vs lat-lon
+        cur_row = [one_row['image'], one_row['date'], one_row['locName'], one_row['locId'],
+                          '', one_row['locX'], one_row['locY'], one_row['locElevation']]
+        cur_idx = 1
+        while True:
+            if 'scientific' + cur_idx in cur_row and 'common' + cur_idx in cur_row and 
+                    'count' + cur_idx in cur_row:
+                cur_row.append(cur_row['scientific' + cur_idx])
+                cur_row.append(cur_row['common' + cur_idx])
+                cur_row.append(cur_row['count' + cur_idx])
+            else:
+                break
+
+            cur_idx += 1
+
+        all_results += ','.join(cur_row) + '\n'
+
+    return all_results
+
+
+def query_location2csv(location_data: tuple) -> str:
+    """ Returns the CSV of the specified location query results
+    Arguments:
+        location_data: the location data to convert
+    """
+    all_results = ''
+    for one_row in location_data:
+        # TODO: utm vs lat-lon
+        cur_row = [one_row['name'], one_row['id'], one_row['locX'], one_row['locY'], one_row['locElevation']]
+
+        all_results += ','.join(cur_row) + '\n'
+
+    return all_results
+
+
+def query_species2csv(species_data: tupe) -> str:
+    """ Returns the CSV of the specified species query results
+    Arguments:
+        species_data: the species data to convert
+    """
+    all_results = ''
+    for one_row in species_data:
+        all_results += ','.join([one_row['common'], one_row['scientific']]) + '\n'
+
+    return all_results
+
+
 def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: str) -> object:
     """ Used to load upload information from an S3 instance
     Arguments:
@@ -873,11 +948,11 @@ def locations():
 
     # Get the locations to return
     s3_url = web_to_s3_url(user_info["url"])
-    locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     # Return the locations
-    return json.dumps(locations)
+    return json.dumps(cur_locations)
 
 
 @app.route('/species', methods = ['GET'])
@@ -912,10 +987,10 @@ def species():
 
     # Get the species to return
     s3_url = web_to_s3_url(user_info["url"])
-    species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
     # Return the collections
-    return json.dumps(species)
+    return json.dumps(cur_species)
 
 
 @app.route('/upload', methods = ['GET'])
@@ -1113,7 +1188,7 @@ def query():
         return "Not Found", 404
     user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
-    # Allow a timely request from everywhere
+    # Restrict requests
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
         return "Unauthorized", 401
@@ -1170,15 +1245,88 @@ def query():
                 all_results = all_results + cur_results
 
     # Get the species and locations
-    species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
-    locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
-    results = Results(all_results, species, locations,
+    results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
                         60) # TODO: add query interval
 
     # Format and return the results
-    return_info = query_helpers.query_output(results)
+    results_id = uuid.uuid4().hex
+    return_info = query_helpers.query_output(results, results_id)
+
+    # Check for old queries and clean them up
+    cleanup_old_queries(db, token)
+
+    # Save the query for lookup when downloading results
+    save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + 'query_' + \
+                                                                results_id + '.json')
+    print('HACK:SQVINGQUERY:',save_path,flush=True)
+    save_timed_info(save_path, return_info)
+    db.save_query_path(token, save_path)
+
     return json.dumps(return_info)
+
+
+
+@app.route('/query_dl', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def image():
+    """ Returns the results of a query
+    Arguments: (GET)
+        token - the session token
+        t - the name of the tab results to download
+    Return:
+        Returns the requested file
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    tab = request.args.get('q')
+
+    # Check what we have from the requestor
+    if not token or not tab:
+        return "Not Found", 404
+
+    print('QUERY DOWNLOAD', request, flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Try and load the query results
+    query_results = load_timed_info(query_info[0], QUERY_RESULTS_TIMEOUT_SEC)
+    if not query_results:
+        return "Not Found", 404
+
+    match(tab):
+        case 'DrSandersonOutput':
+            return Response(query_results[tab], mimetype='text/text')
+
+        case 'DrSandersonAllPictures';
+            return Response(, mimetype='application/gzip')
+
+        case 'csvRaw':
+            return Response(query_raw2csv(query_results[tab]), mimetype='text/csv')
+
+        case 'csvLocation':
+            return Response(query_location2csv(query_results[tab]), mimetype='text/csv')
+
+        case 'csvSpecies':
+            return Response(query_species2csv(query_results[tab]), mimetype='text/csv')
+
+        case 'imageDownloads':
+            return Response(, mimetype='application/gzip')
+
+    return "Not Found", 404
