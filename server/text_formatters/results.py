@@ -161,8 +161,8 @@ class Results:
 
         sorted_locations = mapped_values
         if have_unknown:
-            sorted_locations.append({'nameProperty':'Unknown', 'idPropert':'unknown', 
-                                     'latProperty':0.0, 'lngProperty':0.0, 'elevation':0.0})
+            sorted_locations.append({'nameProperty':'Unknown', 'idProperty':'unknown', 
+                                    'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0})
 
         # Get all the species and check for unknown
         cur_species = {}
@@ -226,7 +226,11 @@ class Results:
 
         # Loop through the images and add them to the correct buckets
         for one_image in images:
-            locations_filtered[one_image['loc']].append(one_image)
+            if one_image['loc'] in locations_filtered:
+                locations_filtered[one_image['loc']].append(one_image)
+            else:
+                print('HACK: UNKNOWN LOCATION:', one_image,flush=True)
+                locations_filtered['unknown'].append(one_image)
             for one_species in one_image['species']:
                 if 'name' not in one_species or 'scientificName' not in one_species or not \
                                         one_species['name'] or not one_species['scientificName']:
@@ -404,10 +408,21 @@ class Results:
             The location instance or None if it's not found
         """
         if self._all_locations is not None:
-            found_loc = next(iter(one_loc for one_loc in self._all_locations if \
+            possible_loc = tuple((one_loc for one_loc in self._all_locations if \
                                                             one_loc['idProperty'] == location_id))
+            # Check that it's not an unknown location
+            print('HACK:LOC ITER:',location_id,possible_loc,len(possible_loc), flush=True)
+            if len(possible_loc) <= 0:
+                possible_loc = tuple(({'nameProperty':'Unknown', 'idProperty':location_id, 
+                                'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0},))
+
+            print('HACK:LOC ITER:',location_id,possible_loc, flush=True)
+
+            found_loc = next(iter(possible_loc))
             if found_loc:
+                print('HACK:    :',found_loc,flush=True)
                 return found_loc
+
             return None
 
         raise RuntimeError('Call made to Results.get_image_location after bad initialization')

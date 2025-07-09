@@ -53,7 +53,8 @@ class LocationStatFormatter:
                 period = Analysis.period_for_image_list(location_species_images, \
                                                                             results.get_interval())
                 result += '{:5d} {:7.2f}                   '.format(period, \
-                                                    (float(period) / float(total_period)) * 100.0)
+                               (float(period) / float(total_period) if \
+                                                            total_period != 0.0 else 0.0) * 100.0)
             result += os.linesep
 
         result += 'Total pictures            '
