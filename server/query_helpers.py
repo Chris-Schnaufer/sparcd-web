@@ -229,6 +229,6 @@ def query_output(results: Results, results_id: str) -> tuple:
                 'csvRaw': 'allresults.csv',
                 'csvLocation': 'locations.csv',
                 'csvSpecies': 'species.csv',
-                'imageDownloads': 'images.gz',
+                'imageDownloads': 'allimages.gz',
             }
           }

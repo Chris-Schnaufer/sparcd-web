@@ -7,15 +7,18 @@ import datetime
 import hashlib
 import io
 import json
-from multiprocessing import connection, Lock, Process, Pipe, Semaphore, synchronize
+from multiprocessing import connection, Lock, Semaphore, synchronize
 import os
+import shutil
 import sys
 import tempfile
+import threading
 import time
 import traceback
 from typing import Optional
 from urllib.parse import urlparse, quote as urlquote
 import uuid
+import zipfile
 from cachelib.file import FileSystemCache
 import dateutil.parser
 from PIL import Image
@@ -526,7 +529,6 @@ def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
     expired_queries = db.get_clear_queries(token)
     if expired_queries:
         for one_query_path in expired_queries:
-            print('HACK:OLDQUERY',one_query_path,flush=True)
             if os.path.exists(one_query_path):
                 try:
                     os.unlink(one_query_path)
@@ -622,54 +624,70 @@ def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: s
     return {'bucket': bucket, 'uploads_info': uploads_info}
 
 
-def zip_downloaded_files(write_pipe: connection.Connection, file_list: list, \
-                            files_lock: synchronize.Lock, done_lock: synchronize.Semaphore) -> None:
+def zip_downloaded_files(write_fd: int, file_list: list, \
+                            files_lock: synchronize.Lock, done_sem: threading.Semaphore, \
+                            save_folder: str) -> None:
     """ Compresses the downloaded files and streams the data into the data pipe
     Arguments:
         write_pipe: the pipe to use for the zipping output
         file_list: the list of files to compress
         files_lock: the lock access to the list of files
-        done_lock: the lock indicating the downloads have completed
+        done_sem: the lock indicating the downloads have completed
+        save_folder: the base folder where the downloads are being saved. Use for relative
+                    path names
     """
-    with zipfile.ZipFile(write_pipe, mode='w', compression=zipfile.ZIP_BZIP2, compresslevel=2) as compressed:
-        lock_acquired = False
-        while True:
-            next_file = None
+    if not save_folder.endswith(os.path.sep):
+        save_folder += os.path.sep
 
-            # Only get the lock one time
-            if not lock_acquired:
-                files_lock.acquire()
-                lock_acquired = True
+    with os.fdopen(write_fd, 'wb') as zip_out:
+        with zipfile.ZipFile(zip_out, mode='w', compression=zipfile.ZIP_BZIP2, \
+                                                                    compresslevel=2) as compressed:
+            lock_acquired = False
+            while True:
+                next_file = None
 
-            # Get the next file to work on and relase the lock if we don't have too
-            # many files queued up already
-            try:
-                # Check if all the files have been downloaded
-                if len(file_list) == 0:
-                    if done_lock.acquire(blocking=False, timeout=None):
-                        done_lock.release()
+                # Only get the lock one time
+                if not lock_acquired:
+                    files_lock.acquire()
+                    lock_acquired = True
+
+                # Get the next file to work on and relase the lock if we don't have too
+                # many files queued up already
+                try:
+                    # Check if all the files have been downloaded
+                    if len(file_list) == 0:
+                        # Release the lock on file list
                         if lock_acquired:
                             files_lock.release()
                             lock_acquired = False
-                        break
-                    # Not done yet, wait for a little
-                    time.sleep(0.5)
+
+                        # Check if we hit a download lull or we're done
+                        if done_sem.acquire(blocking=False, timeout=None):
+                            done_sem.release()
+                            break
+
+                        # Not done yet, wait for a little
+                        time.sleep(0.5)
+                        continue
+
+                    # Grab the next file
+                    next_file, _, _ = file_list.pop(0) # unused next_bucket, next_s3_path
+                finally:
+                    # We hold onto the list lock if there's a bunch of files downloaded already.
+                    # This will allow us to catch up
+                    if len(file_list) < 200 and lock_acquired:
+                        files_lock.release()
+                        lock_acquired = False
+
+                if not next_file:
                     continue
 
-                # Grab the next file
-                next_file = file_list.pop(0)
-            finally:
-                # We hold onto the list lock if there's a bunch of files downloaded already. This 
-                # will allow us to catch up
-                if len(file_list) < 200:
-                    files_lock.release()
-                    lock_acquired = False
+                compressed.write(next_file, next_file[len(save_folder):])
 
-            if not next_file:
-                continue
+                os.unlink(next_file)
 
-        print('HACK:WRITEZIP:',next_file,flush=True)
-        compressed.write(next_file)
+    # Remove the downloading folder
+    shutil.rmtree(save_folder)
 
 
 def gzip_cb(info: tuple, bucket: str, s3_path: str, local_path: str):
@@ -686,15 +704,15 @@ def gzip_cb(info: tuple, bucket: str, s3_path: str, local_path: str):
         finish_lock.release()
 
     # Add our file information to the list
-    file_array = info[0]
-    array_lock = info[1]
+    file_list = info[0]
+    list_lock = info[1]
 
     # Add our file to the list
-    array_lock.acquire()
+    list_lock.acquire()
     try:
-        file_array.append((local_path, bucket, s3_path))
+        file_list.append((local_path, bucket, s3_path))
     finally:
-        array_lock.release()
+        list_lock.release()
 
 
 def get_zip_dl_info(file_str: str) -> tuple:
@@ -714,8 +732,8 @@ def get_zip_dl_info(file_str: str) -> tuple:
 
 
 def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
-                                        write_pipe: connection.Connection, \
-                                        done_lock: synchronize.Semaphore) -> None:
+                                        write_fd: int, \
+                                        done_sem: threading.Semaphore) -> None:
     """ Creates a gz file containing the images
     Arguments:
         url: the URL to the S3 instance
@@ -723,7 +741,7 @@ def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
         password: the S3 password
         s3_files: the list of files to compress in the format of bucket:path
         write_pipe: the pipe to write the ZIP data to
-        done_lock: the lock indicating the last file has been downloaded
+        done_sem: the lock indicating the last file has been downloaded
     Returns:
         The contents of the compressed files
     """
@@ -731,16 +749,29 @@ def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
     downloaded_files = []
     download_files_lock = Lock()
 
-    zip_process = Process(target=zip_downloaded_files, \
-                          args=(write_pipe, downloaded_files, download_files_lock, done_lock) \
+    zip_thread = threading.Thread(target=zip_downloaded_files,
+                          args=(write_fd, downloaded_files, download_files_lock, done_sem, \
+                                                                                        save_folder)
                          )
-    zip_process.start()
+    zip_thread.start()
 
-    S3Connection.download_images_cb(url, user, password, \
-                                        [get_zip_dl_info(one_file) for one_file in s3_files], \
+    S3Connection.download_images_cb(url, user, password,
+                                        [get_zip_dl_info(one_file) for one_file in s3_files],
                                         save_folder, gzip_cb,
-                                        (downloaded_files, download_files_lock, done_lock))
+                                        (downloaded_files, download_files_lock, done_sem))
 
+
+def zip_iterator(read_fd: int):
+    """ Reads the data in the pipe and yields it
+    Arguments:
+        read_conn: the reading pipe to read from
+    """
+    with os.fdopen(read_fd, 'rb') as zip_in:
+        while True:
+            data = zip_in.read(1024)
+            if not data:
+                break
+            yield data
 
 
 @app.route('/', methods = ['GET'])
@@ -1352,32 +1383,6 @@ def query():
 
     # Get uploads information to further filter images
     all_results = filter_collections(db, cur_coll, s3_url, user_info["name"], token, filters)
-    for one_coll in cur_coll:
-        cur_bucket = one_coll['json']['bucketProperty']
-        uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
-        if uploads_info is not None and uploads_info:
-            uploads_info = [{'bucket':cur_bucket,       \
-                             'name':one_upload['name'],                     \
-                             'info':json.loads(one_upload['json'])}         \
-                                    for one_upload in uploads_info]
-        else:
-            uploads_info = S3Connection.list_uploads(s3_url, \
-                                                user_info["name"], \
-                                                do_decrypt(db.get_password(token)), \
-                                                cur_bucket)
-            if len(uploads_info) > 0:
-                uploads_info = [{'bucket':cur_bucket,
-                                 'name':one_upload['name'],
-                                 'info':one_upload,
-                                 'json':json.dumps(one_upload)
-                                } for one_upload in uploads_info]
-                db.save_uploads(one_coll['json']['bucket'], uploads_info)
-
-        # Filter on current uploads
-        if len(uploads_info) > 0:
-            cur_results = query_helpers.filter_uploads(uploads_info, filters)
-            if cur_results:
-                all_results = all_results + cur_results
 
     # Get the species and locations
     cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
@@ -1399,7 +1404,6 @@ def query():
     # Save the query for lookup when downloading results
     save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + 'query_' + \
                                                                 results_id + '.json')
-    print('HACK:SQVINGQUERY:',save_path,flush=True)
     save_timed_info(save_path, return_info)
     db.save_query_path(token, save_path)
 
@@ -1477,25 +1481,27 @@ def query_dl():
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'imageDownloads':
-            pass
-            #s3_url = web_to_s3_url(user_info["url"])
-            #parent_conn, child_conn = Pipe(False)
-#
-            ## Get and acqure the lock: indicates the files are downloaded when released
-            #download_finished_lock = Semaphore(1)
-            #download_finished_lock.acquire()
-#
-            ## Run the download and compression as a seperate process
-            #dl_process = Process(target=generate_zip, \
-            #                     args=(s3_url, user_info["name"], do_decrypt(db.get_password(token)), \
-            #                           [row['name'] for row in query_results[tab]], \
-            #                           child_conn, download_finished_lock) \
-            #                    )
-            #dl_process.start()
-#
-            ## Return the compressed data as an iterator over the data pipe
-            #return Response(, \
-            #                    mimetype='application/gzip', \
-            #                    headers={"Content-disposition": "attachment"})
+            dl_name = target if target else 'allimages.gz'
+            s3_url = web_to_s3_url(user_info["url"])
+            read_fd, write_fd = os.pipe()
+
+            # Get and acqure the lock: indicates the files are downloaded when released
+            # pylint: disable=consider-using-with
+            download_finished_lock = threading.Semaphore(1)
+            download_finished_lock.acquire()
+
+            # Run the download and compression as a seperate process
+            dl_thread = threading.Thread(target=generate_zip,
+                                 args=(s3_url, user_info["name"],
+                                       do_decrypt(db.get_password(token)),
+                                       [row['name'] for row in query_results[tab]],
+                                       write_fd, download_finished_lock)
+                                )
+            dl_thread.start()
+
+            # Return the compressed data as an iterator over the data pipe
+            return Response(zip_iterator(read_fd),
+                                mimetype='application/gzip',
+                                headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
     return "Not Found", 404

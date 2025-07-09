@@ -379,8 +379,8 @@ export default function Queries({loadingCollections}) {
     var element = document.createElement('a');
     element.setAttribute('href', downloadUrl);
     element.setAttribute('download', queryResults['downloads'][tabId]);
-    element.setAttribute('target','_blank');
     element.setAttribute('rel','noopener');
+    //element.setAttribute('target','_blank');
 
     element.style.display = 'none';
     document.body.appendChild(element);
