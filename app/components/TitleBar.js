@@ -118,7 +118,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
                 breadcrumbs.map((item, idx) => {
                               return (<React.Fragment key={"breadcrumb-" + idx + '-' + item.name} >
                                         &nbsp;
-                                        <Link component="button" underline="hover"
+                                        <Link component="button" underline="hover" sx={{fontSize:'larger'}}
                                               onClick={() => handleNav(item)}
                                         >
                                           {item.name}{idx < (breadcrumbs.length -1) ? ' / ' : ' '}
