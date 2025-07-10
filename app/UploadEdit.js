@@ -477,12 +477,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
     searchSetup();
   }
-/*
-  // Calculate the total available height if we don't have anything yet
-  if (!totalHeight) {
-    calcTotalHeight(windowSize);
-  }
-*/
+
   // Variables to help with generating the UI
   const curHeight = totalHeight;
   const curStart = workingTop;

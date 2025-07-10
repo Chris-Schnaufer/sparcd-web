@@ -11,6 +11,7 @@ import CollectionsManage from './CollectionsManage';
 import FooterBar from './components/FooterBar';
 import Landing from './Landing';
 import Login from './Login';
+import { Level, makeMessage, Messages } from './components/Messages';
 import Maps from './Maps';
 import Queries from './Queries';
 import theme from './Theme';
@@ -19,8 +20,9 @@ import UploadManage from './UploadManage';
 import UploadEdit from './UploadEdit';
 import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
-import { BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, NarrowWindowContext, 
-         SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo';
+import { AddMessageContext, BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, 
+         NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext,
+         UploadEditContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -113,7 +115,6 @@ export default function Home() {
   const DEFAULT_DISPLAY_HEIGHT = 600.0; // Used as default until the window is ready
   const DEFAULT_HEADER_HEIGHT = 63.0;   // Used as default until the window is ready
   const DEFAULT_FOOTER_HEIGHT = 76.0;   // Used as default until the window is ready
-  const footerRef = React.useRef();   // Used for sizeing
   const [breadcrumbs, setBreadcrumbs] = React.useState([]);
   const [checkedToken, setCheckedToken] = React.useState(false);
   const [collectionInfo, setCollectionInfo] = React.useState(null);
@@ -132,6 +133,10 @@ export default function Home() {
   const [locationInfo, setLocationInfo] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
+  const [messages, setMessages] = React.useState([/*makeMessage(Level.Information, 'HACK: This is a test of messaging'),
+                                                  makeMessage(Level.Warning, 'HACK: Warning messaging'),
+                                                  makeMessage(Level.Error, 'HACK: Error messaging'),
+                                                  makeMessage(Level.Information, 'HACK: Last Message')*/]);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
   const [mobileDevice, setMobileDevice] = React.useState(null);
   const [dbRemember, setDbRemember] = React.useState(false);
@@ -168,7 +173,7 @@ export default function Home() {
   // Calcuate available space in the window and what the control sizes are
   React.useLayoutEffect(() => {
     calculateLayoutSizes();
-  }, [footerRef]);
+  }, []);
 
   // Adds a resize handler to the window, and automatically removes it
   React.useEffect(() => {
@@ -177,7 +182,6 @@ export default function Home() {
           const newSize = {'width':window.innerWidth,'height':window.innerHeight};
           setIsNarrow(newSize.width <= 640);
           calculateLayoutSizes();
-          console.log('HACK:RESIZE:');
       }
 
       window.addEventListener("resize", onResize);
@@ -185,7 +189,7 @@ export default function Home() {
       return () => {
           window.removeEventListener("resize", onResize);
       }
-  }, [footerRef]);
+  }, []);
 
   // Load saved token and see if session is still valid
   React.useLayoutEffect(() => {
@@ -256,8 +260,6 @@ export default function Home() {
     const workspaceSize = {top:titleSize.height, left:titleSize.left, width:titleSize.width, 
                             height:newSize.height-titleSize.height-footerSize.height}
     setSizeWorkspace(workspaceSize);
-
-    console.log('HACK:CALCULATELAYOUT:',newSize,titleSize,footerSize,workspaceSize);
   }
 
   /**
@@ -316,7 +318,6 @@ export default function Home() {
    */
   function loadCollections(token) {
     const cur_token = token || lastToken;
-    console.log('LOADCOLLECTIONS')
     setLoadingCollections(true);
     const collectionUrl =  serverURL + '/collections?token=' + encodeURIComponent(cur_token)
     try {
@@ -347,10 +348,12 @@ export default function Home() {
         })
         .catch((err) => {
           console.log('Collections Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching collection information');
           setLoadingCollections(false);
       });
     } catch (error) {
       console.log('Collections Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching collection information');
       setLoadingCollections(false);
     }
   }
@@ -362,7 +365,6 @@ export default function Home() {
    */
   function loadLocations(token) {
     const cur_token = token || lastToken;
-    console.log('LOADLOCATIONS')
     setLoadingLocations(true);
     const locationsUrl =  serverURL + '/locations?token=' + encodeURIComponent(cur_token)
     try {
@@ -379,15 +381,16 @@ export default function Home() {
           // Save response data
           setLoadingLocations(false);
           const curLocations = respData.sort((first, second) => first.nameProperty.localeCompare(second.nameProperty, undefined, { sensitivity: "base" }));
-          console.log('LOCATIONS',curLocations);
           setLocationInfo(curLocations);
         })
         .catch((err) => {
           console.log('Locations Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching locations');
           setLoadingLocations(false);
       });
     } catch (error) {
       console.log('Locations Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching locations');
       setLoadingLocations(false);
     }
   }
@@ -399,7 +402,6 @@ export default function Home() {
    */
   function loadSpecies(token) {
     const cur_token = token || lastToken;
-    console.log('LOADSPECIES')
     setLoadingSpecies(true);
     const speciesUrl =  serverURL + '/species?token=' + encodeURIComponent(cur_token)
     try {
@@ -416,17 +418,28 @@ export default function Home() {
           // Save response data
           setLoadingSpecies(false);
           const curSpecies = respData.sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }));
-          console.log('SPECIES',curSpecies);
           setSpeciesInfo(curSpecies);
         })
         .catch((err) => {
           console.log('Species Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching species');
           setLoadingSpecies(false);
       });
     } catch (error) {
       console.log('Species Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching species');
       setLoadingSpecies(false);
     }
+  }
+
+  /**
+   * Adds a message to the message list
+   * @function
+   * @param {string} level The severity level of the message
+   * @param {string} message The message to display
+   */
+  function addMessage(level, message, title) {
+    setMessages([...messages, makeMessage(level, message, title)])
   }
 
   /**
@@ -564,7 +577,7 @@ export default function Home() {
         window.setTimeout(() => {loadCollections(new_token);loadLocations(new_token);loadSpecies(new_token);}, 500);
       }, () => {
         // If log in fails
-        console.log('LOGIN BY USER FAILED');
+        addMessage(Level.Warn, 'Unable to log in. Please check your username and password before trying again', 'Login Failure');
       });
     }
   }
@@ -624,9 +637,11 @@ export default function Home() {
         })
         .catch(function(err) {
           console.log('Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching the upload information');
       });
     } catch (error) {
       console.log('Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching the upload information');
     }
   }
 
@@ -738,6 +753,19 @@ export default function Home() {
     }, 500);
   }
 
+  /**
+   * Handles removing a message after it's been closed
+   * @function
+   * @param {number} messageId The ID of the message to close
+   */
+  function handleCloseMessage(messageId) {
+    const msgIdx = messages.findIndex((item) => item.messageId === messageId);
+    if (msgIdx >= 0) {
+      messages[msgIdx].closed = true;
+      setMessages(messages.toSpliced(msgIdx, 1));
+    }
+  }
+
   // Get mobile device information if we don't have it yet
   if (typeof window !== 'undefined') {
     if (mobileDevice == null && !mobileDeviceChecked) {
@@ -760,11 +788,13 @@ export default function Home() {
         return (
           <BaseURLContext.Provider value={serverURL}>
             <TokenContext.Provider value={lastToken}>
-              <CollectionsInfoContext.Provider value={collectionInfo}>
-                <SandboxInfoContext.Provider value={sandboxInfo}>
-                  <Landing loadingCollections={loadingCollections} onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
-                </SandboxInfoContext.Provider>
-              </CollectionsInfoContext.Provider>
+              <AddMessageContext.Provider value={addMessage}>
+                <CollectionsInfoContext.Provider value={collectionInfo}>
+                  <SandboxInfoContext.Provider value={sandboxInfo}>
+                    <Landing loadingCollections={loadingCollections} onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
+                  </SandboxInfoContext.Provider>
+                </CollectionsInfoContext.Provider>
+              </AddMessageContext.Provider>
             </TokenContext.Provider>
           </BaseURLContext.Provider>
         );
@@ -772,9 +802,11 @@ export default function Home() {
         return (
           <BaseURLContext.Provider value={serverURL}>
             <TokenContext.Provider value={lastToken}>
-              <SandboxInfoContext.Provider value={sandboxInfo}>
-                <UploadManage selectedUpload={curActionData} onEditUpload={editCollectionUpload} />
-              </SandboxInfoContext.Provider>
+              <AddMessageContext.Provider value={addMessage}>
+                <SandboxInfoContext.Provider value={sandboxInfo}>
+                  <UploadManage selectedUpload={curActionData} onEditUpload={editCollectionUpload} />
+                </SandboxInfoContext.Provider>
+              </AddMessageContext.Provider>
             </TokenContext.Provider>
           </BaseURLContext.Provider>
         );
@@ -798,10 +830,12 @@ export default function Home() {
         return (
            <BaseURLContext.Provider value={serverURL}>
              <TokenContext.Provider value={lastToken}>
-              <CollectionsInfoContext.Provider value={collectionInfo}>
-                <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
-                                   onEditUpload={editCollectionUpload} searchSetup={setupSearch} />
-              </CollectionsInfoContext.Provider>
+              <AddMessageContext.Provider value={addMessage}>
+                <CollectionsInfoContext.Provider value={collectionInfo}>
+                  <CollectionsManage loadingCollections={loadingCollections} selectedCollection={curActionData} 
+                                     onEditUpload={editCollectionUpload} searchSetup={setupSearch} />
+                </CollectionsInfoContext.Provider>
+              </AddMessageContext.Provider>
              </TokenContext.Provider>
            </BaseURLContext.Provider>
       );
@@ -809,13 +843,15 @@ export default function Home() {
         return (
           <BaseURLContext.Provider value={serverURL}>
             <TokenContext.Provider value={lastToken}>
-              <CollectionsInfoContext.Provider value={collectionInfo}>
-                <LocationsInfoContext.Provider value={locationInfo}>
-                  <SpeciesInfoContext.Provider value={speciesInfo}>
-                    <Queries loadingCollections={loadingCollections}  />
-                  </SpeciesInfoContext.Provider>
-                </LocationsInfoContext.Provider>
-              </CollectionsInfoContext.Provider>
+              <AddMessageContext.Provider value={addMessage}>
+                <CollectionsInfoContext.Provider value={collectionInfo}>
+                  <LocationsInfoContext.Provider value={locationInfo}>
+                    <SpeciesInfoContext.Provider value={speciesInfo}>
+                      <Queries loadingCollections={loadingCollections}  />
+                    </SpeciesInfoContext.Provider>
+                  </LocationsInfoContext.Provider>
+                </CollectionsInfoContext.Provider>
+              </AddMessageContext.Provider>
             </TokenContext.Provider>
           </BaseURLContext.Provider>
         );
@@ -832,6 +868,7 @@ export default function Home() {
 
   // Render the UI
   const narrowWindow = isNarrow;
+  const workspaceTop = sizeWorkspace.top + 'px';
   return (
     <main className={styles.main} style={{position:'relative'}}>
       <ThemeProvider theme={theme}>
@@ -847,9 +884,9 @@ export default function Home() {
                        onRememberChange={handleRememberChanged} />
               </LoginValidContext.Provider>
               :
-              renderAction(curAction, editing)
+                renderAction(curAction, editing)
             }
-            <FooterBar ref={footerRef} />
+            <FooterBar />
             <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
                   sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,
                        visibility:checkedToken ? 'hidden':'visible', display:checkedToken ? 'none':'inherit'}}
@@ -863,6 +900,13 @@ export default function Home() {
                 </Grid>
               </div>
             </Grid>
+            {
+              messages.length > 0 && 
+                <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
+                      sx={{position:'absolute', top:workspaceTop, right:'0px', bottom:'0px', left:'0px'}}>
+                  <Messages messages={messages} close_cb={handleCloseMessage}/>
+                </Grid>
+            }
           </NarrowWindowContext.Provider>
         </SizeContext.Provider>
         </MobileDeviceContext.Provider>

@@ -30,8 +30,8 @@ import { FilterSpeciesFormData } from './queries/FilterSpecies';
 import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils'
 
-import { resp } from './queryresult'; //TODO: remove when obtaining real data
-import { LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from './serverInfo'
+import { Level, makeMessage, Messages } from './components/Messages';
+import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from './serverInfo'
 
 /**
  * Provides the UI for queries
@@ -45,10 +45,11 @@ export default function Queries({loadingCollections}) {
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const dividerRef = React.useRef();   // Used for sizeing
   const expandCollapseRef = React.useRef();   // Used for sizeing
-  const locationItems = React.useContext(LocationsInfoContext);
-  const queryToken = React.useContext(TokenContext);
-  const speciesItems = React.useContext(SpeciesInfoContext);
-  const uiSizes = React.useContext(SizeContext);
+  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const locationItems = React.useContext(LocationsInfoContext); // Locations
+  const queryToken = React.useContext(TokenContext);  // Login token
+  const speciesItems = React.useContext(SpeciesInfoContext);  // Species
+  const uiSizes = React.useContext(SizeContext);  // UI Dimensions
   const [activeTab, setActiveTab] = React.useState(0);
   const [dividerHeight, setDividerHeight] = React.useState(20); // Used to size controls
   const [expandCollapseWidth, setExpandCollapseWidth] = React.useState(24);
@@ -268,10 +269,6 @@ export default function Queries({loadingCollections}) {
           if (resp.ok) {
             return resp.json();
           } else {
-            if (activeQuery === queryId) {
-              activeQuery = null;
-              setWaitingOnQuery(null);
-            }
             throw new Error(`Failed to complete query: ${resp.status}`, {cause:resp});
           }
         })
@@ -290,25 +287,28 @@ export default function Queries({loadingCollections}) {
             setWaitingOnQuery(null);
           } else {
             console.log('HACK: QUERY CANCELLED OR EMPTY');
+            if (Object.keys(respData).length > 0) {
+              addMessage(Level.Information, 'The query returned no results. You may want to try the query again');
+            }
             activeQuery = null;
             setWaitingOnQuery(null);
           }
         })
         .catch(function(err) {
-          console.log('HACK: CATCH');
+          console.log('CATCH ERROR: ',err);
           if (activeQuery === queryId) {
             activeQuery = null;
             setWaitingOnQuery(null);
+            addMessage(Level.Error, 'An error was detected while executing the query', 'Query Error Detected');
           }
-          console.log('Error: ',err);
         });
     } catch (error) {
       console.log('HAVE ERROR:', error);
       if (activeQuery === queryId) {
         activeQuery = null;
         setWaitingOnQuery(null);
+        addMessage(Level.Error, 'An error ocurred while executing the query', 'Query Error');
       }
-      console.log('Error: ',error);
     }
   }
 
@@ -373,7 +373,6 @@ export default function Queries({loadingCollections}) {
    * @param {string} tabId The tab name to download
    */
   const handleDownload = React.useCallback((tabId) => {
-    console.log('HACK:HANDLEDOWNLOAD',tabId);
     const downloadUrl =  serverURL + '/query_dl?t=' + encodeURIComponent(queryToken) + '&q=' + encodeURIComponent(tabId) + 
                                                                 '&d=' + encodeURIComponent(queryResults['downloads'][tabId]);
     var element = document.createElement('a');
