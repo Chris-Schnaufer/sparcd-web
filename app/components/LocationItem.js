@@ -8,7 +8,6 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
-
 /**
  * Returns the UI for a single location with tooltip. The tooltip information
  * is not displayed until the caller specifies that it's available by setting
@@ -18,14 +17,21 @@ import { useTheme } from '@mui/material/styles';
  * @param {string} longtName The full name of the location
  * @param {float} lat The working latitute of the location
  * @param {float} lng The working longitude of the location
+ * @param {string} {coordType} Optional coordinate type string
  * @param {function} onTTOpen Handler for when a tool tip opens
  * @param {function} onTTClose Handler for when a tool tip closes
  * @param {object} dataTT Tooltip data
  * @param {object} propsTT Properties related to the tooltip
  * @returns {object} The UI of the location
  */
-export default function LocationItem({shortName,longName,lat,lng,elevation, onTTOpen, onTTClose, dataTT, propsTT}) {
+export default function LocationItem({shortName,longName,lat,lng,elevation, coordType, onTTOpen, onTTClose, dataTT, propsTT}) {
   const theme = useTheme();
+
+  if (!coordType) {
+    coordType = '';
+  } else {
+    coordType = coordType + ': ';
+  }
 
   return (
       <Grid container direction="row" justifyContent='space-between' sx={{width:'100%'}} >
@@ -44,7 +50,7 @@ export default function LocationItem({shortName,longName,lat,lng,elevation, onTT
                 dataTT && dataTT.index==propsTT["data-option-index"] ?
                   <React.Fragment>
                     <Typography color={theme.palette.text.primary} sx={{fontSize:'small'}}>{shortName}</Typography>
-                    <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{lat+ ", " + lng}</Typography>
+                    <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{coordType +lat+ ", " + lng}</Typography>
                     <Typography color={theme.palette.text.primary} sx={{fontSize:'x-small'}}>{'Elevation: '+elevation}</Typography>
                   </React.Fragment>
                   : 

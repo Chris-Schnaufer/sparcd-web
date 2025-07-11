@@ -53,3 +53,13 @@ export function pad(value, length, padding, left) {
 
   return pad_value;
 }
+
+/**
+ * Converts meters to feet
+ * @function
+ * @param {number} meters The meters to convert
+ * @return {string} The feet equivelent of the meters value
+ */
+export function meters2feet(meters) {
+  return Math.round((meters * 3.28084 + Number.EPSILON) * 100) / 100;
+}

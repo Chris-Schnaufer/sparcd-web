@@ -22,7 +22,7 @@ import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { AddMessageContext, BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, 
          NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext,
-         UploadEditContext } from './serverInfo';
+         UploadEditContext, UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -152,7 +152,7 @@ export default function Home() {
                                                             height:DEFAULT_DISPLAY_HEIGHT-DEFAULT_HEADER_HEIGHT-DEFAULT_FOOTER_HEIGHT});
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [speciesInfo, setSpeciesInfo] = React.useState(null);
-  const [userSettings, setUserSettings] =  React.useState(null);
+  const [userSettings, setUserSettings] =  React.useState({name:'<Zeus>',settings:{},admin:false});
 
   const loginValidStates = loginValid;
   let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
@@ -162,6 +162,7 @@ export default function Home() {
   handleSearch = handleSearch.bind(Home);
   setupSearch = setupSearch.bind(Home);
   restoreBreadcrumb = restoreBreadcrumb.bind(Home);
+  updateUserSettings = updateUserSettings.bind(Home);
 
   // TODO: load locations dynamically
   // TODO: load species dynamically
@@ -483,17 +484,23 @@ export default function Home() {
           })
         .then((respData) => {
             // Save token and set status
+            console.log('HACK:LOGIN:',respData);
             const loginToken = respData['value'];
             loginStore.saveLoginToken(loginToken);
-            let userSettings = null;
-            try {
-              userSettings = JSON.parse(respData['settings']);
-            } catch (ex) {
-              console.log('Exception thrown for user settings', respData['settings']);
-              console.log(ex);
-              userSettings = {};
+
+            let curSettings = respData['settings'];
+            if (typeof(curSettings) === 'string') {
+              curSettings = JSON.parse(curSettings);
             }
-            setUserSettings({name:resp['name'], settings:userSettings, admin:resp['admin']});
+
+            curSettings['autonext'] = typeof(curSettings['autonext']) === 'boolean' ? curSettings['autonext'] : 
+                                                                              curSettings['autonext'].toLowerCase() === 'true';
+            curSettings['sandersonDirectory'] = typeof(curSettings['sandersonDirectory']) === 'boolean' ? curSettings['sandersonDirectory'] :
+                                                                              curSettings['sandersonDirectory'].toLowerCase() === 'true';
+            curSettings['sandersonOutput'] = typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
+                                                                              curSettings['sandersonOutput'].toLowerCase() === 'true';
+            setUserSettings({name:resp['name'], settings:curSettings, admin:resp['admin']});
+
             setLoggedIn(true);
             setLastToken(loginToken);
             if (onSuccess && typeof(onSuccess) === 'function') {
@@ -704,20 +711,55 @@ export default function Home() {
   /**
    * Updates the user's settings on the server
    * @function
-   * @param {object} userSettings The settings to save on the server for the user
+   * @param {object} newSettings The settings to save on the server for the user
    */
-  function updateUserSettings(userSettings) {
-    const settingsUrl = serverURL + '/settings';
-    // Get the information on the upload
-    /* TODO: make call and wait for respone & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(settingsUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
-    setUserSettings(userSettings);
+  function updateUserSettings(newSettings) {
+    const setSettingsUrl = serverURL + '/settings?t=' + encodeURIComponent(lastToken);
+    console.log('HACK:USERSETTINGS',newSettings);
+
+    const formData = new FormData();
+
+    formData.append('autonext', newSettings.autonext);
+    formData.append('dateFormat', newSettings.dateFormat);
+    formData.append('measurementFormat', newSettings.measurementFormat);
+    formData.append('sandersonDirectory', newSettings.sandersonDirectory);
+    formData.append('sandersonOutput', newSettings.sandersonOutput);
+    formData.append('timeFormat', newSettings.timeFormat);
+    formData.append('coordinatesDisplay', newSettings.coordinatesDisplay);
+
+    try {
+      const resp = fetch(setSettingsUrl, {
+        credentials: 'include',
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Save the returned settings
+            const curSettings = respData;
+
+            curSettings['autonext'] = typeof(curSettings['autonext']) === 'boolean' ? curSettings['autonext'] : 
+                                                                              curSettings['autonext'].toLowerCase() === 'true';
+            curSettings['sandersonDirectory'] = typeof(curSettings['sandersonDirectory']) === 'boolean' ? curSettings['sandersonDirectory'] :
+                                                                              curSettings['sandersonDirectory'].toLowerCase() === 'true';
+            curSettings['sandersonOutput'] = typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
+                                                                              curSettings['sandersonOutput'].toLowerCase() === 'true';
+
+            setUserSettings({name:userSettings['name'], settings:curSettings, admin:userSettings['admin']});
+        })
+        .catch(function(err) {
+          console.log('Settings Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while saving your settings');
+      });
+    } catch (error) {
+      console.log('Settings Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while saving your settings');
+    }
   }
 
   /**
@@ -874,6 +916,7 @@ export default function Home() {
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
         <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
+        <UserSettingsContext.Provider value={userSettings.settings}>
           <NarrowWindowContext.Provider value={narrowWindow}>
             <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                       onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
@@ -908,6 +951,7 @@ export default function Home() {
                 </Grid>
             }
           </NarrowWindowContext.Provider>
+        </UserSettingsContext.Provider>
         </SizeContext.Provider>
         </MobileDeviceContext.Provider>
       </ThemeProvider>

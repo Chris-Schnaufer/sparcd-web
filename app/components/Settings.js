@@ -19,14 +19,35 @@ import { geographicCoordinates } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
-const defaultSettings = { date:'MDY', 
-                          time:'24',
-                          measurement:'feet',
+const defaultSettings = { dateFormat:'MDY', 
+                          timeFormat:'24',
+                          measurementFormat:'feet',
                           sandersonDirectory:false,
                           sandersonOutput:false,
-                          autoNext:true,
+                          autonext:true,
                           settingsChanged:false,
+                          coordinatesDisplay:'LATLON'
                         };
+
+/**
+ * Ensures the settings have the same fields as the default
+ * @function
+ * @param {object} settings The settings to check
+ * @return {object} The original or updated settings
+ */
+function ensure_settings(settings) {
+  if (!settings) {
+    return defaultSettings;
+  }
+
+  for (let one_key of Object.keys(defaultSettings)) {
+    if (settings[one_key] === undefined || settings[one_key] === "undefined") {
+      settings[one_key] = defaultSettings[one_key]
+    }
+  }
+
+  return settings;
+}
 
 /**
  * Returns the UI for the user's settings
@@ -42,7 +63,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [titlebarRect, setTitlebarRect] = React.useState(null); // Set when the UI displays
-  const [userSettings, setUserSettings] = React.useState(curSettings ? curSettings : defaultSettings);
+  const [userSettings, setUserSettings] = React.useState(curSettings ? ensure_settings(curSettings) : defaultSettings);
 
   // Built-in date formats
   const dateFormats = [
@@ -153,14 +174,14 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
         <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
           <Grid container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
                   spacing={1}
-                  sx={{overflowY:'scroll'}}
+                  sx={{overflowY:'scroll', paddingTop:'5px'}}
           >
             <Grid key={"setting-dates"} >
               <Autocomplete
                 disablePortal
                 disableClearable
                 options={dateFormats}
-                value={dateFormats.find((item) => item.value === userSettings.date).label}
+                value={dateFormats.find((item) => item.value === userSettings.dateFormat).label}
                 onChange={(event, newValue) => handleValueChange('date', newValue.value)}
                 sx={{ width: 300 }}
                 renderInput={(params) => <TextField {...params} label="Dates" />}
@@ -171,7 +192,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 disablePortal
                 disableClearable
                 options={timeFormats}
-                value={timeFormats.find((item) => item.value === userSettings.time).label}
+                value={timeFormats.find((item) => item.value === userSettings.timeFormat).label}
                 onChange={(event, newValue) => handleValueChange('time', newValue.value)}
                 sx={{ width: 300 }}
                 renderInput={(params) => <TextField {...params} label="Times" />}
@@ -182,10 +203,21 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 disablePortal
                 disableClearable
                 options={measurementFormats}
-                value={measurementFormats.find((item) => item.value === userSettings.measurement).label}
-                onChange={(event, newValue) => handleValueChange('measurement', newValue.value)}
+                value={measurementFormats.find((item) => item.value === userSettings.measurementFormat).label}
+                onChange={(event, newValue) => handleValueChange('measurementFormat', newValue.value)}
                 sx={{ width: 300 }}
                 renderInput={(params) => <TextField {...params} label="Measurements" />}
+              />
+            </Grid>
+            <Grid key={"setting-coordinates"} >
+              <Autocomplete
+                disablePortal
+                disableClearable
+                options={geographicCoordinates}
+                value={geographicCoordinates.find((item) => item.value === userSettings.coordinatesDisplay).label}
+                onChange={(event, newValue) => handleValueChange('coordinatesDisplay', newValue.value)}
+                sx={{ width: 300 }}
+                renderInput={(params) => <TextField {...params} label="Coordinates" />}
               />
             </Grid>
             <Grid key={"setting-options"} >
@@ -208,8 +240,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 />
                 <FormControlLabel 
                     control={
-                        <Checkbox checked={userSettings.autoNext} 
-                                  onChange={(event) => handleValueChange('autoNext', event.target.checked)}
+                        <Checkbox checked={userSettings.autonext} 
+                                  onChange={(event) => handleValueChange('autonext', event.target.checked)}
                         />
                     }
                     label="Automatically Select Next Image"

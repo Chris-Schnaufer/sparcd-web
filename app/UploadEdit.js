@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, UploadEditContext } from './serverInfo'
+import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo'
 import ImageEdit from './ImageEdit'
 import ImageTile from './components/ImageTile'
 import LocationSelection from './LocationSelection'
@@ -37,6 +37,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const speciesItems = React.useContext(SpeciesInfoContext);
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
+  const editToken = React.useContext(TokenContext);  // Login token
   const uiSizes = React.useContext(SizeContext);
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
@@ -408,22 +409,42 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   function getTooltipInfo(locIdx) {
     if (curLocationFetchIdx != locIdx) {
       curLocationFetchIdx = locIdx;
-      const locationUrl = serverURL + '/location';
-      /* TODO: make call and wait for response & return correct result
-               need to handle null, 'invalid', and token values
-      const resp = await fetch(locationUrl, {
-        'method': 'POST',
-        'data': formData
-      });
-      console.log(resp);
-      */
-      // Save the data if we're still fetching the current location
-      setTimeout(()  => {
-        if (locIdx == curLocationFetchIdx) {
-          let locInfo = Object.assign({}, locationItems[curLocationFetchIdx], {'index':locIdx});
-          setTooltipData(locInfo);
-        }
-      }, 100);
+      const cur_loc = locationItems[curLocationFetchIdx];
+      const locationInfoUrl = serverURL + '/locationInfo?t=' + encodeURIComponent(editToken);
+
+      const formData = new FormData();
+
+      formData.append('id', cur_loc.idProperty);
+      formData.append('name', cur_loc.nameProperty);
+      formData.append('lat', cur_loc.latProperty);
+      formData.append('lon', cur_loc.lngProperty);
+      formData.append('ele', cur_loc.elevationProperty);
+      try {
+        const resp = fetch(locationInfoUrl, {
+          credentials: 'include',
+          method: 'POST',
+          body: formData
+        }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to get location information: ${resp.status}`, {cause:resp});
+              }
+            })
+          .then((respData) => {
+              // Save tooltip information
+              const locInfo = Object.assign({}, respData, {'index':curLocationFetchIdx});
+
+              if (locIdx === curLocationFetchIdx) {
+                setTooltipData(locInfo);
+              }
+                })
+          .catch(function(err) {
+            console.log('Location tooltip Error: ',err);
+        });
+      } catch (error) {
+        console.log('Location tooltip Unknown Error: ',err);
+      }
     }
   }
 

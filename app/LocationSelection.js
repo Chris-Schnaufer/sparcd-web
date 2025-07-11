@@ -12,6 +12,8 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import LocationItem from './components/LocationItem'
+import { UserSettingsContext } from './serverInfo';
+import { meters2feet } from './utils';
 
 /**
  * Returns the UI for selecting locations
@@ -28,6 +30,12 @@ import LocationItem from './components/LocationItem'
  */
 export default function LocationSelection({title, locations, defaultLocation, onTTOpen, onTTClose, dataTT, onContinue, onCancel}) {
   const theme = useTheme();
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
+
+  let displayCoordSystem = 'LATLON';
+  if (userSettings['coordinatesDisplay']) {
+    displayCoordSystem = userSettings['coordinatesDisplay'];
+  }
 
   return (
     <Card id='change-location' variant='outlined' sx={{...theme.palette.upload_edit_locations_card}}>
@@ -47,8 +55,11 @@ export default function LocationSelection({title, locations, defaultLocation, on
               const { key, ...optionProps } = props;
               return (
                   <MenuItem id={loc.idProperty+'-'+key} value={loc.idProperty} key={key} {...optionProps}>
-                    <LocationItem shortName={loc.idProperty} longName={loc.nameProperty} lat={loc.latProperty} 
-                                  lng={loc.lngProperty} elevation={loc.elevationProperty} 
+                    <LocationItem shortName={loc.idProperty} longName={loc.nameProperty}
+                                  lat={displayCoordSystem === 'LATLON' ? loc.latProperty : loc.utm_x} 
+                                  lng={displayCoordSystem === 'LATLON' ? loc.lngProperty: loc.utm_y} 
+                                  elevation={userSettings['measurementFormat'] === 'feet' ? meters2feet(loc.elevationProperty) + 'ft' : loc.elevationProperty}
+                                  coordType={displayCoordSystem === 'LATLON' ? undefined : loc.utm_code}
                                   onTTOpen={onTTOpen} onTTClose={onTTClose}
                                   dataTT={dataTT} propsTT={props}
                      />

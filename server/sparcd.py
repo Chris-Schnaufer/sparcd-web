@@ -33,6 +33,7 @@ from flask_cors import CORS, cross_origin
 from flask_session import Session
 
 from text_formatters.results import Results
+from text_formatters.coordinate_utils import deg2utm, SOUTHERN_AZ_UTM_ZONE
 import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
@@ -204,6 +205,9 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
+    print('HACK:USERINFO BEFORE:',login_info, flush=True)
+    if login_info and 'settings' in login_info:
+        login_info['settings'] = json.loads(login_info['settings'])
     print('USER INFO',login_info,flush=True)
     if login_info is not None:
         # Is the session still good
@@ -450,6 +454,31 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, p
         loaded_config = None
 
     return loaded_config
+
+
+def load_locations(s3_url: str, user_name: str, user_token: str) -> tuple:
+    """ Loads locations and converts lat-lon to UTM
+    Arguments:
+        s3_url - the URL to the S3 instance
+        user_name - the user's name for S3
+        user_token - the users security token
+    Return:
+        Returns the locations along with the converted coordinates
+    """
+    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+                                            user_name, user_token)
+    if not cur_locations:
+        return cur_locations
+
+    for one_loc in cur_locations:
+        if 'utm_code' not in one_loc or 'utm_x' not in one_loc or 'utm_y' not in one_loc:
+            if 'latProperty' in one_loc and 'lngProperty' in one_loc:
+                utm_x, utm_y = deg2utm(float(one_loc['latProperty']), float(one_loc['lngProperty']))
+                one_loc['utm_code'] = SOUTHERN_AZ_UTM_ZONE
+                one_loc['utm_x'] = round(utm_x, 2)
+                one_loc['utm_y'] = round(utm_y, 2)
+
+    return cur_locations
 
 
 def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_name: str, \
@@ -918,6 +947,7 @@ def login_token():
     """
     curtime = None
     db = SPARCdDatabase(DEFAULT_DB_PATH)
+    print('LOGIN',flush=True)
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
@@ -1114,8 +1144,7 @@ def locations():
 
     # Get the locations to return
     s3_url = web_to_s3_url(user_info["url"])
-    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
 
     # Return the locations
     return json.dumps(cur_locations)
@@ -1387,8 +1416,7 @@ def query():
     # Get the species and locations
     cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
-    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
@@ -1408,7 +1436,6 @@ def query():
     db.save_query_path(token, save_path)
 
     return json.dumps(return_info)
-
 
 
 @app.route('/query_dl', methods = ['GET'])
@@ -1501,7 +1528,125 @@ def query_dl():
 
             # Return the compressed data as an iterator over the data pipe
             return Response(zip_iterator(read_fd),
-                                mimetype='application/gzip',
-                                headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
+                            mimetype='application/gzip',
+                            headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
     return "Not Found", 404
+
+
+@app.route('/settings', methods = ['POST'])
+@cross_origin(origins="*", supports_credentials=True)
+def set_settings():
+    """ Updates the user's settings
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the requested file
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SET SETTINGS', flush=True)
+
+    new_settings = {
+        'autonext': request.form.get('autonext', None),
+        'dateFormat': request.form.get('dateFormat', None),
+        'measurementFormat': request.form.get('measurementFormat', None),
+        'sandersonDirectory': request.form.get('sandersonDirectory', None),
+        'sandersonOutput': request.form.get('sandersonOutput', None),
+        'timeFormat': request.form.get('timeFormat', None),
+        'coordinatesDisplay': request.form.get('coordinatesDisplay', None)
+    }
+    print('HACK:           :', new_settings, flush=True)
+
+    # Check what we have from the requestor
+    if not token:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Update any settings that have changed
+    modified = False
+    new_keys = tuple(new_settings.keys())
+    for one_key in new_keys:
+        if not one_key in user_info['settings'] or \
+                                        not new_settings[one_key] == user_info['settings'][one_key]:
+            user_info['settings'][one_key] = new_settings[one_key]
+            modified = True
+
+    if modified:
+        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']))
+
+    print('HACK:  RETURN :', json.dumps(user_info['settings']), flush=True)
+    return json.dumps(user_info['settings'])
+
+
+@app.route('/locationInfo', methods = ['POST'])
+@cross_origin(origins="*", supports_credentials=True)
+def location_info():
+    """ Returns details on a location
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the requested file
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('LOCATION INFO', flush=True)
+
+    loc_id = request.form.get('id', None)
+    loc_name = request.form.get('name', None)
+    loc_lat = request.form.get('lat', None)
+    loc_lon = request.form.get('lon', None)
+    loc_ele = request.form.get('ele', None)
+    try:
+        if loc_lat is not None:
+            loc_lat = float(loc_lat)
+        if loc_lon is not None:
+            loc_lon = float(loc_lon)
+        if loc_ele is not None:
+            loc_ele = float(loc_ele)
+    except ValueError:
+        return "Not Found", 406
+
+    # Check what we have from the requestor
+    if not token or not loc_id or not loc_name or not loc_lat or not loc_lon or not loc_ele:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    s3_url = web_to_s3_url(user_info["url"])
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+
+    for one_loc in cur_locations:
+        if one_loc['idProperty'] == loc_id and one_loc['nameProperty'] == loc_name and \
+                        one_loc['latProperty'] == loc_lat and one_loc['lngProperty'] == loc_lon and\
+                        one_loc['elevationProperty'] == loc_ele:
+            return json.dumps(one_loc)
+
+    return json.dumps({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
+                            'lngProperty':0.0, 'elevationProperty':0.0, 'utm_code':SOUTHERN_AZ_UTM_ZONE,
+                            'utm_x':0.0, 'utm_y':0.0})

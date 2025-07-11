@@ -19,6 +19,9 @@ def get_csv_raw(results: Results) -> str:
         loc_x = image_loc['latProperty'] if image_loc and 'latProperty' in image_loc else ''
         loc_y = image_loc['lngProperty'] if image_loc and 'lngProperty' in image_loc else ''
         loc_elevation = image_loc['elevation'] if image_loc and 'elevation' in image_loc else ''
+        utm_code = image_loc['utm_code'] if image_loc and 'utm_code' in image_loc else ''
+        utm_x = image_loc['utm_x'] if image_loc and 'utm_x' in image_loc else ''
+        utm_y = image_loc['utm_y'] if image_loc and 'utm_y' in image_loc else ''
 
         # Base image information, we add the species next
         cur_image = {
@@ -28,6 +31,9 @@ def get_csv_raw(results: Results) -> str:
                     'locId': loc_id,
                     'locX': loc_x,
                     'locY': loc_y,
+                    'utm_code:': utm_code,
+                    'utm_x:': utm_x,
+                    'utm_y:': utm_y,
                     'locElevation': loc_elevation,
                     's3_bucket':one_image['bucket'],
                     's3_path':one_image['s3_path']
@@ -53,11 +59,15 @@ def get_csv_location(results: Results) -> str:
     # TODO: Handle coordinate system formats
     csv_results = []
     for one_loc in results.get_locations():
+        print('HACK:CSVLOC:',one_loc, flush=True)
         csv_results.append({'name': one_loc['nameProperty'],
                             'id': one_loc['idProperty'],
                             'locX': one_loc['latProperty'],
                             'locY': one_loc['lngProperty'],
-                            'locElevation': one_loc['elevationProperty']
+                            'locElevation': one_loc['elevationProperty'],
+                            'utm_code:': one_loc['utm_code'],
+                            'utm_x:': one_loc['utm_x'],
+                            'utm_y:': one_loc['utm_y'],
                             })
 
     return  csv_results

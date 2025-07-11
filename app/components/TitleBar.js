@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 
 import Settings from './Settings';
 import styles from './components.module.css'
+import { UserSettingsContext } from '../serverInfo'
 
 /**
  * Renders the title bar
@@ -29,7 +30,7 @@ import styles from './components.module.css'
  */
 export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout}) {
   const [showSettings, setShowSettings] = React.useState(false);
-
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
   /**
    * Handles the clicking of the search icon
    * @function
@@ -132,7 +133,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
           </Grid>
         </Grid>
       </Box>
-      {showSettings && onSettings != null && <Settings onChange={onSettings} onClose={handleSettingsClose} 
+      {showSettings && onSettings != null && <Settings curSettings={userSettings} onChange={onSettings} onClose={handleSettingsClose} 
                                                        onLogout={() => {handleSettingsClose();onLogout();}} />
       }
     </header>
