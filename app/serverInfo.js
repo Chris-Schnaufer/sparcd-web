@@ -6,8 +6,8 @@ import { createContext } from 'react';
 
 /** React context for geographic coordinate choices */
 export const geographicCoordinates = [
-  {"name":"UTM", "value":"URL"},
-  {"name":"Latitude & Longitude", "value":"LATLON"},
+  {"label":"UTM", "value":"UTM"},
+  {"label":"Latitude & Longitude", "value":"LATLON"},
 ];
 
 /** React context for adding messages */
@@ -32,3 +32,5 @@ export const SpeciesInfoContext = createContext(null);
 export const TokenContext = createContext(null);
 /** React context for the current upload edit */
 export const UploadEditContext = createContext(null);
+/** React context for user settings */
+export const UserSettingsContext = createContext(null);

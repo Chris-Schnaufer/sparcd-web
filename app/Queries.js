@@ -287,8 +287,8 @@ export default function Queries({loadingCollections}) {
             setWaitingOnQuery(null);
           } else {
             console.log('HACK: QUERY CANCELLED OR EMPTY');
-            if (Object.keys(respData).length > 0) {
-              addMessage(Level.Information, 'The query returned no results. You may want to try the query again');
+            if (Object.keys(respData).length <= 0) {
+              addMessage(Level.Information, 'The query returned no results. Please adjust your query and try again');
             }
             activeQuery = null;
             setWaitingOnQuery(null);

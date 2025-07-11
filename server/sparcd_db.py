@@ -133,6 +133,7 @@ class SPARCdDatabase:
         res = cursor.fetchone()
         cursor.close()
 
+        print('HACK:DB',token,res,flush=True)
         if res and len(res) >= 8:
             return {'name':res[0], 'email':res[1], 'settings':res[2], 'admin':res[3], \
                     'url':res[4], 'timestamp':res[5], 'elapsed_sec':res[6], \
@@ -210,6 +211,23 @@ class SPARCdDatabase:
             return res[0]
 
         return ''
+
+    def update_user_settings(self, username: str, settings: str) ->None:
+        """ Updates the user's settings in the database
+        Arguments
+            username: the name of the user to update
+            settings: the new settings to set
+        """
+        if self._conn is None:
+            raise RuntimeError('update_user_settings: Attempting to access database before '\
+                                    'connecting')
+
+
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE users SET settings=(?) WHERE name=(?)', (settings,username))
+        self._conn.commit()
+        cursor.close()
+
 
     def get_collections(self, timeout_sec:int) -> Optional[list]:
         """ Returns the collection information stored in the database
@@ -486,7 +504,7 @@ class SPARCdDatabase:
 
         # Check for queries associated with the token
         cursor = self._conn.cursor()
-        cursor.execute('SELECT path,(strftime("%s", "now")-timestamp) AS elapsed_sec FROM queries ' \
+        cursor.execute('SELECT path,(strftime("%s", "now")-timestamp) AS elapsed_sec FROM queries '\
                                     'WHERE token=(?) ORDER BY elapsed_sec DESC LIMIT 1', (token,))
 
         res = cursor.fetchone()
