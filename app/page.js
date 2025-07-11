@@ -115,6 +115,7 @@ export default function Home() {
   const DEFAULT_DISPLAY_HEIGHT = 600.0; // Used as default until the window is ready
   const DEFAULT_HEADER_HEIGHT = 63.0;   // Used as default until the window is ready
   const DEFAULT_FOOTER_HEIGHT = 76.0;   // Used as default until the window is ready
+  const defaultUserSettings = {name:'<Zeus>',settings:{},admin:false};
   const [breadcrumbs, setBreadcrumbs] = React.useState([]);
   const [checkedToken, setCheckedToken] = React.useState(false);
   const [collectionInfo, setCollectionInfo] = React.useState(null);
@@ -152,7 +153,7 @@ export default function Home() {
                                                             height:DEFAULT_DISPLAY_HEIGHT-DEFAULT_HEADER_HEIGHT-DEFAULT_FOOTER_HEIGHT});
   const [serverURL, setServerURL] = React.useState(utils.getServer());
   const [speciesInfo, setSpeciesInfo] = React.useState(null);
-  const [userSettings, setUserSettings] =  React.useState({name:'<Zeus>',settings:{},admin:false});
+  const [userSettings, setUserSettings] =  React.useState(defaultUserSettings);
 
   const loginValidStates = loginValid;
   let settingsTimeoutId = null;   // Used to manage of the settings calls to the server
@@ -493,11 +494,14 @@ export default function Home() {
               curSettings = JSON.parse(curSettings);
             }
 
-            curSettings['autonext'] = typeof(curSettings['autonext']) === 'boolean' ? curSettings['autonext'] : 
+            curSettings['autonext'] = !curSettings['autonext'] ? true : 
+                                                      typeof(curSettings['autonext']) === 'boolean' ? curSettings['autonext'] : 
                                                                               curSettings['autonext'].toLowerCase() === 'true';
-            curSettings['sandersonDirectory'] = typeof(curSettings['sandersonDirectory']) === 'boolean' ? curSettings['sandersonDirectory'] :
+            curSettings['sandersonDirectory'] = !curSettings['sandersonDirectory'] ? true : 
+                                                      typeof(curSettings['sandersonDirectory']) === 'boolean' ? curSettings['sandersonDirectory'] :
                                                                               curSettings['sandersonDirectory'].toLowerCase() === 'true';
-            curSettings['sandersonOutput'] = typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
+            curSettings['sandersonOutput'] = !curSettings['sandersonOutput'] ? true : 
+                                                      typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
                                                                               curSettings['sandersonOutput'].toLowerCase() === 'true';
             setUserSettings({name:resp['name'], settings:curSettings, admin:resp['admin']});
 
@@ -594,7 +598,7 @@ export default function Home() {
    * @function
    */
   function handleLogout() {
-    setUserSettings(null);
+    setUserSettings(defaultUserSettings);
     setLastToken(null);
     setEditing(false);
     setLoggedIn(false);
