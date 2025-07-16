@@ -59,8 +59,10 @@ def get_csv_raw(results: Results) -> str:
 
 
         # Set the default user's date-time
-        cur_image['dateDefault'] = cur_image['date'+results.user_settings['dateFormat']] + ' ' + \
-                                   cur_image['time'+results.user_settings['timeFormat']]
+        date_format = results.user_settings['dateFormat'] if 'dateFormat' in results.user_settings else 'MDY'
+        time_format = results.user_settings['timeFormat'] if 'timeFormat' in results.user_settings else '24'
+        cur_image['dateDefault'] = cur_image['date'+date_format] + ' ' + \
+                                   cur_image['time'+time_format]
 
         csv_results.append(cur_image)
 

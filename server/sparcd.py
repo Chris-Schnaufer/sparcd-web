@@ -617,7 +617,7 @@ def query_raw2csv(raw_data: tuple, settings: dict, mods: tuple=None) -> str:
         for one_key in location_keys:
             cur_row.append(str(one_row[one_key]))
         for one_key in elevation_keys:
-            cur_row.append(re.sub("[^\d\.]", "", str(one_row[one_key])))
+            cur_row.append(re.sub(r"[^\d\.]", "", str(one_row[one_key])))
 
         cur_idx = 1
         while True:
@@ -674,7 +674,7 @@ def query_location2csv(location_data: tuple, settings: dict, mods: dict=None) ->
         for one_key in location_keys:
             cur_row.append(str(one_row[one_key]))
         for one_key in elevation_keys:
-            cur_row.append(re.sub("[^\d\.]", "", str(one_row[one_key])))
+            cur_row.append(re.sub(r"[^\d\.]", "", str(one_row[one_key])))
 
         all_results += ','.join(cur_row) + '\n'
 

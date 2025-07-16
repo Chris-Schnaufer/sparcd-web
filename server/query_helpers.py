@@ -249,8 +249,10 @@ def query_output(results: Results, results_id: str) -> tuple:
                             'target': 'dateFormatted',
                             'source': 'date',
                             'parent': None,
-                            'settingsDate': results.user_settings['dateFormat'],
-                            'settingsTime': results.user_settings['timeFormat'],
+                            'settingsDate': results.user_settings['dateFormat'] if 'dateFormat' in \
+                                                                    results.user_settings else 'MDY',
+                            'settingsTime': results.user_settings['timeFormat'] if 'timeFormat' in \
+                                                                    results.user_settings else '24',
                            }],
                 'csvLocation':[{'type':'hasLocations',
                            'UTM':'UTM',
