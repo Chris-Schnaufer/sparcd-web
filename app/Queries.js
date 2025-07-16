@@ -31,7 +31,7 @@ import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils'
 
 import { Level, makeMessage, Messages } from './components/Messages';
-import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from './serverInfo'
+import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UserSettingsContext } from './serverInfo'
 
 /**
  * Provides the UI for queries
@@ -50,6 +50,7 @@ export default function Queries({loadingCollections}) {
   const queryToken = React.useContext(TokenContext);  // Login token
   const speciesItems = React.useContext(SpeciesInfoContext);  // Species
   const uiSizes = React.useContext(SizeContext);  // UI Dimensions
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [activeTab, setActiveTab] = React.useState(0);
   const [dividerHeight, setDividerHeight] = React.useState(20); // Used to size controls
   const [expandCollapseWidth, setExpandCollapseWidth] = React.useState(24);
@@ -413,14 +414,135 @@ export default function Queries({loadingCollections}) {
     // Generate a DataGrid to display the results
     let colTitles = queryResults.columns[tabName];
     let colData = queryResults[tabName];
-    let keys = Object.keys(colTitles);
     let curData = colData;
     let columnGroupings = undefined;
 
+    // Check for column modifications
+    if (queryResults.columsMods[tabName] !== undefined) {
+      const colModInfo = queryResults.columsMods[tabName];
+
+      // Create a copy so that the original is unmodified
+      colTitles = JSON.parse(JSON.stringify(colTitles));
+
+      // First level of processing modifiers
+      for (const oneMod of colModInfo) {
+        // Location information display specifics.
+        switch (oneMod['type']) {
+          case 'hasLocations':
+              {
+                let displayCoordSystem = 'LATLON';
+                if (userSettings['coordinatesDisplay']) {
+                  displayCoordSystem = userSettings['coordinatesDisplay'];
+                }
+                const sourceKey = oneMod[displayCoordSystem];
+                const targetKey = oneMod['target'];
+
+                // Remove all other possible column targets from the tiles
+                for (const oneKey of Object.keys(oneMod)) {
+                  const unwanted = oneMod[oneKey]
+                  if (colTitles[unwanted] !== undefined && unwanted !== sourceKey) {
+                    delete colTitles[unwanted];
+                  }
+                }
+
+                // Get the information from the source and rename it to the target
+                const oldInfo = colTitles[sourceKey];
+                delete colTitles[sourceKey];
+                if (targetKey !== null) {
+                  colTitles[targetKey] = oldInfo;
+                } else {
+                  for (const oneKey of Object.keys(oldInfo)) {
+                    colTitles[oneKey] = oldInfo[oneKey];
+                  }
+                }
+              }
+              break;
+        }
+      }
+
+      // Second level of processing modifiers
+      for (const oneMod of colModInfo) {
+        switch (oneMod['type']) {
+          case 'hasElevation':
+              {
+                let displayMeasure = 'meters';
+                if (userSettings['measurementFormat']) {
+                  displayMeasure = userSettings['measurementFormat'];
+                }
+                const newKey = oneMod[displayMeasure];
+                const targetKey = oneMod['target'];
+                const parentKey = oneMod['parent'];
+
+                let modData = colTitles;
+                if (parentKey) {
+                  modData = colTitles[parentKey];
+                }
+
+                // Get the information from the source and rename it to the target
+                if (newKey !== targetKey) {
+                  const oldInfo = modData[targetKey];
+                  delete modData[targetKey];
+                  modData[newKey] = oldInfo;
+                }
+              }
+              break;
+
+            case 'date':
+              {
+                let dateFormat = 'ISO';
+                let timeFormat = '24s'
+                if (userSettings['dateFormat']) {
+                  dateFormat = userSettings['dateFormat'];
+                }
+                if (userSettings['timeFormat']) {
+                  timeFormat = userSettings['timeFormat'];
+                }
+
+                // If the date format is ISO we don't have anything to do
+                if (dateFormat === 'ISO') {
+                  break;
+                }
+
+                // Update the titles
+                const sourceKey = oneMod['source'];
+                const targetKey = oneMod['target'];
+                const parentKey = oneMod['parent'];
+
+                let modData = colTitles;
+                if (parentKey) {
+                  modData = colTitles[parentKey];
+                }
+
+                // If the time and date haven't changed from when the query was generated,
+                // use what was returned
+                if (dateFormat === oneMod['settingsDate'] && timeFormat === oneMod['settingsTime']) {
+                  const oldInfo = modData[sourceKey];
+                  delete modData[sourceKey];
+                  modData['dateDefault'] = oldInfo;
+                } else {
+                  // We need to synthesize the date and time
+                  if (sourceKey !== targetKey) {
+                    const oldInfo = modData[sourceKey];
+                    delete modData[sourceKey];
+                    modData[targetKey] = oldInfo;
+                  }
+
+                  const dateKey = 'date' + dateFormat;
+                  const timeKey = 'time' + timeFormat;
+
+                  curData = curData.map((row, rowIdx) => {let rowAdd = {}; rowAdd[targetKey] = row[dateKey] + ' ' + row[timeKey];return {...rowAdd, ...row};});
+                }
+              }
+              break;
+        }
+      }
+    }
+
+    let keys = Object.keys(colTitles);
     let curTitles = keys.map((name, idx) => {return {field:name, headerName:colTitles[name]}});
 
     if (keys.find((item) => item === 'id') == undefined) {
-      curData = colData.map((row, rowIdx) => {return {id:rowIdx, ...row}});
+      curData = curData.map((row, rowIdx) => {return {id:rowIdx, ...row}});
     }
 
     // Check if we have column groupings and regenerate/update variables if we do

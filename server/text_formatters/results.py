@@ -35,9 +35,12 @@ class Results:
     _year_images = None
     # S3 connection information
     _s3_info = None
+    # User settings
+    _user_settings = None
 
     def __init__(self, results: tuple, all_species: tuple, all_locations: tuple, \
-                 s3_url: str, s3_user: str, s3_pw: str, interval_minutes:int=DEFAULT_INTERVAL_MIN):
+                 s3_url: str, s3_user: str, s3_pw: str, user_settings: dict, \
+                 interval_minutes:int=DEFAULT_INTERVAL_MIN):
         """ Initializer
         Arguments:
             results: the search results
@@ -46,6 +49,7 @@ class Results:
             s3_url: the URL of  the S3 instance
             s3_user: the user name to connect to S3 with
             S3_pw: the password for S3
+            user_settings: the user's settings
             interval_minutes: the number of minutes between images to discard
         """
         # Disabling this because we don't want to assign to class instance until all
@@ -66,6 +70,7 @@ class Results:
         self._species_images = []
         self._year_images = []
         self._s3_info = {'url': s3_url, 'user': s3_user, 'pw': s3_pw}
+        self._user_settings = user_settings
 
         # Check that we have results
         if results is None:
@@ -123,6 +128,11 @@ class Results:
     def s3_password(self):
         """ Returns the S3 password """
         return self._s3_info['pw']
+
+    @property
+    def user_settings(self):
+        """ Returns the user's settings """
+        return self._user_settings
 
     def have_results(self):
         """ Returns whether or not we have results """

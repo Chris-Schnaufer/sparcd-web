@@ -182,7 +182,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 disableClearable
                 options={dateFormats}
                 value={dateFormats.find((item) => item.value === userSettings.dateFormat).label}
-                onChange={(event, newValue) => handleValueChange('date', newValue.value)}
+                onChange={(event, newValue) => handleValueChange('dateFormat', newValue.value)}
                 sx={{ width: 300 }}
                 renderInput={(params) => <TextField {...params} label="Dates" />}
               />
@@ -193,7 +193,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 disableClearable
                 options={timeFormats}
                 value={timeFormats.find((item) => item.value === userSettings.timeFormat).label}
-                onChange={(event, newValue) => handleValueChange('time', newValue.value)}
+                onChange={(event, newValue) => handleValueChange('timeFormat', newValue.value)}
                 sx={{ width: 300 }}
                 renderInput={(params) => <TextField {...params} label="Times" />}
               />

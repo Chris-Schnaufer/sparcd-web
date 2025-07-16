@@ -174,6 +174,7 @@ def query_output(results: Results, results_id: str) -> tuple:
     Arguments:
         results: the results class containing the results of the filter_uploads function
         results_id: the unique identifier for this result
+        user_settings: the user settings
     Return:
         Returns a tuple containing the formatted results
     """
@@ -208,19 +209,60 @@ def query_output(results: Results, results_id: str) -> tuple:
                                            'image':'Image'},
                 'csvRaw': {'image':'Image',
                            'date':'Date',
-                           'location':{'title':'Location','locName':'Name','locId':'ID', \
-                                        'locUtmZone':'UTM Zone','locX':'Easting',\
-                                        'locY':'Northing','locElevation':'Elevation'
-                                    },
-                            'species':{'title':'Species',
+                           'locationUTM':{'title':'Location','locName':'Name','locId':'ID', \
+                                        'utm_code':'UTM Zone','utm_x':'Easting',\
+                                        'utm_y':'Northing','locElevation':'Elevation'
+                                       },
+                           'LocationLATLON':{'title':'Location','locName':'Name','locId':'ID', \
+                                            'locX':'Latitude','locY':'Longitude',
+                                            'locElevation':'Elevation'
+                                            },
+                           'species':{'title':'Species',
                                      'common1':'Common Name','scientific1':'Scientific Name',\
                                      'count1':'Count','common2':'Common Name',\
-                                     'scientific2':'Scientific Name','count2':'Count'},
+                                     'scientific2':'Scientific Name','count2':'Count'
+                                     },
                         },
-                'csvLocation': {'name':'Name','id':'ID', 'locX':'Easting', \
-                                'locY':'Northing', 'locElevation':'Elevation'},
+                'csvLocation': {'UTM':{'name':'Name','id':'ID', 'utm_code':'UTM Zone', \
+                                    'utm_x':'Easting', 'utm_y':'Northing', \
+                                    'locElevation':'Elevation'},
+                                'LATLON':{'name':'Name','id':'ID', 'locX':'Latitude', \
+                                    'locY':'Longitude', 'locElevation':'Elevation'},
+                                },
                 'csvSpecies': {'common':'Common Name', 'scientific':'Scientific Name'},
                 'imageDownloads': {'name':'Name'}
+            },
+            # Column modifications
+            'columsMods': {
+                'csvRaw': [{'type': 'hasLocations',
+                           'UTM': 'locationUTM',
+                           'LATLON': 'LocationLATLON',
+                           'target': 'location'
+                           }, {
+                            'type': 'hasElevation',
+                            'parent': 'location',
+                            'meters': 'locElevation',
+                            'feet': 'locElevationFeet',
+                            'target': 'locElevation'
+                           }, {
+                            'type': 'date',
+                            'target': 'dateFormatted',
+                            'source': 'date',
+                            'parent': None,
+                            'settingsDate': results.user_settings['dateFormat'],
+                            'settingsTime': results.user_settings['timeFormat'],
+                           }],
+                'csvLocation':[{'type':'hasLocations',
+                           'UTM':'UTM',
+                           'LATLON': 'LATLON',
+                           'target': None
+                           }, {
+                            'type': 'hasElevation',
+                            'parent': None,
+                            'meters': 'locElevation',
+                            'feet': 'locElevationFeet',
+                            'target': 'locElevation'
+                           }],
             },
             # Download file information
             'downloads': {

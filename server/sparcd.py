@@ -9,6 +9,7 @@ import io
 import json
 from multiprocessing import connection, Lock, Semaphore, synchronize
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -205,7 +206,6 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
-    print('HACK:USERINFO BEFORE:',login_info, flush=True)
     if login_info and 'settings' in login_info:
         login_info['settings'] = json.loads(login_info['settings'])
     print('USER INFO',login_info,flush=True)
@@ -567,17 +567,58 @@ def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
                     print(ex)
 
 
-def query_raw2csv(raw_data: tuple) -> str:
+def query_raw2csv(raw_data: tuple, settings: dict, mods: tuple=None) -> str:
     """ Returns the CSV of the specified raw query results
     Arguments:
         raw_data: the query data to convert
+        settings: user settings
+        mods: modifictions to make on the data based upon user settings
     """
     all_results = ''
 
+    # Loop through any modifiers
+    location_keys = ['locX', 'locY']
+    elevation_keys = ['locElevation']
+    timestamp_keys = 'date'
+    if not mods is None:
+        for one_mod in mods:
+            if 'type' in one_mod:
+                match one_mod['type']:
+                    case 'hasLocations':
+                        coord_format = settings['coordinatesDisplay'] if 'coordinatesDisplay' in \
+                                                                        settings else 'LATLON'
+                        if coord_format == 'UTM':
+                            location_keys = ['utm_code', 'utm_x', 'utm_y']
+
+                    case 'hasElevation':
+                        measure_format = settings['measurementFormat'] if 'measurementFormat' in \
+                                                                        settings else 'meters'
+                        if measure_format == 'feet':
+                            elevation_keys = ['locElevationFeet']
+
+                    case 'date':
+                        date_format = settings['dateFormat'] if 'dateFormat' in settings else 'MDY'
+                        time_format = settings['timeFormat'] if 'timeFormat' in settings else '24'
+
+                        timestamp_keys = {'date': 'date'+date_format, 'time': 'time'+time_format}
+
+
     for one_row in raw_data:
-        # TODO: utm vs lat-lon
-        cur_row = [one_row['image'], one_row['date'], one_row['locName'], one_row['locId'],
-                    '', str(one_row['locX']), str(one_row['locY']), str(one_row['locElevation'])]
+        # Build up the row based upon modifications
+        cur_row = [one_row['image']]
+
+        if isinstance(timestamp_keys, str):
+            cur_row.append('"' + one_row['date'] + '"')
+        else:
+            cur_row.append('"' + one_row[timestamp_keys['date']] + ' ' + one_row[timestamp_keys['time']] + '"')
+
+        cur_row.append(one_row['locName'])
+        cur_row.append(one_row['locId'])
+        for one_key in location_keys:
+            cur_row.append(str(one_row[one_key]))
+        for one_key in elevation_keys:
+            cur_row.append(re.sub("[^\d\.]", "", str(one_row[one_key])))
+
         cur_idx = 1
         while True:
             if 'scientific' + str(cur_idx) in one_row and 'common' + str(cur_idx) in one_row and \
@@ -595,27 +636,59 @@ def query_raw2csv(raw_data: tuple) -> str:
     return all_results
 
 
-def query_location2csv(location_data: tuple) -> str:
+def query_location2csv(location_data: tuple, settings: dict, mods: dict=None) -> str:
     """ Returns the CSV of the specified location query results
     Arguments:
         location_data: the location data to convert
+        settings: user settings
+        mods: modifictions to make on the data based upon user settings
     """
     all_results = ''
+
+
+    # Loop through any modifiers
+    location_keys = ['locX', 'locY']
+    elevation_keys = ['locElevation']
+    if not mods is None:
+        for one_mod in mods:
+            if 'type' in one_mod:
+                match one_mod['type']:
+                    case 'hasLocations':
+                        coord_format = settings['coordinatesDisplay'] if 'coordinatesDisplay' in \
+                                                                        settings else 'LATLON'
+                        if coord_format == 'UTM':
+                            location_keys = ['utm_code', 'utm_x', 'utm_y']
+                        break
+
+                    case 'hasElevation':
+                        measure_format = settings['measurementFormat'] if 'measurementFormat' in \
+                                                                        settings else 'meters'
+
+                        if measure_format == 'feet':
+                            elevation_keys = ['locElevationFeet']
+                        break
+
     for one_row in location_data:
-        # TODO: utm vs lat-lon
-        cur_row = [one_row['name'], one_row['id'], str(one_row['locX']), str(one_row['locY']), \
-                                                                    str(one_row['locElevation'])]
+        cur_row = [one_row['name'], one_row['id']]
+
+        for one_key in location_keys:
+            cur_row.append(str(one_row[one_key]))
+        for one_key in elevation_keys:
+            cur_row.append(re.sub("[^\d\.]", "", str(one_row[one_key])))
 
         all_results += ','.join(cur_row) + '\n'
 
     return all_results
 
 
-def query_species2csv(species_data: tuple) -> str:
+def query_species2csv(species_data: tuple, settings: dict, mods: dict=None) -> str:
     """ Returns the CSV of the specified species query results
     Arguments:
         species_data: the species data to convert
+        settings: user settings
+        mods: modifictions to make on the data based upon user settings
     """
+    # pylint: disable=unused-argument
     all_results = ''
     for one_row in species_data:
         all_results += ','.join([one_row['common'], one_row['scientific']]) + '\n'
@@ -623,11 +696,14 @@ def query_species2csv(species_data: tuple) -> str:
     return all_results
 
 
-def query_allpictures2csv(allpictures_data: tuple) -> str:
+def query_allpictures2csv(allpictures_data: tuple, settings: dict, mods: dict = None) -> str:
     """ Returns the CSV of the specified Sanderson all pictures query results
     Arguments:
         allpictures_data: the all pictures data to convert
+        settings: user settings
+        mods: modifictions to make on the data based upon user settings
     """
+    # pylint: disable=unused-argument
     all_results = ''
     for one_row in allpictures_data:
         all_results += ','.join([one_row['location'], one_row['species'], one_row['image']]) + '\n'
@@ -1420,7 +1496,7 @@ def query():
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
-                        60) # TODO: add query interval
+                        user_info['settings'], 60) # TODO: add query interval
 
     # Format and return the results
     results_id = uuid.uuid4().hex
@@ -1484,27 +1560,40 @@ def query_dl():
     match(tab):
         case 'DrSandersonOutput':
             dl_name = target if target else 'drsanderson.txt'
-            return Response(query_results[tab], mimetype='text/text', \
+            return Response(query_results[tab], \
+                            mimetype='text/text', \
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'DrSandersonAllPictures':
             dl_name = target if target else 'drsanderson_all.csv'
-            return Response(query_allpictures2csv(query_results[tab]), mimetype='application/csv', \
+            return Response(query_allpictures2csv(query_results[tab], user_info['settings'], \
+                                    query_results['columsMods'][tab] if tab in \
+                                                        query_results['columsMods'] else None), \
+                            mimetype='application/csv', \
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvRaw':
             dl_name = target if target else 'allresults.csv'
-            return Response(query_raw2csv(query_results[tab]), mimetype='text/csv', \
+            return Response(query_raw2csv(query_results[tab], user_info['settings'], \
+                                    query_results['columsMods'][tab] if tab in \
+                                                        query_results['columsMods'] else None), \
+                            mimetype='text/csv', \
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvLocation':
             dl_name = target if target else 'locations.csv'
-            return Response(query_location2csv(query_results[tab]), mimetype='text/csv', \
+            return Response(query_location2csv(query_results[tab], user_info['settings'], \
+                                    query_results['columsMods'][tab] if tab in \
+                                                        query_results['columsMods'] else None),\
+                            mimetype='text/csv', \
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'csvSpecies':
             dl_name = target if target else 'species.csv'
-            return Response(query_species2csv(query_results[tab]), mimetype='text/csv', \
+            return Response(query_species2csv(query_results[tab], user_info['settings'], \
+                                    query_results['columsMods'][tab] if tab in \
+                                                        query_results['columsMods'] else None), \
+                            mimetype='text/csv', \
                             headers={'Content-disposition': f'attachment; filename="{dl_name}"'})
 
         case 'imageDownloads':
@@ -1558,7 +1647,6 @@ def set_settings():
         'timeFormat': request.form.get('timeFormat', None),
         'coordinatesDisplay': request.form.get('coordinatesDisplay', None)
     }
-    print('HACK:           :', new_settings, flush=True)
 
     # Check what we have from the requestor
     if not token:
@@ -1588,7 +1676,6 @@ def set_settings():
     if modified:
         db.update_user_settings(user_info['name'], json.dumps(user_info['settings']))
 
-    print('HACK:  RETURN :', json.dumps(user_info['settings']), flush=True)
     return json.dumps(user_info['settings'])
 
 
@@ -1648,5 +1735,5 @@ def location_info():
             return json.dumps(one_loc)
 
     return json.dumps({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
-                            'lngProperty':0.0, 'elevationProperty':0.0, 'utm_code':SOUTHERN_AZ_UTM_ZONE,
-                            'utm_x':0.0, 'utm_y':0.0})
+                            'lngProperty':0.0, 'elevationProperty':0.0,
+                            'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})

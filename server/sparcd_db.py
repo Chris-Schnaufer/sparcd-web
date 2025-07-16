@@ -133,7 +133,6 @@ class SPARCdDatabase:
         res = cursor.fetchone()
         cursor.close()
 
-        print('HACK:DB',token,res,flush=True)
         if res and len(res) >= 8:
             return {'name':res[0], 'email':res[1], 'settings':res[2], 'admin':res[3], \
                     'url':res[4], 'timestamp':res[5], 'elapsed_sec':res[6], \
