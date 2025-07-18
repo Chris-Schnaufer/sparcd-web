@@ -34,3 +34,10 @@ export const TokenContext = createContext(null);
 export const UploadEditContext = createContext(null);
 /** React context for user settings */
 export const UserSettingsContext = createContext(null);
+
+/** Allowed image types **/
+export const AllowedImageMime = [
+  'image/jp2',
+  'image/jpeg',
+  'image/tiff'
+];

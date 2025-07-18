@@ -47,8 +47,8 @@ export default function LandingCollections({loadingCollections, onChange}) {
             Refreshing...
           </Typography>
           <Box id='landing-collections-wrapper' sx={{ ...theme.palette.landing_collections, padding:'0px', minHeight:'40px' }} >
-                  { collectionItems ?
-            <FormControl>
+          { collectionItems ?
+            <FormControl sx={{width:'100%'}}>
               <RadioGroup
                 id='collection-items'
                 value={selectedCollection}

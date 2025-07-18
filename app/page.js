@@ -130,6 +130,7 @@ export default function Home() {
   const [lastToken, setLastToken] = React.useState(null);
   const [loadingCollections, setLoadingCollections] = React.useState(false);
   const [loadingLocations, setLoadingLocations] = React.useState(false);
+  const [loadingSandbox, setLoadingSandbox] = React.useState(false);
   const [loadingSpecies, setLoadingSpecies] = React.useState(false);
   const [locationInfo, setLocationInfo] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
@@ -203,7 +204,7 @@ export default function Home() {
         loginUserToken(lastLoginToken,
           () => {setCheckedToken(true);
                  // Load collections
-                 window.setTimeout(() => {loadCollections(lastLoginToken);loadLocations(lastLoginToken);loadSpecies(lastLoginToken);}, 500);
+                 window.setTimeout(() => {loadCollections(lastLoginToken);loadSandbox(lastLoginToken);loadLocations(lastLoginToken);loadSpecies(lastLoginToken);}, 500);
                 },
           () => {
             loginStore.clearLoginToken()
@@ -232,7 +233,7 @@ export default function Home() {
         setDbRemember(loInfo.remember === 'true');
       }
     }
-  }, [checkedToken, curLoggedIn, loadCollections, loadLocations, loadSpecies, loginUserToken, savedTokenFetched, savedLoginFetched]);
+  }, [checkedToken, curLoggedIn, loadCollections, loadSandbox, loadLocations, loadSpecies, loginUserToken, savedTokenFetched, savedLoginFetched]);
 
   /**
    * Calculates the sizes of the window, header, footer, and workspace area (not used by header or footer)
@@ -321,7 +322,7 @@ export default function Home() {
   function loadCollections(token) {
     const cur_token = token || lastToken;
     setLoadingCollections(true);
-    const collectionUrl =  serverURL + '/collections?token=' + encodeURIComponent(cur_token)
+    const collectionUrl =  serverURL + '/collections?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(collectionUrl, {
         method: 'GET'
@@ -354,9 +355,46 @@ export default function Home() {
           setLoadingCollections(false);
       });
     } catch (error) {
-      console.log('Collections Error: ',error);
+      console.log('Collections Unknown Error: ',error);
       addMessage(Level.Error, 'An unknown problem ocurred while fetching collection information');
       setLoadingCollections(false);
+    }
+  }
+
+  // For some reason changing this to useCallback() causes the build to fail 
+  /**
+   * Fetches the sandbox entries from the server
+   * @function
+   */
+  function loadSandbox(token) {
+    const cur_token = token || lastToken;
+    setLoadingSandbox(true);
+    const sandboxUrl =  serverURL + '/sandbox?t=' + encodeURIComponent(cur_token)
+    try {
+      const resp = fetch(sandboxUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get sandbox: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+          // Save response data
+          setLoadingSandbox(false);
+          console.log('SANDBOX',respData);
+          setSandboxInfo(null);
+        })
+        .catch((err) => {
+          console.log('Sandbox Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while fetching sandbox information');
+          setLoadingSandbox(false);
+      });
+    } catch (error) {
+      console.log('Sandbox Unknown Error: ',error);
+      addMessage(Level.Error, 'An unknown problem ocurred while fetching sandbox information');
+      setLoadingSandbox(false);
     }
   }
 
@@ -368,7 +406,7 @@ export default function Home() {
   function loadLocations(token) {
     const cur_token = token || lastToken;
     setLoadingLocations(true);
-    const locationsUrl =  serverURL + '/locations?token=' + encodeURIComponent(cur_token)
+    const locationsUrl =  serverURL + '/locations?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(locationsUrl, {
         method: 'GET'
@@ -405,7 +443,7 @@ export default function Home() {
   function loadSpecies(token) {
     const cur_token = token || lastToken;
     setLoadingSpecies(true);
-    const speciesUrl =  serverURL + '/species?token=' + encodeURIComponent(cur_token)
+    const speciesUrl =  serverURL + '/species?t=' + encodeURIComponent(cur_token)
     try {
       const resp = fetch(speciesUrl, {
         method: 'GET'
@@ -442,24 +480,6 @@ export default function Home() {
    */
   function addMessage(level, message, title) {
     setMessages([...messages, makeMessage(level, message, title)])
-  }
-
-  /**
-   * Sets the information of the sandbox items
-   * @function
-   * @param {array} sandboxInfo Array of sandbox items
-   */
-  function updateSandboxInfo(sandboxInfo) {
-    setSandboxInfo(sandboxInfo);
-  }
-
-  /**
-   * Sets the information of the collection items
-   * @function
-   * @param {array} collectionInfo Array of collection items
-   */
-  function updateCollectionInfo(collectionInfo) {
-    setCollectionInfo(collectionInfo);
   }
 
   /**
@@ -585,7 +605,7 @@ export default function Home() {
           loginStore.clearLoginInfo();
         }
         // Load collections
-        window.setTimeout(() => {loadCollections(new_token);loadLocations(new_token);loadSpecies(new_token);}, 500);
+        window.setTimeout(() => {loadCollections(new_token);loadSandbox(new_token);loadLocations(new_token);loadSpecies(new_token);}, 500);
       }, () => {
         // If log in fails
         addMessage(Level.Warn, 'Unable to log in. Please check your username and password before trying again', 'Login Failure');
@@ -613,7 +633,7 @@ export default function Home() {
    * @param {string} breadcrumbName The name of the navigation breadcrumb to use
    */
   function editCollectionUpload(collectionId, uploadId, breadcrumbName) {
-    const uploadUrl = serverURL + '/upload?token=' + encodeURIComponent(lastToken) + 
+    const uploadUrl = serverURL + '/upload?t=' + encodeURIComponent(lastToken) + 
                                           '&id=' + encodeURIComponent(collectionId) + 
                                           '&up=' + encodeURIComponent(uploadId);
     // Get the information on the upload
@@ -701,7 +721,7 @@ export default function Home() {
   function getUserSettings() {
     const settingsUrl = serverURL + '/settings';
     // Get the information on the upload
-    /* TODO: make call and wait for respone & return correct result
+    /* TODO: make call and wait for response & return correct result
              need to handle null, 'invalid', and token values
     const resp = await fetch(settingsUrl, {
       'method': 'GET',
@@ -835,11 +855,13 @@ export default function Home() {
           <BaseURLContext.Provider value={serverURL}>
             <TokenContext.Provider value={lastToken}>
               <AddMessageContext.Provider value={addMessage}>
+                <LocationsInfoContext.Provider value={locationInfo}>
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <SandboxInfoContext.Provider value={sandboxInfo}>
-                    <Landing loadingCollections={loadingCollections} onUserAction={setCurrentAction} onSandboxUpdate={updateSandboxInfo} onCollectionUpdate={updateCollectionInfo} />
+                    <Landing loadingCollections={loadingCollections} loadingSandbox={loadingSandbox} onUserAction={setCurrentAction} />
                   </SandboxInfoContext.Provider>
                 </CollectionsInfoContext.Provider>
+                </LocationsInfoContext.Provider>
               </AddMessageContext.Provider>
             </TokenContext.Provider>
           </BaseURLContext.Provider>

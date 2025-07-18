@@ -87,6 +87,12 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'name TEXT NOT NULL, json TEXT NOT NULL)',
              'CREATE TABLE queries(id INTEGER PRIMARY KEY ASC, timestamp INTEGER, ' \
                             'token TEXT, path TEXT NOT NULL)',
+             'CREATE TABLE sandbox(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
+                            'path TEXT NOT NULL, bucket TEXT NOT NULL, ' \
+                            's3_base_path TEXT NOT NULL, location_id TEXT NOT NULL, ' \
+                            'timestamp INTEGER)',
+             'CREATE TABLE sandbox_files(id INTEGER PRIMARY KEY ASC, sandbox_id INTEGER NOT NULL, '\
+                            'filename TEXT NOT NULL, source_path TEXT, timestamp INTEGER)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 

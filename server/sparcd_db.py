@@ -327,6 +327,13 @@ class SPARCdDatabase:
 
         return True
 
+    def get_sandbox(self) -> Optional[tuple]:
+        """ Returns the sandbox items
+        Returns:
+            A tuple containing the known sandbox items
+        """
+        return tuple()
+
     def get_uploads(self, bucket: str, timeout_sec: int) -> Optional[tuple]:
         """ Returns the uploads for this collection from the database
         Arguments:
@@ -492,7 +499,6 @@ class SPARCdDatabase:
 
         return return_paths
 
-
     def get_query(self, token: str) -> tuple:
         """ Returns a tuple of saved query paths associated with this token
         Arguments:
@@ -513,3 +519,81 @@ class SPARCdDatabase:
         cursor.close()
 
         return res[0], res[1]
+
+    def get_sandbox_upload(self, username: str, path: str) -> Optional[tuple]:
+        """ Checks if an upload for the user exists and returns the files that were loaded
+        Arguments:
+            username: the user associated with the upload
+            path: the source path of the uploads
+        Returns:
+            Returns a tuple containing the timestamp for the existing upload, and another tuple
+            containing the files that have been uploaded
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get sandbox uploads from the database before ' \
+                                                                                    'connecting')
+
+        # Find the upload
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id, (strftime("%s", "now")-timestamp) AS elapsed_sec FROM sandbox ' \
+                        'WHERE name=(?) and path=(?) LIMIT 1', (username, path))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 2:
+            return None, None
+
+        sandbox_id = res[0]
+        elapsed_sec = res[1]
+
+        cursor.close()
+
+        # Get all the loaded files
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=(?)', (sandbox_id,))
+        res = cursor.fetchall()
+
+        if not res or len(res) < 1:
+            return elapsed_sec, []
+
+        loaded_files = [row[0] for row in res]
+
+        cursor.close()
+
+        return elapsed_sec, loaded_files
+
+    def new_sandbox_upload(self, username: str, path: str, files: tuple, s3_bucket: str, \
+                                                            s3_path: str, location_id: str) -> bool:
+        """ Adds new sandbox upload entries
+        Arguments:
+            username: the name of the person starting the upload
+            path: the source path of the images
+            files: the list of filenames (or partial paths) that's to be uploaded
+            s3_bucket: the S3 bucket to load into
+            s3_path: the base path of the S3 upload
+            location_id: the ID of the location associated with the upload
+        Return:
+            Returns True if the entries are added to the database
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
+                                                                                    'connecting')
+
+        # Create the upload
+        cursor = self._conn.cursor()
+        cursor.execute('INSERT INTO sandbox(name, path, bucket, s3_base_path, ' \
+                                                                        'location_id, timestamp) ' \
+                                    'VALUES(?,?,?,?,?,strftime("%s", "now"))', 
+                            (username, path, s3_bucket, s3_path, location_id))
+
+        sandbox_id = cursor.lastrowid
+
+        for one_file in files:
+            cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
+                                                                                    'timestamp) ' \
+                                    'VALUES(?,?,?,strftime("%s", "now"))',
+                            (sandbox_id, one_file, one_file))
+
+        self._conn.commit()
+        cursor.close()
+
+        return True

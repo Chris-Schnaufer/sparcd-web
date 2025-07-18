@@ -59,7 +59,7 @@ let theme = createTheme({
       textAlign: 'center'
     },
     folder_upload: {
-      background: 'white',
+      background: 'rgb(240, 240, 255)',
       padding: '1em 2em 1em 2em'
     },
     left_sidebar: {

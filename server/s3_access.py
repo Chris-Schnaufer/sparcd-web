@@ -4,6 +4,7 @@
 import csv
 import concurrent.futures
 import dataclasses
+import datetime
 from io import StringIO
 import json
 import os
@@ -118,8 +119,10 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                     all_uploads_paths[one_coll['bucket']]['paths'].append(one_obj.object_name)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        cur_futures = {executor.submit(get_upload_data_thread, minio, all_uploads_paths[one_upload]['bucket'], \
-                                                    all_uploads_paths[one_upload]['paths'], all_uploads_paths[one_upload]['collection']):
+        cur_futures = {executor.submit(get_upload_data_thread, minio,
+                                                    all_uploads_paths[one_upload]['bucket'],
+                                                    all_uploads_paths[one_upload]['paths'],
+                                                    all_uploads_paths[one_upload]['collection']):
             one_upload for one_upload in all_uploads_paths}
 
         for future in concurrent.futures.as_completed(cur_futures):
@@ -524,7 +527,7 @@ class S3Connection:
 
     @staticmethod
     def download_images_cb(url: str, user: str, password:str, files: tuple, dest_path: str, \
-                                                            callback: Callable, callback_data) -> None:
+                                                        callback: Callable, callback_data) -> None:
         """ Downloads files into the destination path and calls the callback for each file
             downloaded
         Arguments:
@@ -545,7 +548,7 @@ class S3Connection:
         # Download the files one at a time and call the callback
         with concurrent.futures.ThreadPoolExecutor() as executor:
             cur_futures = {executor.submit(download_data_thread, minio, one_file, dest_path):
-                                                                                one_file for one_file in files}
+                                                                    one_file for one_file in files}
 
             for future in concurrent.futures.as_completed(cur_futures):
                 try:
@@ -558,3 +561,52 @@ class S3Connection:
 
         # Final callback to indicate processing is done
         callback(callback_data, None, None, None)
+
+    @staticmethod
+    def create_upload(url: str, user: str, password:str, collection_id: str, \
+                            comment: str, timestamp: datetime.datetime, file_count: int) -> tuple:
+        """ Creates an upload folder on the server and returns the path
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            collection_id: the ID of the collection to create the upload in
+            comment: user comment on this upload
+            timestamp: the timestamp to use when creating the path
+            file_count: the number of files to be uploaded
+        Return:
+            The bucket name and the path of the upload folder on the S3 instance
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        bucket = SPARCD_PREFIX + collection_id
+        upload_folder = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + user
+        new_path = '/'.join(('Collections',collection_id,'Uploads',upload_folder))
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        with open(temp_file[1], 'w', encoding='utf-8') as o_file:
+            json.dump({'uploadUser':user,
+                        'uploadDate': {
+                            'date':
+                                {'year':timestamp.year,'month':timestamp.month,'day':timestamp.day},
+                            'time':
+                                {'hour':timestamp.hour,'minute':timestamp.hour,
+                                    'second':timestamp.second,'nano':timestamp.microsecond}
+                        },
+                        'imagesWithSpecies':0,
+                        'imageCount':file_count,
+                        'editComments':[],
+                        'bucket':bucket,
+                        'uploadPath':new_path,
+                        'description': comment
+                        }
+                , o_file, indent=2)
+
+        print('HACK:CREATEUPLOAD:',bucket,new_path, flush=True)
+        minio.fput_object(bucket, new_path + '/UploadMeta.json', temp_file[1], content_type='application/json')
+
+        os.unlink(temp_file[1])
+
+        return bucket, new_path

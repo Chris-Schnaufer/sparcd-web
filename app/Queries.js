@@ -30,7 +30,7 @@ import { FilterSpeciesFormData } from './queries/FilterSpecies';
 import { FilterYearFormData } from './queries/FilterYear';
 import * as utils from './utils'
 
-import { Level, makeMessage, Messages } from './components/Messages';
+import { Level } from './components/Messages';
 import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UserSettingsContext } from './serverInfo'
 
 /**

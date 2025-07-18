@@ -22,6 +22,7 @@ import uuid
 import zipfile
 from cachelib.file import FileSystemCache
 import dateutil.parser
+import dateutil.tz
 from PIL import Image
 
 import requests
@@ -610,7 +611,8 @@ def query_raw2csv(raw_data: tuple, settings: dict, mods: tuple=None) -> str:
         if isinstance(timestamp_keys, str):
             cur_row.append('"' + one_row['date'] + '"')
         else:
-            cur_row.append('"' + one_row[timestamp_keys['date']] + ' ' + one_row[timestamp_keys['time']] + '"')
+            cur_row.append('"' + one_row[timestamp_keys['date']] + ' ' + \
+                                            one_row[timestamp_keys['time']] + '"')
 
         cur_row.append(one_row['locName'])
         cur_row.append(one_row['locId'])
@@ -1117,19 +1119,19 @@ def collections():
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    token = request.args.get('token')
+    token = request.args.get('t')
     if not token:
         return "Not Found", 404
 
-    print(('COLLECTIONS', request), flush=True)
+    print('COLLECTIONS', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
                                     ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
         return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
         return "Unauthorized", 401
@@ -1188,6 +1190,42 @@ def collections():
     return json.dumps(return_colls)
 
 
+@app.route('/sandbox', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox():
+    """ Returns the list of sandbox uploads
+    Arguments: (GET)
+        token - the session token
+    Return:
+        Returns the list of accessible collections
+    Notes:
+        If the token is invalid, or a problem occurs, a 404 error is returned
+    """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+
+    token = request.args.get('t')
+    if not token:
+        return "Not Found", 404
+
+    print('SANDBOX', request, flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the sandbox information from the database
+    return_sandbox = db.get_sandbox()
+
+    return json.dumps(return_sandbox)
+
+
 @app.route('/locations', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def locations():
@@ -1201,11 +1239,11 @@ def locations():
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    token = request.args.get('token')
+    token = request.args.get('t')
     if not token:
         return "Not Found", 404
 
-    print(('LOCATIONS', request), flush=True)
+    print('LOCATIONS', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
                                     ))
@@ -1239,11 +1277,11 @@ def species():
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    token = request.args.get('token')
+    token = request.args.get('t')
     if not token:
         return "Not Found", 404
 
-    print(('LOCATIONS', request), flush=True)
+    print('SPECIES', request, flush=True)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
                                     ))
@@ -1279,7 +1317,7 @@ def upload():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
 
-    token = request.args.get('token')
+    token = request.args.get('t')
     collection_id = request.args.get('id')
     collection_upload = request.args.get('up')
 
@@ -1522,7 +1560,7 @@ def query_dl():
         token - the session token
         t - the name of the tab results to download
     Return:
-        Returns the requested file
+        Returns the requested query download
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -1630,7 +1668,7 @@ def set_settings():
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the requested file
+        Returns the user's settings
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -1686,7 +1724,7 @@ def location_info():
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the requested file
+        Returns the location information
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -1737,3 +1775,112 @@ def location_info():
     return json.dumps({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
                             'lngProperty':0.0, 'elevationProperty':0.0,
                             'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
+
+
+@app.route('/prevSandbox', methods = ['POST'])
+@cross_origin(origins="*", supports_credentials=True)
+def prev_sandbox():
+    """ Checks if a sandbox item has been previously uploaded
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns whether the upload was already atempted and any missing file names
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('PREV SANDBOX', flush=True)
+
+    rel_path = request.form.get('path', None)
+    all_files = request.form.get('files', None)
+
+    # Check what we have from the requestor
+    if not token or not rel_path or not all_files:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get all the file names
+    try:
+        all_files = json.loads(all_files)
+    except json.JSONDecodeError as ex:
+        print('ERROR: Unable to load file list JSON', ex, flush=True)
+        return "Not Found", 406
+
+    # Check with the DB if the upload has been started before
+    elapsed_sec, uploaded_files = db.get_sandbox_upload(user_info['name'], rel_path)
+
+    return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
+                        'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec})
+
+
+@app.route('/newSandbox', methods = ['POST'])
+@cross_origin(origins="*", supports_credentials=True)
+def new_sandbox():
+    """ Adds a new sandbox upload to the database
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the success of adding the upload to the database
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('NEW SANDBOX', flush=True)
+
+    location_id = request.form.get('location', None)
+    collection_id = request.form.get('collection', None)
+    comment = request.form.get('comment', None)
+    rel_path = request.form.get('path', None)
+    all_files = request.form.get('files', None)
+    timestamp = request.form.get('ts', None)
+    timezone = request.form.get('tz', None)
+
+    # Check what we have from the requestor
+    if not token or not location_id or not collection_id or not comment or not rel_path or \
+            not all_files or not timestamp or not timezone:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get all the file names
+    try:
+        all_files = json.loads(all_files)
+    except json.JSONDecodeError as ex:
+        print('ERROR: Unable to load file list JSON', ex, flush=True)
+        return "Not Found", 406
+
+    # Create the upload location
+    s3_url = web_to_s3_url(user_info["url"])
+    client_ts = datetime.datetime.fromisoformat(timestamp).astimezone(dateutil.tz.gettz(timezone))
+    s3_bucket, s3_path = S3Connection.create_upload(s3_url, user_info["name"], \
+                                        do_decrypt(db.get_password(token)), collection_id, \
+                                        comment, client_ts, len(all_files))
+
+    # Check with the DB if the upload has been started before
+    success = db.new_sandbox_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
+                                        location_id)
+
+    return json.dumps({'success': success})
