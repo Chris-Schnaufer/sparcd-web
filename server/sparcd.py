@@ -1662,7 +1662,7 @@ def query_dl():
 
 
 @app.route('/settings', methods = ['POST'])
-@cross_origin(origins="*", supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def set_settings():
     """ Updates the user's settings
     Arguments: (GET)
@@ -1718,7 +1718,7 @@ def set_settings():
 
 
 @app.route('/locationInfo', methods = ['POST'])
-@cross_origin(origins="*", supports_credentials=True)
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def location_info():
     """ Returns details on a location
     Arguments: (GET)
@@ -1777,9 +1777,9 @@ def location_info():
                             'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
 
 
-@app.route('/prevSandbox', methods = ['POST'])
-@cross_origin(origins="*", supports_credentials=True)
-def prev_sandbox():
+@app.route('/sandboxPrev', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_prev():
     """ Checks if a sandbox item has been previously uploaded
     Arguments: (GET)
         t - the session token
@@ -1790,13 +1790,12 @@ def prev_sandbox():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-    print('PREV SANDBOX', flush=True)
+    print('SANDBOX PREV', flush=True)
 
     rel_path = request.form.get('path', None)
-    all_files = request.form.get('files', None)
 
     # Check what we have from the requestor
-    if not token or not rel_path or not all_files:
+    if not token or not rel_path:
         return "Not Found", 406
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -1811,23 +1810,19 @@ def prev_sandbox():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    # Get all the file names
-    try:
-        all_files = json.loads(all_files)
-    except json.JSONDecodeError as ex:
-        print('ERROR: Unable to load file list JSON', ex, flush=True)
-        return "Not Found", 406
 
     # Check with the DB if the upload has been started before
-    elapsed_sec, uploaded_files = db.get_sandbox_upload(user_info['name'], rel_path)
+    elapsed_sec, uploaded_files, upload_id = db.get_sandbox_upload(user_info['name'],
+                                                                                    rel_path, True)
 
     return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
-                        'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec})
+                        'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec, \
+                        'id': upload_id})
 
 
-@app.route('/newSandbox', methods = ['POST'])
-@cross_origin(origins="*", supports_credentials=True)
-def new_sandbox():
+@app.route('/sandboxNew', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_new():
     """ Adds a new sandbox upload to the database
     Arguments: (GET)
         t - the session token
@@ -1838,7 +1833,7 @@ def new_sandbox():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-    print('NEW SANDBOX', flush=True)
+    print('SANDBOX NEW', flush=True)
 
     location_id = request.form.get('location', None)
     collection_id = request.form.get('collection', None)
@@ -1880,7 +1875,118 @@ def new_sandbox():
                                         comment, client_ts, len(all_files))
 
     # Check with the DB if the upload has been started before
-    success = db.new_sandbox_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
+    upload_id = db.new_sandbox_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
                                         location_id)
 
-    return json.dumps({'success': success})
+    return json.dumps({'id': upload_id})
+
+
+@app.route('/sandboxFile', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_file():
+    """ Handles the upload for a new image
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the success of storing the uploaded image
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SANDBOX FILES', flush=True)
+
+    upload_id = request.form.get('id', None)
+
+    # Check what we have from the requestor
+    if not token or not upload_id or len(request.files) <= 0:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the location to upload to
+    s3_bucket, s3_path = db.get_sandbox_s3_info(user_info['name'], upload_id)
+    s3_url = web_to_s3_url(user_info["url"])
+    print('HACK:S3INFO:',s3_bucket, s3_path, flush=True)
+
+    # Upload all the received files and update the database
+    for one_file in request.files:
+        print('HACK:FILE:', one_file, request.files[one_file].name, request.files[one_file].filename, flush=True)
+        print('HACK:    :', request.files[one_file].content_length, request.files[one_file].mimetype, flush=True)
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+        print('HACK: SAVEFILE:',temp_file[1], flush=True)
+
+        request.files[one_file].save(temp_file[1])
+
+        # Upload the file to S3
+        S3Connection.upload_opened_file(s3_url, user_info["name"],
+                                        do_decrypt(db.get_password(token)), s3_bucket,
+                                        s3_path + '/' + request.files[one_file].filename,
+                                        temp_file[1])
+                                        #request.files[one_file])
+
+        # Update the database entry to show the file is uploaded
+        db.file_uploaded(user_info['name'], upload_id, request.files[one_file].filename)
+
+        #os.unlink(temp_file[1])
+
+#    s3_bucket, s3_path = S3Connection.create_upload(s3_url, user_info["name"], \
+#                                        do_decrypt(db.get_password(token)), collection_id, \
+#                                        comment, client_ts, len(all_files))
+#
+#    # Check with the DB if the upload has been started before
+#    success = db.new_sandbox_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
+#                                        location_id)
+
+    return json.dumps({'success': True})
+
+
+@app.route('/sandboxCompleted', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_completed():
+    """ Handles the upload for a new image
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the success of storing the uploaded image
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SANDBOX FILES', flush=True)
+
+    upload_id = request.form.get('id', None)
+
+    # Check what we have from the requestor
+    if not token or not upload_id:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Mark the upload as completed
+    db.complete_sandbox_upload(user_info['name'], upload_id)
+
+    return json.dumps({'success': True})

@@ -563,7 +563,7 @@ class S3Connection:
         callback(callback_data, None, None, None)
 
     @staticmethod
-    def create_upload(url: str, user: str, password:str, collection_id: str, \
+    def create_upload(url: str, user: str, password: str, collection_id: str, \
                             comment: str, timestamp: datetime.datetime, file_count: int) -> tuple:
         """ Creates an upload folder on the server and returns the path
         Arguments:
@@ -605,8 +605,27 @@ class S3Connection:
                 , o_file, indent=2)
 
         print('HACK:CREATEUPLOAD:',bucket,new_path, flush=True)
-        minio.fput_object(bucket, new_path + '/UploadMeta.json', temp_file[1], content_type='application/json')
+        minio.fput_object(bucket, new_path + '/UploadMeta.json', temp_file[1], \
+                                                                    content_type='application/json')
 
         os.unlink(temp_file[1])
 
         return bucket, new_path
+
+
+    @staticmethod
+    def upload_opened_file(url: str, user: str, password: str, bucket: str, path: str, \
+                            localname:str) -> None:
+        """ Uploads the data from the opened file reader to the specified bucket in the specified
+            object path
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            path: path under the bucket to the object data to
+            localname: the local filename of the file to upload
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        minio.fput_object(bucket, path, localname)

@@ -5,6 +5,7 @@ import logging
 import sqlite3
 from time import sleep
 from typing import Optional
+import uuid
 
 class SPARCdDatabase:
     """Class handling access connections to the database
@@ -520,14 +521,17 @@ class SPARCdDatabase:
 
         return res[0], res[1]
 
-    def get_sandbox_upload(self, username: str, path: str) -> Optional[tuple]:
+    def get_sandbox_upload(self, username: str, path: str, new_upload_id: bool=False) -> \
+                                                                                    Optional[tuple]:
         """ Checks if an upload for the user exists and returns the files that were loaded
         Arguments:
             username: the user associated with the upload
             path: the source path of the uploads
+            new_upload_id: creates a new upload ID for an existing upload
         Returns:
             Returns a tuple containing the timestamp for the existing upload, and another tuple
-            containing the files that have been uploaded
+            containing the files that have been uploaded, and a new upload ID if upload exists or
+            None if new_upload_id is False or the upload doesn't exist
         """
         if self._conn is None:
             raise RuntimeError('Attempting to get sandbox uploads from the database before ' \
@@ -535,34 +539,48 @@ class SPARCdDatabase:
 
         # Find the upload
         cursor = self._conn.cursor()
-        cursor.execute('SELECT id, (strftime("%s", "now")-timestamp) AS elapsed_sec FROM sandbox ' \
-                        'WHERE name=(?) and path=(?) LIMIT 1', (username, path))
+        cursor.execute('SELECT id, (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
+                        'FROM sandbox WHERE name=(?) and path=(?) LIMIT 1',
+                                                                                (username, path))
 
         res = cursor.fetchone()
         if not res or len(res) < 2:
-            return None, None
+            cursor.close()
+            return None, None, None
 
         sandbox_id = res[0]
         elapsed_sec = res[1]
 
         cursor.close()
 
-        # Get all the loaded files
+        # Update the upload ID if requested
+        upload_id = None
+        if new_upload_id is not False:
+            upload_id = uuid.uuid4().hex
+            cursor = self._conn.cursor()
+            cursor.execute('UPDATE sandbox SET upload_id=(?) WHERE name=(?) AND path=(?)',
+                                    (upload_id,username,path))
+            self._conn.commit()
+            cursor.close()
+
+        # Get all the uploaded files
         cursor = self._conn.cursor()
-        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=(?)', (sandbox_id,))
+        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=(?) AND ' \
+                                                                    'uploaded=TRUE', (sandbox_id,))
         res = cursor.fetchall()
 
         if not res or len(res) < 1:
-            return elapsed_sec, []
+            cursor.close()
+            return elapsed_sec, [], upload_id
 
         loaded_files = [row[0] for row in res]
 
         cursor.close()
 
-        return elapsed_sec, loaded_files
+        return elapsed_sec, loaded_files, upload_id
 
     def new_sandbox_upload(self, username: str, path: str, files: tuple, s3_bucket: str, \
-                                                            s3_path: str, location_id: str) -> bool:
+                                                            s3_path: str, location_id: str) -> str:
         """ Adds new sandbox upload entries
         Arguments:
             username: the name of the person starting the upload
@@ -572,18 +590,19 @@ class SPARCdDatabase:
             s3_path: the base path of the S3 upload
             location_id: the ID of the location associated with the upload
         Return:
-            Returns True if the entries are added to the database
+            Returns the upload ID if entries are added to the database
         """
         if self._conn is None:
             raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
                                                                                     'connecting')
 
         # Create the upload
+        upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
         cursor.execute('INSERT INTO sandbox(name, path, bucket, s3_base_path, ' \
-                                                                        'location_id, timestamp) ' \
-                                    'VALUES(?,?,?,?,?,strftime("%s", "now"))', 
-                            (username, path, s3_bucket, s3_path, location_id))
+                                                            'location_id, timestamp, upload_id) ' \
+                                    'VALUES(?,?,?,?,?,strftime("%s", "now"),?)', 
+                            (username, path, s3_bucket, s3_path, location_id, upload_id))
 
         sandbox_id = cursor.lastrowid
 
@@ -596,4 +615,67 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
-        return True
+        return upload_id
+
+    def get_sandbox_s3_info(self, username: str, upload_id: str) -> tuple:
+        """ Returns the bucket and path associated with the sandbox
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple of the bucket and upload path of the S3 instance. If the user and path
+            aren't found, None is returned for both items
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get sandbox S3 information from the database before '\
+                                                                                    'connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=(?) AND upload_id=(?)',
+                                                                            (username, upload_id))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 2:
+            return None, None
+
+        cursor.close()
+
+        return res[0], res[1]
+
+    def complete_sandbox_upload(self, username: str, upload_id: str) -> None:
+        """ Marks the sandbox upload as completed by resetting the path
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to reset sandbox upload the database before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE sandbox SET path=null WHERE name=(?) AND upload_id=(?)',
+                                                                            (username, upload_id))
+
+        self._conn.commit()
+        cursor.close()
+
+    def file_uploaded(self, username: str, upload_id: str, filename: str) -> None:
+        """ Marks the file as upload as uploaded
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+            filename: the name of the uploaded file to mark as uploaded
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to reset sandbox upload the database before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE WHERE sandbox_files.filename=(?) '\
+                            'AND sandbox_id in ' \
+                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?))',
+                                                                    (filename, username, upload_id))
+
+        self._conn.commit()
+        cursor.close()
