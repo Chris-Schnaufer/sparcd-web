@@ -18,10 +18,11 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
-import LocationItem from './LocationItem'
-import ProgressWithLabel from './ProgressWithLabel'
+import LocationItem from './LocationItem';
+import ProgressWithLabel from './ProgressWithLabel';
 import { AddMessageContext, AllowedImageMime, BaseURLContext, CollectionsInfoContext, LocationsInfoContext,
-                SizeContext, TokenContext, UserSettingsContext } from '../serverInfo'
+                SizeContext, TokenContext, UserSettingsContext } from '../serverInfo';
+import UploadProgress from './UploadProgress';
 
 
 const MAX_FILE_SIZE = 80 * 1000 * 1024; // Number of bytes before a file is too large
@@ -53,6 +54,7 @@ export default function FolderUpload({onCancel}) {
   const [comment, setComment] = React.useState(null);
   const [continueUploadInfo, setContinueUploadInfo] = React.useState(null); // Used when continuing a previous upload
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
+  const [curUploadCounts, setCurUploadCounts] = React.useState(Array.apply(null, Array(MAX_CHUNKS)).map(() => 0));
   const [filesSelected, setFilesSelected] = React.useState(0);
   const [forceRedraw, setForceRedraw] = React.useState(0);
   const [inputSize, setInputSize] = React.useState({'width':252,'height':21}); // Updated when UI rendered
@@ -62,10 +64,12 @@ export default function FolderUpload({onCancel}) {
   const [prevUploadCheck, setPrevUploadCheck] = React.useState(prevUploadCheckState.noCheck); // Used to check if the user wants to perform a reset or new upload
   const [uploadCount, setUploadCount] = React.useState(0); // Number of files to upload
   const [uploadPath, setUploadPath] = React.useState(null);
+  const [totalUploadCount, setTotalUploadCount] = React.useState(0); // The total number of files to be uploaded
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
+  //let curUploadCounts = Array.apply(null, Array(MAX_CHUNKS)).map(() => 0);
 
   const getTooltipInfoOpen = getTooltipInfo.bind(FolderUpload);
 
@@ -192,12 +196,14 @@ export default function FolderUpload({onCancel}) {
    * @function
    * @param {object} fileChunk The array of files to upload
    * @param {string} uploadId The ID of the upload
+   * @param {number} uploadIndex The index of this upload chunk for tracking upload counts
    * @param {number} attempts The remaining number of attempts to try
    */
-  function uploadChunk(fileChunk, uploadId, attempts = 3) {
+  function uploadChunk(fileChunk, uploadId, uploadIndex, totalUploads, attempts = 3) {
     const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
     const NUM_FILES_UPLOAD = 1;
+    const myUploadCount = curUploadCounts[uploadIndex];  // The current number of uploads we've done
     console.log('HACK:UPLOAD CHUNK');
 
     formData.append('id', uploadId);
@@ -218,28 +224,77 @@ export default function FolderUpload({onCancel}) {
           })
         .then((respData) => {
             // Process the results
+            const chunkUploadCount = curUploadCounts[uploadIndex] + Math.min(NUM_FILES_UPLOAD, fileChunk.length);
+            setCurUploadCounts(curUploadCounts.map((item,idx) => idx == uploadIndex ? chunkUploadCount : item));
             const nextChunk = fileChunk.slice(NUM_FILES_UPLOAD);
+            setForceRedraw(forceRedraw + 1);
+
             if (nextChunk.length > 0) {
-              window.setTimeout(() => uploadChunk(nextChunk, uploadId), 10);
+              window.setTimeout(() => uploadChunk(nextChunk, uploadId, uploadIndex, totalUploads), 10);
             } else {
               console.log('HACK: Done UPLOAD');
+              // Check if everyone is done
+              let curUploadTotal = chunkUploadCount;
+              for (let idx = 0; idx < curUploadCounts.length; idx++) {
+                curUploadTotal += curUploadCounts[idx];
+              }
+              if (curUploadTotal === totalUploads) {
+                console.log('HACK:EVERYTHING UPLOADED');
+              }
             }
         })
         .catch(function(err) {
           if (attempts == 3) {
             console.log('Upload File Error: ',err);
           }
-          attempts--;
-          if (attempts > 0) {
-            uploadChunk(fileChunk, uploadId, attempts);
+          if (--attempts > 0) {
+            uploadChunk(fileChunk, uploadId, uploadIndex, totalUploads, attempts);
           } else {
-            // TODO: Make this a single instance
+            // TODO: Only show this message once
             addMessage(Level.Error, 'A problem ocurred while uploading images');
           }
       });
     } catch (error) {
       console.log('Upload Images Unknown Error: ',err);
+      // TODO: Only show this message once
       addMessage(Level.Error, 'An unkown problem ocurred while uploading images');
+    }
+  }
+
+  /**
+   * Marks the upload as completed
+   * @function
+   * @param {string} uploadId The ID of the upload that's completed
+   */
+  function uploadCompleted(uploadId) {
+    const sandboxCompleteUrl = serverURL + '/sandboxCompleted?t=' + encodeURIComponent(uploadToken);
+    const formData = new FormData();
+
+    formData.append('id', uploadId);
+
+    try {
+      const resp = fetch(sandboxCompleteUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to mark upload as completed: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Process the results
+            console.log('HACK:COMPLETED UPLOAD');
+            // TODO: Navigate to upload edit page
+        })
+        .catch(function(err) {
+          console.log('Upload Images Completed Error: ', err);
+          addMessage(Level.Error, 'A problem ocurred while completing image upload');
+      });
+    } catch (error) {
+      console.log('Upload Images Completed Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while completing image upload');
     }
   }
 
@@ -252,16 +307,20 @@ export default function FolderUpload({onCancel}) {
   function uploadFolder(uploadFiles, uploadId) {
     // Check that we have something to upload
     if (!uploadFiles || uploadFiles.length <= 0) {
-      // TODO: Make the message part of the displayed window
+      // TODO: Make the message part of the displayed window?
+      // TODO: Change to editing upload page after marking as complete
       addMessage(Level.Information, 'All files have been uploaded already');
       console.log('All files were uploaded', uploadId);
+      uploadCompleted(uploadId);
       return;
     }
 
     setUploadingFiles(true);
+    setTotalUploadCount(uploadFiles.length);
 
     // Figure out how many instances we want sending data
     const numInstance = uploadFiles.length < MAX_CHUNKS ? uploadFiles.length : MAX_CHUNKS;
+    setCurUploadCounts(Array.apply(null, Array(MAX_CHUNKS)).map(() => 0));
 
     const chunkSize = Math.ceil(uploadFiles.length / (numInstance * 1.0));
     let splitFiles = [];
@@ -269,8 +328,8 @@ export default function FolderUpload({onCancel}) {
       splitFiles.push(uploadFiles.slice(idx, idx + chunkSize));
     }
 
-    for (const one_upload of splitFiles) {
-      window.setTimeout(() => uploadChunk(one_upload, uploadId), 10);
+    for (let idx = 0; idx < splitFiles.length; idx++) {
+      window.setTimeout(() => uploadChunk(splitFiles[idx], uploadId, idx, uploadFiles.length), 10);
     }
 
     setUploadCount(uploadFiles.length);
@@ -417,7 +476,9 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function prevUploadContinue() {
+    setUploadingFiles(true);
     uploadFolder(continueUploadInfo.files, continueUploadInfo.id);
+    setContinueUploadInfo(null);
   }
 
   /**
@@ -428,6 +489,7 @@ export default function FolderUpload({onCancel}) {
     // If no images were uploaded, just restart the complete upload
     if (continueUploadInfo.files.length === continueUploadInfo.allFiles.length) {
       uploadFolder(continueUploadInfo.allFiles.length, continueUploadInfo.allFiles.id);
+      setContinueUploadInfo(null);
     } else {
       setPrevUploadCheck(prevUploadCheckState.checkReset);
     }
@@ -627,9 +689,15 @@ export default function FolderUpload({onCancel}) {
     }
     if (uploadingFiles) {
       // TODO: adjust upload percent to include already uploaded images
+      let uploadCount = 0.0;
+      for (const curCount of curUploadCounts) {
+        uploadCount += curCount;
+      }
+      let percentComplete = totalUploadCount ? Math.round((uploadCount / totalUploadCount) * 100) : 100;
+
       return (
-        <Grid id="grid" container justifyContent="center" sx={{'minWidth': `${curWidth}px`, 'minHeight':`${curHeight}px`}}>
-          <ProgressWithLabel value='10'/>
+        <Grid id="grid" container justifyContent="center" sx={{minWidth: curWidth+'px', minHeight: curHeight+'px'}}>
+          <ProgressWithLabel value={percentComplete}/>
         </Grid>
       );
     }
@@ -755,7 +823,7 @@ export default function FolderUpload({onCancel}) {
               </Typography>
               <br />
               <Typography gutterBottom variant="body2">
-                Step 1 of 3
+                Step {!uploadingFiles ? '1' : '3'} of 3
               </Typography>
             </React.Fragment>
             }
@@ -764,9 +832,13 @@ export default function FolderUpload({onCancel}) {
           {renderInputControls()}
         </CardContent>
         <CardActions>
-          <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
-                  disabled={filesSelected > 0 ? false : true}>Upload</Button>
-          <Button id="folder_cancel" sx={{'flex':'1'}} size="small" onClick={cancelUpload}>Cancel</Button>
+        { !uploadingFiles &&
+          <React.Fragment>
+            <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
+                    disabled={filesSelected > 0 ? false : true}>Upload</Button>
+            <Button id="folder_cancel" sx={{'flex':'1'}} size="small" onClick={cancelUpload}>Cancel</Button>
+          </React.Fragment>
+        }
         </CardActions>
       </Card>
     :
@@ -813,7 +885,7 @@ export default function FolderUpload({onCancel}) {
             An incomplete upload from '{uploadPath}' has been detected. How would you like to proceed?
           </Typography>
           <Typography gutterBottom variant="body2">
-            {continueUploadInfo.files.length} out of {continueUploadInfo.allFiles.length} files remain to be uploaded
+            {continueUploadInfo.allFiles.length-continueUploadInfo.files.length} out of {continueUploadInfo.allFiles.length} files have been uploaded
           </Typography>
           <Typography gutterBottom variant="body2">
             Uploaded created {generateSecondsElapsedText(continueUploadInfo.elapsedSec)} ago
@@ -827,7 +899,7 @@ export default function FolderUpload({onCancel}) {
         </CardActions>
      </Card>
    }
-   { (continueUploadInfo !== null && prevUploadCheck !== prevUploadCheckState.noCheck) &
+   { (continueUploadInfo !== null && prevUploadCheck !== prevUploadCheckState.noCheck) &&
         <Card id='folder-upload-reset' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
         <CardHeader sx={{ textAlign: 'center' }}
            title={

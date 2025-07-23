@@ -12,7 +12,7 @@ import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-import { NarrowWindowContext } from '../serverInfo'
+import { NarrowWindowContext } from '../serverInfo';
 
 /**
  * Returns the common card UI for actions on the Landing page

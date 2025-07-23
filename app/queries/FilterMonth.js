@@ -18,7 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import FilterCard from './FilterCard'
+import FilterCard from './FilterCard';
 
 // The names of the month to use
 const monthNames = [

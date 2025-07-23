@@ -1,7 +1,7 @@
 
 /** @module components/FooterBar */
 
-import styles from './components.module.css'
+import styles from './components.module.css';
 
 /**
  * Renders the footer bar

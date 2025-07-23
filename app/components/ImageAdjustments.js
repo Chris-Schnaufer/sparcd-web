@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 
-import InputSlider from './InputSlider'
+import InputSlider from './InputSlider';
 
 /**
  * Returns the image adjustment UI

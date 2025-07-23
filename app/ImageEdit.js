@@ -16,10 +16,10 @@ import Typography from '@mui/material/Typography';
 
 import { v4 as uuidv4 } from 'uuid';
 
-import { SpeciesInfoContext } from './serverInfo'
-import ImageAdjustments from './components/ImageAdjustments'
-import ImageEditSpecies from './components/ImageEditSpecies'
-import InputSlider from './components/InputSlider'
+import { SpeciesInfoContext } from './serverInfo';
+import ImageAdjustments from './components/ImageAdjustments';
+import ImageEditSpecies from './components/ImageEditSpecies';
+import InputSlider from './components/InputSlider';
 
 // Width of the input field
 const Input = styled(MuiInput)`

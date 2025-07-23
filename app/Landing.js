@@ -9,12 +9,12 @@ import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-import FolderUpload from './components/FolderUpload'
-import LandingCard from './components/LandingCard'
-import LandingCollections from './LandingCollections'
-import LandingUpload from './LandingUpload'
-import UserActions from './components/userActions'
-import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, SizeContext } from './serverInfo'
+import FolderUpload from './components/FolderUpload';
+import LandingCard from './components/LandingCard';
+import LandingCollections from './LandingCollections';
+import LandingUpload from './LandingUpload';
+import UserActions from './components/userActions';
+import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, SizeContext } from './serverInfo';
 
 /**
  * Returns the UI for the Landing page

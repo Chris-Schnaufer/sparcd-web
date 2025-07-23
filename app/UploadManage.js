@@ -13,8 +13,8 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { SandboxInfoContext, SizeContext } from './serverInfo'
-import UploadSidebarItem from './components/UploadSidebarItem'
+import { SandboxInfoContext, SizeContext } from './serverInfo';
+import UploadSidebarItem from './components/UploadSidebarItem';
 
 /**
  * Renders the UI for managing the list of uploaded folders

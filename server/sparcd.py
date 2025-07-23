@@ -103,6 +103,9 @@ DEFAULT_TEMPLATE_PAGE = 'index.html'
 KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','locations',
                     'month','species','startDate','years']
 
+# Camtrap file names
+CAMTRAP_FILES = ['deployments.csv', 'media.csv', 'observations.csv']
+
 # Don't run if we don't have a database or passcode
 if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
     sys.exit(f'Database not found. Set the {ENV_NAME_DB} environment variable to the full path ' \
@@ -1935,20 +1938,16 @@ def sandbox_file():
                                         do_decrypt(db.get_password(token)), s3_bucket,
                                         s3_path + '/' + request.files[one_file].filename,
                                         temp_file[1])
-                                        #request.files[one_file])
 
         # Update the database entry to show the file is uploaded
         db.file_uploaded(user_info['name'], upload_id, request.files[one_file].filename)
 
-        #os.unlink(temp_file[1])
+        os.unlink(temp_file[1])
 
-#    s3_bucket, s3_path = S3Connection.create_upload(s3_url, user_info["name"], \
-#                                        do_decrypt(db.get_password(token)), collection_id, \
-#                                        comment, client_ts, len(all_files))
-#
-#    # Check with the DB if the upload has been started before
-#    success = db.new_sandbox_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
-#                                        location_id)
+    for one_file in CAMTRAP_FILES:
+        S3Connection.upload_file_data(s3_url, user_info["name"],
+                                        do_decrypt(db.get_password(token)), s3_bucket,
+                                        s3_path + '/' + one_file, '', 'application/csv')
 
     return json.dumps({'success': True})
 

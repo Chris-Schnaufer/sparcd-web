@@ -18,7 +18,7 @@ import { useTheme } from '@mui/material/styles';
 import { v4 as uuidv4 } from 'uuid';
 import PropTypes from 'prop-types';
 
-import QueryFilters from './queries/QueryFilters'
+import QueryFilters from './queries/QueryFilters';
 import { FilterCollectionsFormData } from './queries/FilterCollections';
 import { FilterDateFormData } from './queries/FilterDate';
 import { FilterDayOfWeekFormData } from './queries/FilterDayOfWeek';
@@ -28,10 +28,10 @@ import { FilterLocationsFormData } from './queries/FilterLocations';
 import { FilterMonthFormData } from './queries/FilterMonth';
 import { FilterSpeciesFormData } from './queries/FilterSpecies';
 import { FilterYearFormData } from './queries/FilterYear';
-import * as utils from './utils'
+import * as utils from './utils';
 
 import { Level } from './components/Messages';
-import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UserSettingsContext } from './serverInfo'
+import { AddMessageContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext, UserSettingsContext } from './serverInfo';
 
 /**
  * Provides the UI for queries

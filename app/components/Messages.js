@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useTheme } from '@mui/material/styles';
 
-import { SizeContext } from '../serverInfo'
+import { SizeContext } from '../serverInfo';
 
 let messageId = 0;		// Sequential message ID for messages
 

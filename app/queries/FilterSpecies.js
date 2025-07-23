@@ -19,8 +19,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import FilterCard from './FilterCard'
-import { SpeciesInfoContext } from '../serverInfo'
+import FilterCard from './FilterCard';
+import { SpeciesInfoContext } from '../serverInfo';
 
 /**
  * Adds species information to form data

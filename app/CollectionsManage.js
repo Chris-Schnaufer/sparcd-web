@@ -19,10 +19,10 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { CollectionsInfoContext, NarrowWindowContext, SizeContext } from './serverInfo'
-import UploadSidebarItem from './components/UploadSidebarItem'
+import { CollectionsInfoContext, NarrowWindowContext, SizeContext } from './serverInfo';
+import UploadSidebarItem from './components/UploadSidebarItem';
 
-import { pad } from './utils'
+import { pad } from './utils';
 
 /**
  * Renders the UI for managing the list of uploaded folders

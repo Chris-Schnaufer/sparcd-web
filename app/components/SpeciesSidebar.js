@@ -3,7 +3,7 @@ import * as React from 'react';
 import Grid from '@mui/material/Grid';
 import { useTheme } from '@mui/material/styles';
 
-import SpeciesSidebarItem from './SpeciesSidebarItem'
+import SpeciesSidebarItem from './SpeciesSidebarItem';
 
 /**
  * Returns the UI for the species sidebar

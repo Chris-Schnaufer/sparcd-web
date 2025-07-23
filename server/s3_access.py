@@ -616,7 +616,7 @@ class S3Connection:
     @staticmethod
     def upload_opened_file(url: str, user: str, password: str, bucket: str, path: str, \
                             localname:str) -> None:
-        """ Uploads the data from the opened file reader to the specified bucket in the specified
+        """ Uploads the data from the file to the specified bucket in the specified
             object path
         Arguments:
             url: the URL to the s3 instance
@@ -629,3 +629,20 @@ class S3Connection:
         minio = Minio(url, access_key=user, secret_key=password)
 
         minio.fput_object(bucket, path, localname)
+
+    @staticmethod
+    def upload_file_data(url: str, user: str, password: str, bucket: str, path: str, \
+                            data: str, content_type: str='text/plain') -> None:
+        """ Uploads the data to the specified bucket in the specified object path
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            path: path under the bucket to the object data to
+            data: the data to upload
+            content_type: the content type of the upload
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        minio.put_object(bucket, path, StringIO(data), len(data), content_type=content_type)

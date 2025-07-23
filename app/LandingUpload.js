@@ -11,7 +11,8 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo'
+
+import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, TokenContext } from './serverInfo';
 
 /**
  * Returns the UI for uploads on the Landing page

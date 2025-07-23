@@ -11,14 +11,14 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo'
-import ImageEdit from './ImageEdit'
-import ImageTile from './components/ImageTile'
-import LocationSelection from './LocationSelection'
-import SpeciesKeybind from './components/SpeciesKeybind'
-import SpeciesSidebar from './components/SpeciesSidebar'
-import SpeciesSidebarItem from './components/SpeciesSidebarItem'
-import * as utils from './utils'
+import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo';
+import ImageEdit from './ImageEdit';
+import ImageTile from './components/ImageTile';
+import LocationSelection from './LocationSelection';
+import SpeciesKeybind from './components/SpeciesKeybind';
+import SpeciesSidebar from './components/SpeciesSidebar';
+import SpeciesSidebarItem from './components/SpeciesSidebarItem';
+import * as utils from './utils';
 
 /**
  * Handles editing an upload from a collection

@@ -650,7 +650,8 @@ class SPARCdDatabase:
             upload_id: the ID of the upload
         """
         if self._conn is None:
-            raise RuntimeError('Attempting to reset sandbox upload the database before connecting')
+            raise RuntimeError('Attempting to complete sandbox upload in the database '\
+                                                                                'before connecting')
 
         # Get the date
         cursor = self._conn.cursor()
@@ -668,7 +669,8 @@ class SPARCdDatabase:
             filename: the name of the uploaded file to mark as uploaded
         """
         if self._conn is None:
-            raise RuntimeError('Attempting to reset sandbox upload the database before connecting')
+            raise RuntimeError('Attempting to mark file as uploaded in the database ' \
+                                                                                'before connecting')
 
         # Get the date
         cursor = self._conn.cursor()

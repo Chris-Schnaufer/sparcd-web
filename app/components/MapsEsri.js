@@ -18,7 +18,7 @@ import ValuePicker from "@arcgis/core/widgets/ValuePicker";
 import ValuePickerCombobox from "@arcgis/core/widgets/ValuePicker/ValuePickerCombobox";
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 
-import { LocationsInfoContext } from '../serverInfo'
+import { LocationsInfoContext } from '../serverInfo';
 
 /**
  * Returns the UI for displaying an ESRI map

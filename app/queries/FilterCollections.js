@@ -19,8 +19,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { CollectionsInfoContext } from '../serverInfo'
-import FilterCard from './FilterCard'
+import { CollectionsInfoContext } from '../serverInfo';
+import FilterCard from './FilterCard';
 
 /**
  * Adds collection information to form data

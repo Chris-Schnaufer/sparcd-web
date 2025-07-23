@@ -13,8 +13,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import Settings from './Settings';
-import styles from './components.module.css'
-import { UserSettingsContext } from '../serverInfo'
+import styles from './components.module.css';
+import { UserSettingsContext } from '../serverInfo';
 
 /**
  * Renders the title bar

@@ -13,7 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import FilterCard from './FilterCard'
+import FilterCard from './FilterCard';
 
 /**
  * Adds date and time information to form data
