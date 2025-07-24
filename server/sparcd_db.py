@@ -421,7 +421,7 @@ class SPARCdDatabase:
         count = int(res[0]) if res and len(res) > 0 else 0
         if count > 1:
             # Remove multiple old entries
-            cursor.execute('DELETE FROM table_timeout WHEREname=(?)', (bucket,))
+            cursor.execute('DELETE FROM table_timeout WHERE name=(?)', (bucket,))
             count = 0
         if count <= 0:
             cursor.execute('INSERT INTO table_timeout(name,timestamp) ' \
@@ -521,7 +521,7 @@ class SPARCdDatabase:
 
         return res[0], res[1]
 
-    def get_sandbox_upload(self, username: str, path: str, new_upload_id: bool=False) -> \
+    def sandbox_get_upload(self, username: str, path: str, new_upload_id: bool=False) -> \
                                                                                     Optional[tuple]:
         """ Checks if an upload for the user exists and returns the files that were loaded
         Arguments:
@@ -579,7 +579,7 @@ class SPARCdDatabase:
 
         return elapsed_sec, loaded_files, upload_id
 
-    def new_sandbox_upload(self, username: str, path: str, files: tuple, s3_bucket: str, \
+    def sandbox_new_upload(self, username: str, path: str, files: tuple, s3_bucket: str, \
                                                             s3_path: str, location_id: str) -> str:
         """ Adds new sandbox upload entries
         Arguments:
@@ -617,7 +617,7 @@ class SPARCdDatabase:
 
         return upload_id
 
-    def get_sandbox_s3_info(self, username: str, upload_id: str) -> tuple:
+    def sandbox_get_s3_info(self, username: str, upload_id: str) -> tuple:
         """ Returns the bucket and path associated with the sandbox
         Arguments:
             username: the name of the person starting the upload
@@ -643,7 +643,87 @@ class SPARCdDatabase:
 
         return res[0], res[1]
 
-    def complete_sandbox_upload(self, username: str, upload_id: str) -> None:
+    def sandbox_upload_counts(self, username: str, upload_id: str) -> tuple:
+        """ Returns the total and uploaded count of the files
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple with the number of files marked as uploaded and the total
+            number of files
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to count sandbox uploaded files in the database '\
+                                                                                'before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('WITH '\
+                'upid AS ' \
+                    '(SELECT id FROM sandbox WHERE name=(?) AND upload_id=(?) AND path <> ""),' \
+                'uptot AS ' \
+                    '(SELECT sandbox_id,count(1) AS tot FROM sandbox_files,upid WHERE ' \
+                                                                    'sandbox_id=upid.id),' \
+                ' uphave AS ' \
+                    '(SELECT sandbox_id,count(1) AS have FROM sandbox_files,upid WHERE ' \
+                                        'sandbox_id = upid.id AND sandbox_files.uploaded=TRUE)' \
+                'SELECT uptot.tot,uphave.have FROM uptot LEFT JOIN uphave ON '\
+                                                    'uptot.sandbox_id=uphave.sandbox_id LIMIT 1',
+                                                                            (username, upload_id))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 2:
+            return 0, 0
+
+        cursor.close()
+
+        return res[0] if res[0] is not None else 0, res[1] if res[1] is not None else 0
+
+    def sandbox_reset_upload(self, username: str, upload_id: str, files: tuple) -> str:
+        """ Resets an upload for another attempt
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+            files: the list of filenames (or partial paths) that's to be uploaded
+        Return:
+            Returns the upload ID if entries are added to the database
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a new sandbox upload to the database before ' \
+                                                                                    'connecting')
+
+        # Get the sandbox ID
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id FROM sandbox WHERE name=(?) AND upload_id=(?)',
+                                                                            (username, upload_id))
+        res = cursor.fetchone()
+        if not res or len(res) < 1:
+            return None
+
+        sandbox_id = res[0]
+        if sandbox_id is None:
+            return None
+
+        cursor.close()
+
+        # Clear the old files and add the new ones
+        cursor = self._conn.cursor()
+
+        cursor.execute('DELETE FROM sandbox_files WHERE sandbox_id=(?)', (sandbox_id, ))
+
+        for one_file in files:
+            cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
+                                                                                    'timestamp) ' \
+                                    'VALUES(?,?,?,strftime("%s", "now"))',
+                            (sandbox_id, one_file, one_file))
+
+        self._conn.commit()
+        cursor.close()
+
+        return upload_id
+
+
+    def sandbox_upload_complete(self, username: str, upload_id: str) -> None:
         """ Marks the sandbox upload as completed by resetting the path
         Arguments:
             username: the name of the person starting the upload
@@ -655,13 +735,13 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path=null WHERE name=(?) AND upload_id=(?)',
+        cursor.execute('UPDATE sandbox SET path="" WHERE name=(?) AND upload_id=(?)',
                                                                             (username, upload_id))
 
         self._conn.commit()
         cursor.close()
 
-    def file_uploaded(self, username: str, upload_id: str, filename: str) -> None:
+    def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str) -> None:
         """ Marks the file as upload as uploaded
         Arguments:
             username: the name of the person starting the upload
