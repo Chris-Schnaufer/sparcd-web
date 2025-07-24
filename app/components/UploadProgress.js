@@ -16,16 +16,18 @@ const MAX_UPLOADS = 2;
 /**
  * Handles upload of files
  * @function
+ * @param {object} progressId Unique identifier for this progress instance
  * @param {object} files Array of files to upload
  * @param {number} startOffset The starting position of the upload
  * @param {string} uploadId The permission ID of the upload
- * @param {object} prevProgressInfo Previously specified progress information, or null
- * @param {function} onProgressInfo Called to set the ID of the current upload
+ * @param {object} workingInfo Previously specified progress information, or null
+ * @param {function} onWorkingInfo Called to set the ID of the current upload
  * @param {function} onUploaded Called when a chunk of the upload has completed
  * @param {function} onRetry Called when the upload could be retried
+ * @param {boolean} haveError Set to true if an error had been detected
  * @return {object} The UI to render for this upload
  */
-export default function UploadProgress({files, startOffset, uploadId, prevProgressInfo, onProgressInfo, onUploaded, onRetry, onError}) {
+export default function UploadProgress({progressId, files, startOffset, uploadId, workingInfo, onWorkingInfo, onUploaded, onRetry, onError, haveError}) {
   const theme = useTheme();
   const serverURL = React.useContext(BaseURLContext);
   const uiSizes = React.useContext(SizeContext);
@@ -33,8 +35,8 @@ export default function UploadProgress({files, startOffset, uploadId, prevProgre
 
   React.useLayoutEffect(() => {
     // Don't do anything if we still have an upload in progress
-    if (prevProgressInfo === null || prevProgressInfo === undefined) {
-      const progressId = uuidv4();
+    if ((workingInfo === null || workingInfo === undefined) && files && files.length > startOffset) {
+      const uploadProgressId = uuidv4();
       const NUM_FILES_UPLOAD = 1;   // HACK
 
       const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
@@ -45,7 +47,7 @@ export default function UploadProgress({files, startOffset, uploadId, prevProgre
         formData.append(files[idx].name, files[idx]);
       }
 
-      onProgressInfo(progressId);
+      onWorkingInfo(progressId, uploadProgressId);
 
       try {
         const resp = fetch(sandboxFileUrl, {
@@ -71,12 +73,14 @@ export default function UploadProgress({files, startOffset, uploadId, prevProgre
         onError(progressId, 'An unkown problem ocurred while uploading images');
       }
     }
-  }, [files. startOffset, uploadId, prevProgressInfo, onProgressInfo, onUploaded, onRetry, onError]);
+  }, [files. startOffset, uploadId, workingInfo, onWorkingInfo, onUploaded, onRetry, onError]);
 
   const percentComplete = !files ? 0 : files.length ? Math.round(((startOffset * 1.0) / files.length) * 100) : 100;
+  const extraParams = !haveError ? {} : {color: 'red'};
+  console.log('UPLOAD',progressId, percentComplete);
   return (
     <React.Fragment>
-      <LinearProgress variant="determinate" value={percentComplete} />
+      <LinearProgress variant="determinate" value={percentComplete} {...extraParams} sx={{minWidth:'120px', minHeight:'20px'}}/>
     </React.Fragment>
   );
 }

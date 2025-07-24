@@ -35,6 +35,8 @@ const prevUploadCheckState = {
   checkNew: 2
 };
 
+let curProgressInfo = Array.apply(null, Array(MAX_CHUNKS)).map(() => null);
+
 /**
  * Renders the UI for uploading a folder of images
  * @function
@@ -68,8 +70,15 @@ export default function FolderUpload({onCancel}) {
   const [tooltipData, setTooltipData] = React.useState(null);       // Data for tooltip
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
 
+  const [curProgressError, setCurProgressError] = React.useState(Array.apply(null, Array(MAX_CHUNKS)).map(() => false));
+  //const [curProgressInfo, setCurProgressInfo] = React.useState(Array.apply(null, Array(MAX_CHUNKS)).map(() => null));
+  const [curProgressRetry, setCurProgressRetry] = React.useState(Array.apply(null, Array(MAX_CHUNKS)).map(() => 0));
+  const [splitFiles, setSplitFiles] =  React.useState(null); // Split file list for uploading
+  const [uploadId, setUploadId] = React.useState(null); // Contains the upload ID
+
+  let testing = Array.apply(null, Array(MAX_CHUNKS)).map(() => null);
+
   let curLocationFetchIdx = -1; // Working index of location data to fetch
-  //let curUploadCounts = Array.apply(null, Array(MAX_CHUNKS)).map(() => 0);
 
   const getTooltipInfoOpen = getTooltipInfo.bind(FolderUpload);
 
@@ -302,16 +311,16 @@ export default function FolderUpload({onCancel}) {
    * Handles uploading a folder of files
    * @function
    * @param {array} uploadFiles The list of files to upload
-   * @param {string} uploadId The ID associated with the upload
+   * @param {string} curUploadId The ID associated with the upload
    */
-  function uploadFolder(uploadFiles, uploadId) {
+  function uploadFolder(uploadFiles, curUploadId) {
     // Check that we have something to upload
     if (!uploadFiles || uploadFiles.length <= 0) {
       // TODO: Make the message part of the displayed window?
       // TODO: Change to editing upload page after marking as complete
       addMessage(Level.Information, 'All files have been uploaded already');
-      console.log('All files were uploaded', uploadId);
-      uploadCompleted(uploadId);
+      console.log('All files were uploaded', curUploadId);
+      uploadCompleted(curUploadId);
       return;
     }
 
@@ -321,6 +330,8 @@ export default function FolderUpload({onCancel}) {
     // Figure out how many instances we want sending data
     const numInstance = uploadFiles.length < MAX_CHUNKS ? uploadFiles.length : MAX_CHUNKS;
     setCurUploadCounts(Array.apply(null, Array(MAX_CHUNKS)).map(() => 0));
+    setCurProgressRetry(Array.apply(null, Array(MAX_CHUNKS)).map(() => 0));
+    setCurProgressError(Array.apply(null, Array(MAX_CHUNKS)).map(() => false));
 
     const chunkSize = Math.ceil(uploadFiles.length / (numInstance * 1.0));
     let splitFiles = [];
@@ -328,11 +339,15 @@ export default function FolderUpload({onCancel}) {
       splitFiles.push(uploadFiles.slice(idx, idx + chunkSize));
     }
 
-    for (let idx = 0; idx < splitFiles.length; idx++) {
-      window.setTimeout(() => uploadChunk(splitFiles[idx], uploadId, idx, uploadFiles.length), 10);
-    }
+    setSplitFiles(splitFiles);
+    setUploadId(curUploadId);
 
-    setUploadCount(uploadFiles.length);
+//    for (let idx = 0; idx < splitFiles.length; idx++) {
+//      window.setTimeout(() => uploadChunk(splitFiles[idx], curUploadId, idx, uploadFiles.length), 10);
+//    }
+//
+//    setUploadCount(uploadFiles.length);
+
   }
 
   /**
