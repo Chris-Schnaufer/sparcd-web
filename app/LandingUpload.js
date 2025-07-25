@@ -27,7 +27,6 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   const curSandboxInfo = React.useContext(SandboxInfoContext);
   const sandboxToken = React.useContext(TokenContext);
   const [selectedUpload, setSelectedUpload] = React.useState(null);
-  const [refreshingUploads, setRefreshingUploads] = React.useState(true);
 
   /**
    * Handles a change in selected sandbox and calls the parent's change function
@@ -37,6 +36,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   function handleChange(event) {
     const uploadInfo = JSON.parse(event.target.value);
     setSelectedUpload(event.target.value);
+    console.log('HACK:SANDCHANGE:', uploadInfo);
     onChange(uploadInfo);
   }
 
@@ -47,18 +47,18 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   // Render the UI
   return (
     <React.Fragment>
-      { firstItem ? (
+      { firstItem || loadingSandbox  ? (
         <React.Fragment>
           <Grid container direction="row" alignItems="sflex-tart" justifyContent="flex-start">
             <Grid size={{sm:4, md:4, lg:4}} sx={{left:'auto'}}>
               <Typography gutterBottom sx={{ ...theme.palette.landing_upload_prompt,
-                          visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+                          visibility: !loadingSandbox?"visible":"hidden" }} >
                 Unpublished uploads
               </Typography>
             </Grid>
             <Grid size={{sm:4, md:4, lg:4}}>
               <Typography gutterBottom sx={{ ...theme.palette.landing_upload_refresh,
-                          visibility: `${refreshingUploads?"visible":"hidden"}` }} >
+                          visibility: loadingSandbox?"visible":"hidden" }} >
                 Refreshing...
               </Typography>
             </Grid>
@@ -73,16 +73,21 @@ export default function LandingUpload({loadingSandbox, onChange}) {
                 value={selectedUpload}
                 onChange={handleChange}              
               >
+                <React.Fragment>
                   {
-                    sandboxItems && sandboxItems.map(function(obj, idx) {
-                      return <FormControlLabel value={JSON.stringify(obj)} control={<Radio />} label={obj.name} key={obj.name} />
+                    sandboxItems && sandboxItems.map((obj, idx) => {
+                      return (obj.uploads.map((up_obj) => 
+                        <FormControlLabel value={JSON.stringify({bucket:obj.bucket, upload:up_obj.name})} control={<Radio />} label={up_obj.name} key={up_obj.name} />
+                      ))
                     })
                   }
+                </React.Fragment>
               </RadioGroup>
             </FormControl>
           </Box>
         </React.Fragment>
-        ) : mobileDevice ? <Box>Nothing to do</Box>
+        )
+        : mobileDevice ? <Box>Nothing to do</Box>
             : <Typography gutterBottom sx={{ color: 'text.secondary', fontSize: 14, textAlign: 'center',  }} >
                 No sandbox uploads
               </Typography>

@@ -104,7 +104,8 @@ KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','loc
                     'month','species','startDate','years']
 
 # Camtrap file names
-CAMTRAP_FILES = ['deployments.csv', 'media.csv', 'observations.csv']
+DEPLOYMENT_CSV_NAME = 'deployments.csv'
+CAMTRAP_FILES = [DEPLOYMENT_CSV_NAME, 'media.csv', 'observations.csv']
 
 # Don't run if we don't have a database or passcode
 if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
@@ -871,6 +872,50 @@ def generate_zip(url: str, user: str, password: str, s3_files: tuple, \
                                         (downloaded_files, download_files_lock, done_sem))
 
 
+def create_deployment_data(collection_id: str, location_id: str, all_locations: tuple) -> tuple:
+    """ Returns the tuple containing the deployment data
+    Arguments:
+        collection_id: the ID of the collection (used for unique names)
+        location_id: the ID of the location to use
+        all_locations: the list of available locations
+    Return:
+        A tuple containing the deployment data
+    """
+    our_location = [one_loc for one_loc in all_locations if one_loc['propertyId'] == location_id]
+    if our_location:
+        our_location = our_location[0]
+    else:
+        our_location = {'nameProperty':'Unknown', 'idProperty':'unknown',
+                                    'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0,
+                                    'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0}
+
+    return [    collection_id + ':' + location_id,      # Deployment id
+                our_location['idProeprty'],             # Location ID
+                our_location['nameProperty'],           # Location name
+                str(our_location['latProperty']),       # Location latitude
+                str(our_location['lngProperty']),       # Location longitude
+                "0",                                    # Coordinate uncertainty
+                '',                                     # Start timestamp
+                '',                                     # End timestamp
+                '',                                     # Setup ID
+                '',                                     # Camera ID
+                '',                                     # Camera model
+                "0",                                    # Camera interval
+                str(our_location['elevationProperty']), # Camera height (elevation)
+                "0.0",                                  # Camera tilt
+                "0",                                    # Camera heading
+                'TRUE',                                 # Timestamp issues
+                '',                                     # Bait use
+                '',                                     # Session
+                '',                                     # Array
+                '',                                     # Feature type
+                '',                                     # Habitat
+                '',                                     # Tags
+                '',                                     # Notes
+            ]
+
+
+
 def zip_iterator(read_fd: int):
     """ Reads the data in the pipe and yields it
     Arguments:
@@ -882,6 +927,153 @@ def zip_iterator(read_fd: int):
             if not data:
                 break
             yield data
+
+def normalize_upload(upload_entry: dict) -> dict:
+    """ Normalizes an S3 upload
+    Arguments:
+        upload_entry: the upload to normalize
+    Return:
+        The normalized upload
+    """
+    return {'name': upload_entry['info']['uploadUser'] + ' on ' + \
+                                            get_upload_date(upload_entry['info']['uploadDate']),
+            'description': upload_entry['info']['description'],
+            'imagesCount': upload_entry['info']['imageCount'],
+            'imagesWithSpeciesCount': upload_entry['info']['imagesWithSpecies'],
+            'location': upload_entry['location'],
+            'edits': upload_entry['info']['editComments'],
+            'key': upload_entry['key'],
+            'date': upload_entry['info']['uploadDate']
+          }
+
+def normalize_collection(coll: dict) -> dict:
+    """ Takes a collection from the S3 instance and normalizes the data for the website
+    Arguments:
+        coll: the collection to normalize
+    Return:
+        The normalized collection
+    """
+    cur_col = { 'name': coll['nameProperty'],
+                'bucket': coll['bucket'],
+                'organization': coll['organizationProperty'],
+                'email': coll['contactInfoProperty'],
+                'description': coll['descriptionProperty'],
+                'id': coll['idProperty'],
+                'permissions': coll['permissions'],
+                'uploads': []
+              }
+    cur_uploads = []
+    last_upload_date = None
+    for one_upload in coll['uploads']:
+        last_upload_date = get_later_timestamp(last_upload_date, \
+                                                            one_upload['info']['uploadDate'])
+        cur_uploads.append(normalize_upload(one_upload))
+
+    cur_col['uploads'] = cur_uploads
+    cur_col['last_upload_ts'] = last_upload_date
+    return cur_col
+
+
+def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
+                                                            all_collections: tuple=None) -> tuple:
+    """ Returns the sandbox information as collection information
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        items: the sandbox items as returned by the database
+        all_collections: the list of known collections
+    Return:
+        Returns the sandbox entries in collection format
+    """
+    print('HACK:SANDBOX COLL: START', flush=True)
+    coll_uploads = {}
+    return_info = []
+
+    # Get information on all the items
+    print('HACK:SANDBOX COLL: ITEMS', len(items), flush=True)
+    #HACK
+    if len(items) > 0:
+        print('HACK:SANDBOX COLL:      ', items[0], flush=True)
+    #HACK
+    for one_item in items:
+        add_collection = False
+        cur_upload = None
+        s3_upload = False
+
+        bucket = one_item['bucket']
+        if bucket not in coll_uploads:
+            coll_uploads[bucket] = {'s3_collection':False, 'uploads':[]}
+
+        # Try to see if we've added the collection to the list already
+        found = [one_info for one_info in return_info if one_info['bucket'] == bucket]
+        if found:
+            found = found[0]
+
+            # Try to see if we can find the upload
+            if 'uploads' in found:
+                found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'].endswith(one_upload['key']) ]
+                if len(found_uploads) > 0:
+                    cur_upload = found['uploads'][0]
+        else:
+            # Try to find the collection in the list of collections, otherwise fetch it
+            add_collection = True
+            if all_collections:
+                found = [one_col for one_col in all_collections if one_col['bucket'] == bucket]
+                if found:
+                    # Save the found collection and look for the upload
+                    found = found[0]
+
+                    found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'].endswith(one_upload['key']) ]
+                    if len(found_uploads) > 0:
+                        cur_upload = found['uploads'][0]
+            else:
+                found = S3Connection.get_collection_info(url, user, password, bucket,
+                                                                            one_item['s3_path'])
+                if found:
+                    # Indicate we've downloaded collection from S3 and look for the upload
+                    coll_uploads[bucket]['s3_collection'] = True
+
+                    found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'] == one_upload['uploadPath'] ]
+                    if len(found_uploads) > 0:
+                        cur_upload = found['uploads'][0]
+                        s3_upload = True
+
+        if not found:
+            print(f'ERROR: Unable to find collection bucket {bucket}. Continuing')
+            continue
+
+        if cur_upload is None:
+            cur_upload = S3Connection.get_upload_info(url, user, password, bucket,
+                                                                                one_item['s3_path'])
+            print('HACK:  RETURNED UPLOAD:', cur_upload, flush=True)
+            if cur_upload is None:
+                print(f'ERROR: Unable to retrieve upload for bucket {bucket}: ' \
+                                                                f'Path: "{one_item['s3_path']}"')
+                continue
+
+            s3_upload = True
+
+        # Check if we need to normalize the upload now
+        if s3_upload is True and coll_uploads[bucket]['s3_collection'] is False:
+            coll_uploads[bucket]['uploads'].append(normalize_upload(cur_upload))
+        else:
+            coll_uploads[bucket]['uploads'].append(cur_upload)
+
+        if add_collection is True:
+            return_info.append(found)
+
+    # Assign the uploads and normalize any return information that's not done already
+    for idx, one_return in enumerate(return_info):
+        one_return['uploads'] = coll_uploads[one_return['bucket']]['uploads']
+        if coll_uploads[one_return['bucket']]['s3_collection'] is True:
+            return_info[idx] = normalize_collection(one_return)
+
+    # Return out result
+    return return_info
 
 
 @app.route('/', methods = ['GET'])
@@ -1153,33 +1345,7 @@ def collections():
 
     return_colls = []
     for one_coll in all_collections:
-        cur_col = { 'name': one_coll['nameProperty'],
-                    'bucket': one_coll['bucket'],
-                    'organization': one_coll['organizationProperty'],
-                    'email': one_coll['contactInfoProperty'],
-                    'description': one_coll['descriptionProperty'],
-                    'id': one_coll['idProperty'],
-                    'permissions': one_coll['permissions'],
-                    'uploads': []
-                  }
-        cur_uploads = []
-        last_upload_date = None
-        for one_upload in one_coll['uploads']:
-            last_upload_date = get_later_timestamp(last_upload_date, \
-                                                                one_upload['info']['uploadDate'])
-            cur_uploads.append({'name': one_upload['info']['uploadUser'] + ' on ' + \
-                                                get_upload_date(one_upload['info']['uploadDate']),
-                                'description': one_upload['info']['description'],
-                                'imagesCount': one_upload['info']['imageCount'],
-                                'imagesWithSpeciesCount': one_upload['info']['imagesWithSpecies'],
-                                'location': one_upload['location'],
-                                'edits': one_upload['info']['editComments'],
-                                'key': one_upload['key'],
-                                'date': one_upload['info']['uploadDate']
-                              })
-        cur_col['uploads'] = cur_uploads
-        cur_col['last_upload_ts'] = last_upload_date
-        return_colls.append(cur_col)
+        return_colls.append(normalize_collection(one_coll))
 
     # Everything checks out
     curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
@@ -1224,8 +1390,19 @@ def sandbox():
         return "Unauthorized", 401
 
     # Get the sandbox information from the database
-    return_sandbox = db.get_sandbox()
+    sandbox_items = db.get_sandbox()
 
+    # The S3 endpoint in case we need it
+    s3_url = web_to_s3_url(user_info["url"])
+
+    # Get the collections to fill in the return data
+    all_collections = load_timed_temp_colls(user_info['name'])
+
+    print('HACK:COLLS:',all_collections[0] if all_collections else 'EMPTY', flush=True)
+    return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
+                                do_decrypt(db.get_password(token)), sandbox_items, all_collections)
+
+    print('HACK:SANDBOX:',return_sandbox, flush=True)
     return json.dumps(return_sandbox)
 
 
@@ -1918,9 +2095,10 @@ def sandbox_file():
         return "Unauthorized", 401
 
     # Get the location to upload to
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
+    s3_bucket, s3_path, location_id = db.sandbox_get_s3_info(user_info['name'], upload_id)
     s3_url = web_to_s3_url(user_info["url"])
     print('HACK:S3INFO:',s3_bucket, s3_path, flush=True)
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
 
     # Upload all the received files and update the database
     for one_file in request.files:
@@ -1942,6 +2120,12 @@ def sandbox_file():
         os.unlink(temp_file[1])
 
     for one_file in CAMTRAP_FILES:
+        if one_file == DEPLOYMENT_CSV_NAME:
+            data = ','.join(create_deployment_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
+                                                                                    cur_locations))
+        else:
+            data = ''
+
         S3Connection.upload_file_data(s3_url, user_info["name"],
                                         do_decrypt(db.get_password(token)), s3_bucket,
                                         s3_path + '/' + one_file, '', 'application/csv')

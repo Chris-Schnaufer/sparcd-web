@@ -290,7 +290,7 @@ export default function Home() {
    * @param {object} action The working user action
    * @param {object} actionData Data associated with the action
    * @param {boolean} areEditing Is this an editing command
-   * @param {string} breadcrumbName What is the display name of this action
+   * @param {string} {breadcrumbName} What is the display name of this action
    */
   function setCurrentAction(action, actionData, areEditing, breadcrumbName) {
     if (Object.values(UserActions).indexOf(action) > -1) {
@@ -301,10 +301,12 @@ export default function Home() {
       const prevAction = curAction;
       const prevActionData = curActionData;
       const prevEditing = editing;
-      let curCrumbs = breadcrumbs;
-      let newBreadcrumb = {name:breadcrumbName, action:prevAction, actionData:prevActionData, editing:prevEditing};
-      curCrumbs.push(newBreadcrumb);
-      setBreadcrumbs(curCrumbs);
+      if (breadcrumbName) {
+        let curCrumbs = breadcrumbs;
+        let newBreadcrumb = {name:breadcrumbName, action:prevAction, actionData:prevActionData, editing:prevEditing};
+        curCrumbs.push(newBreadcrumb);
+        setBreadcrumbs(curCrumbs);
+      }
       setCurAction(action);
       setCurActionData(actionData);
       setEditing(!!areEditing);
@@ -384,7 +386,7 @@ export default function Home() {
           // Save response data
           setLoadingSandbox(false);
           console.log('SANDBOX',respData);
-          setSandboxInfo(null);
+          setSandboxInfo(respData);
         })
         .catch((err) => {
           console.log('Sandbox Error: ',err);
@@ -858,7 +860,9 @@ export default function Home() {
                 <LocationsInfoContext.Provider value={locationInfo}>
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <SandboxInfoContext.Provider value={sandboxInfo}>
-                    <Landing loadingCollections={loadingCollections} loadingSandbox={loadingSandbox} onUserAction={setCurrentAction} />
+                    <Landing loadingCollections={loadingCollections} loadingSandbox={loadingSandbox} onUserAction={setCurrentAction} 
+                             onEditUpload={editCollectionUpload}
+                    />
                   </SandboxInfoContext.Provider>
                 </CollectionsInfoContext.Provider>
                 </LocationsInfoContext.Provider>

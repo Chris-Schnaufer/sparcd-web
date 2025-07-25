@@ -333,7 +333,22 @@ class SPARCdDatabase:
         Returns:
             A tuple containing the known sandbox items
         """
-        return tuple()
+        if self._conn is None:
+            raise RuntimeError('Attempting to get sandbox information from the database before ' \
+                                                                                    'connecting')
+        # Get the Sandbox information
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT path, bucket, s3_base_path, location_id FROM sandbox')
+        res = cursor.fetchall()
+
+        if not res or len(res) < 1:
+            return tuple()
+
+        return [{'complete': not row[0] or row[0] == '',
+                 'bucket': row[1],
+                 's3_path': row[2],
+                 'location_id': row[3]
+               } for row in res]
 
     def get_uploads(self, bucket: str, timeout_sec: int) -> Optional[tuple]:
         """ Returns the uploads for this collection from the database
@@ -632,16 +647,16 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=(?) AND upload_id=(?)',
+        cursor.execute('SELECT bucket, s3_base_path, location_id FROM sandbox WHERE name=(?) AND upload_id=(?)',
                                                                             (username, upload_id))
 
         res = cursor.fetchone()
-        if not res or len(res) < 2:
-            return None, None
+        if not res or len(res) < 3:
+            return None, None, None
 
         cursor.close()
 
-        return res[0], res[1]
+        return res[0], res[1], res[2]
 
     def sandbox_upload_counts(self, username: str, upload_id: str) -> tuple:
         """ Returns the total and uploaded count of the files

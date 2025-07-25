@@ -22,9 +22,10 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, SizeCo
  * @param {boolean} loadingCollections Set to true when collections are being loaded
  * @param {boolean} loadingSandbox Set to true when sandbox items are being loaded
  * @param {function} onUserAction Function to call when the user clicks an action element
+ * @param {function} onEditUpload Called when the user wants to edit the selected upload
  * @returns {object} The rendered UI
  */
-export default function Landing({loadingCollections, loadingSandbox, onUserAction}) {
+export default function Landing({loadingCollections, loadingSandbox, onUserAction, onEditUpload}) {
   const theme = useTheme();
   const curCollectionInfo = React.useContext(CollectionsInfoContext);
   const curSandboxInfo = React.useContext(SandboxInfoContext);
@@ -69,24 +70,16 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
   }
 
   /**
-   * Render the overlay for uploading images
+   * Handles the user wanting to edit an upload
    * @function
    */
-  function renderUploadOverlay() {
-    return (
-      <Box id='landing-page-upload-wrapper' sx={{ ...theme.palette.screen_disable }} >
-        <Grid
-          container
-          spacing={0}
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          sx={{ minHeight: uiSizes.workspace.height + 'px' }}
-        >
-          <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
-\        </Grid>
-      </Box>
-    );
+  function handleSandboxEdit() {
+    console.log('HACK:UPLOADCLICK:',selUploadInfo);
+    const curCollection = curCollectionInfo.find((item) => item.bucket === selUploadInfo.bucket);
+    console.log('HACK:    COL:',curCollection);
+    const curUpload = curCollection.uploads.find((item) => item.name === selUploadInfo.name);
+    console.log('HACK:    UPL:', curUpload);
+    onEditUpload(curCollection.collectionId, curUpload.key, null);
   }
 
   // Render the page depending upon user choices
@@ -98,11 +91,8 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
             <LandingCard title="Upload Images" 
                          action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload()} : null,
                                   {'title':'Manage', 
-                                   'onClick':() => {
-                                                    onUserAction(selUploadInfo ? UserActions.UploadEdit : UserActions.Upload, 
-                                                                  selUploadInfo, selUploadInfo ? true : false, 'Home');
-                                                   },
-                                   'disabled': curSandboxInfo && curSandboxInfo.length > 0 ? false : true
+                                   'onClick': handleSandboxEdit,
+                                   'disabled': curSandboxInfo && curSandboxInfo.length > 0 && selUploadInfo != null ? false : true
                                   }
                                  ]}
             >
@@ -132,9 +122,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
           </Grid>
         </Grid>
       </Box>
-      {haveNewUpload 
-        ? renderUploadOverlay()
-        : null
+      { haveNewUpload && <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
       }
     </React.Fragment>
   );

@@ -151,6 +151,13 @@ let theme = createTheme({
       'width': '100vw',
       'height': '100vh',
       'backgroundColor': 'rgba(128, 128, 128, 0.50)'
+    },
+    screen_overlay: {
+      'position': 'absolute',
+      'left': '0px',
+      'top': '0px',
+      'width': '100vw',
+      'height': '100vh',
     }
   }
 });

@@ -120,10 +120,10 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         cur_futures = {executor.submit(get_upload_data_thread, minio,
-                                                    all_uploads_paths[one_upload]['bucket'],
-                                                    all_uploads_paths[one_upload]['paths'],
-                                                    all_uploads_paths[one_upload]['collection']):
-            one_upload for one_upload in all_uploads_paths}
+                                                    one_upload['bucket'],
+                                                    one_upload['paths'],
+                                                    one_upload['collection']):
+            one_upload for _, one_upload in all_uploads_paths.items()}
 
         for future in concurrent.futures.as_completed(cur_futures):
             try:
@@ -322,6 +322,112 @@ class S3Connection:
         user_collections = get_user_collections(minio, user, found_buckets)
 
         return update_user_collections(minio, user_collections)
+
+    @staticmethod
+    def get_collection_info(url: str, user: str, password: str, bucket: str, \
+                                                        upload_path: str=None) -> Optional[dict]:
+        """ Returns information for one collection
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket of interest
+            upload_path: a specific upload path to return information on. Otherwise all the uploads
+                        are returned
+        Return:
+            Returns the information on the collection or None if the collection isn't found
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+        all_buckets = minio.list_buckets()
+
+        # Get the matching bucket
+        found_buckets = [one_bucket.name for one_bucket in all_buckets if \
+                                                one_bucket.name == bucket]
+        if not found_buckets:
+            return None
+
+        user_collections = get_user_collections(minio, user, found_buckets)
+        if not user_collections:
+            return None
+
+        if upload_path is None:
+            return update_user_collections(minio, user_collections)[0]
+
+        for one_coll in user_collections:
+            upload_results = get_upload_data_thread(minio, bucket, (upload_path,), one_coll)
+
+            if upload_results:
+                one_coll['uploads'] = upload_results['uploads']
+
+        return user_collections[0]
+
+    @staticmethod
+    def get_upload_info(url: str, user: str, password: str, bucket: str, \
+                                                        upload_path: str=None) -> Optional[dict]:
+        """ Returns information for one upload in a collection
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket of interest
+            upload_path: a specific upload path to return information on. Otherwise all the uploads
+                        are returned
+        Return:
+            Returns the information on the collection or None if the collection isn't found
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+        all_buckets = minio.list_buckets()
+
+        # Get the matching bucket
+        found_buckets = [one_bucket.name for one_bucket in all_buckets if \
+                                                one_bucket.name == bucket]
+        if not found_buckets:
+            return None
+
+        # Temporary file
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        # Upload information
+        upload_info_path = os.path.join(upload_path, 'UploadMeta.json')
+        upload_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if upload_info_data is not None:
+            try:
+                coll_info = json.loads(upload_info_data)
+            except json.JSONDecodeError:
+                print(f'Unable to load JSON information: {upload_info_path}')
+                os.unlink(temp_file[1])
+                return None
+        else:
+            print(f'Unable to get upload information: {upload_info_path}')
+            os.unlink(temp_file[1])
+            return None
+
+        # Location data
+        upload_info = None
+        upload_info_path = os.path.join(upload_path, DEPLOYMENT_CSV_FILE_NAME)
+        print('HACK:  GET CSV', bucket, upload_info_path, flush=True)
+        csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if csv_data is not None:
+            print('HACK:  CSV DATA', csv_data,flush=True)
+            reader = csv.reader(StringIO(csv_data))
+            for csv_info in reader:
+                print('HACK:  READ ROW:',len(csv_info),flush=True)
+                if csv_info and len(csv_info) >= 23:
+                    upload_info = {
+                                 'path':upload_path,
+                                 'info':coll_info,
+                                 'location':csv_info[1],
+                                 'elevation':csv_info[12],
+                                 'key':os.path.basename(upload_path.rstrip('/\\'))
+                                }
+                    break
+        else:
+            print(f'Unable to get deployment information: {upload_info_path}')
+
+        os.unlink(temp_file[1])
+
+        return upload_info
 
     @staticmethod
     def get_images(url: str, user: str, password: str, collection_id: str, \
@@ -604,7 +710,6 @@ class S3Connection:
                         }
                 , o_file, indent=2)
 
-        print('HACK:CREATEUPLOAD:',bucket,new_path, flush=True)
         minio.fput_object(bucket, new_path + '/UploadMeta.json', temp_file[1], \
                                                                     content_type='application/json')
 

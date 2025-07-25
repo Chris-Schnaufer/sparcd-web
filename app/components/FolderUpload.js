@@ -471,6 +471,7 @@ export default function FolderUpload({onCancel}) {
         setNewUploadFiles(null);
         setUploadingFiles(false);
         setUploadCompleted(false);
+        setUploadingFileCounts({total:0, uploaded:0});
       });
   }
 
@@ -838,129 +839,162 @@ export default function FolderUpload({onCancel}) {
   const details_continue_enabled = locationSelection != null && collectionSelection != null && comment != null && comment.length > MIN_COMMENT_LEN;
   return (
     <React.Fragment>
-    { newUpload === false ?
-      <Card id='folder-upload-select' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
-        <CardHeader sx={{ textAlign: 'center' }}
-           title={
-            <Typography gutterBottom variant="h6" component="h4">
-              Upload Folder
-            </Typography>
-           }
-           subheader={
-            <React.Fragment>
-              <Typography gutterBottom variant="body">
-                Select folder to upload
-              </Typography>
-              <br />
-              <Typography gutterBottom variant="body2">
-                Step {!uploadingFiles ? '1' : '3'} of 3
-              </Typography>
-            </React.Fragment>
+      <Box id='landing-page-upload-wrapper' sx={{ ...theme.palette.screen_disable }} >
+        <Grid
+          container
+          spacing={0}
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ minHeight: uiSizes.workspace.height + 'px' }}
+        >
+        { newUpload === false ?
+          <Card id='folder-upload-select' variant="outlined" sx={{ ...theme.palette.folder_upload }} >
+            <CardHeader sx={{ textAlign: 'center' }}
+               title={
+                <Typography gutterBottom variant="h6" component="h4">
+                  Upload Folder
+                </Typography>
+               }
+               subheader={
+                <React.Fragment>
+                  <Typography gutterBottom variant="body">
+                    Select folder to upload
+                  </Typography>
+                  <br />
+                  <Typography gutterBottom variant="body2">
+                    Step {!uploadingFiles ? '1' : '3'} of 3
+                  </Typography>
+                </React.Fragment>
+                }
+             />
+            <CardContent>
+              {renderInputControls()}
+            </CardContent>
+            <CardActions>
+            { !uploadingFiles &&
+              <React.Fragment>
+                <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
+                        disabled={filesSelected > 0 ? false : true}>Upload</Button>
+                <Button id="folder_cancel" sx={{'flex':'1'}} size="small" onClick={cancelUpload}>Cancel</Button>
+              </React.Fragment>
             }
-         />
-        <CardContent>
-          {renderInputControls()}
-        </CardContent>
-        <CardActions>
-        { !uploadingFiles &&
-          <React.Fragment>
-            <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
-                    disabled={filesSelected > 0 ? false : true}>Upload</Button>
-            <Button id="folder_cancel" sx={{'flex':'1'}} size="small" onClick={cancelUpload}>Cancel</Button>
-          </React.Fragment>
-        }
-        { uploadCompleted &&
-          <React.Fragment>
-            <Button id="folder_upload_continue" sx={{'flex':'1'}} size="small" onClick={editUpload}>Continue</Button>
-            <Button id="folder_upload_another" sx={{'flex':'1'}} size="small" onClick={anotherUpload}>Upload Another</Button>
-          </React.Fragment>
-        }
-        </CardActions>
-      </Card>
-    :
-       <Card id='folder-upload-details' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
-        <CardHeader sx={{ textAlign: 'center' }}
-           title={
-            <Typography gutterBottom variant="h6" component="h4">
-              New Upload Details
-            </Typography>
-           }
-           subheader={
-            <React.Fragment>
-              <Typography gutterBottom variant="body">
-                Select Collection and Location to proceed
-              </Typography>
-              <br />
-              <Typography gutterBottom variant="body2">
-                Step 2 of 3
-              </Typography>
-            </React.Fragment>
+            { uploadCompleted &&
+              <React.Fragment>
+                <Button id="folder_upload_continue" sx={{'flex':'1'}} size="small" onClick={editUpload}>Continue</Button>
+                <Button id="folder_upload_another" sx={{'flex':'1'}} size="small" onClick={anotherUpload}>Upload Another</Button>
+              </React.Fragment>
             }
-         />
-        <CardContent>
-          {renderUploadDetails()}
-        </CardContent>
-        <CardActions>
-          <Button id="sandbox-upload-details-continue" sx={{'flex':'1'}} size="small" onClick={continueNewUpload}
-                  disabled={details_continue_enabled ? false : true}>Continue</Button>
-          <Button id="sandbox-upload-details-cancel" sx={{'flex':'1'}} size="small" onClick={cancelDetails}>Cancel</Button>
-        </CardActions>
-      </Card>
-    }
+            </CardActions>
+          </Card>
+        :
+           <Card id='folder-upload-details' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
+            <CardHeader sx={{ textAlign: 'center' }}
+               title={
+                <Typography gutterBottom variant="h6" component="h4">
+                  New Upload Details
+                </Typography>
+               }
+               subheader={
+                <React.Fragment>
+                  <Typography gutterBottom variant="body">
+                    Select Collection and Location to proceed
+                  </Typography>
+                  <br />
+                  <Typography gutterBottom variant="body2">
+                    Step 2 of 3
+                  </Typography>
+                </React.Fragment>
+                }
+             />
+            <CardContent>
+              {renderUploadDetails()}
+            </CardContent>
+            <CardActions>
+              <Button id="sandbox-upload-details-continue" sx={{'flex':'1'}} size="small" onClick={continueNewUpload}
+                      disabled={details_continue_enabled ? false : true}>Continue</Button>
+              <Button id="sandbox-upload-details-cancel" sx={{'flex':'1'}} size="small" onClick={cancelDetails}>Cancel</Button>
+            </CardActions>
+          </Card>
+        }
+        </Grid>
+      </Box>
     { continueUploadInfo !== null && 
+      <Box id='landing-page-upload-continue-wrapper' sx={{ ...theme.palette.screen_overlay }} >
+        <Grid
+          container
+          spacing={0}
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ minHeight: uiSizes.workspace.height + 'px' }}
+        >
         <Card id='folder-upload-continue' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
-        <CardHeader sx={{ textAlign: 'center' }}
-           title={
-            <Typography gutterBottom variant="h6" component="h4">
-              Upload Already Started
+          <CardHeader sx={{ textAlign: 'center' }}
+             title={
+              <Typography gutterBottom variant="h6" component="h4">
+                Upload Already Started
+              </Typography>
+             }
+            />
+          <CardContent>
+            <Typography gutterBottom variant="body">
+              An incomplete upload from '{uploadPath}' has been detected. How would you like to proceed?
             </Typography>
-           }
-          />
-        <CardContent>
-          <Typography gutterBottom variant="body">
-            An incomplete upload from '{uploadPath}' has been detected. How would you like to proceed?
-          </Typography>
-          <Typography gutterBottom variant="body2">
-            {continueUploadInfo.allFiles.length-continueUploadInfo.files.length} out of {continueUploadInfo.allFiles.length} files have been uploaded
-          </Typography>
-          <Typography gutterBottom variant="body2">
-            Uploaded created {generateSecondsElapsedText(continueUploadInfo.elapsedSec)} ago
-          </Typography>
-        </CardContent>
-        <CardActions>
-          <Button id="sandbox-upload-continue-continue" sx={{'flex':'1'}} size="small" onClick={prevUploadContinue}>Continue Upload</Button>
-          <Button id="sandbox-upload-continue-restart" sx={{'flex':'1'}} size="small" onClick={prevUploadRestart}>Restart Upload</Button>
-          <Button id="sandbox-upload-continue-create" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
-          <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={() => setContinueUploadInfo(null)}>Cancel</Button>
-        </CardActions>
-     </Card>
+            <Typography gutterBottom variant="body2">
+              {continueUploadInfo.allFiles.length-continueUploadInfo.files.length} out of {continueUploadInfo.allFiles.length} files have been uploaded
+            </Typography>
+            <Typography gutterBottom variant="body2">
+              Uploaded created {generateSecondsElapsedText(continueUploadInfo.elapsedSec)} ago
+            </Typography>
+          </CardContent>
+          <CardActions>
+            <Button id="sandbox-upload-continue-continue" sx={{'flex':'1'}} size="small" onClick={prevUploadContinue}>Continue Upload</Button>
+            <Button id="sandbox-upload-continue-restart" sx={{'flex':'1'}} size="small" onClick={prevUploadRestart}>Restart Upload</Button>
+            <Button id="sandbox-upload-continue-create" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
+            <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={() => setContinueUploadInfo(null)}>Cancel</Button>
+          </CardActions>
+        </Card>
+        </Grid>
+      </Box>
    }
    { (continueUploadInfo !== null && prevUploadCheck !== prevUploadCheckState.noCheck) &&
-        <Card id='folder-upload-reset' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
-        <CardHeader sx={{ textAlign: 'center' }}
-           title={
-            <Typography gutterBottom variant="h6" component="h4">
-              {prevUploadCheck === prevUploadCheckState.checkReset && "Restart Upload"}
-              {prevUploadCheck === prevUploadCheckState.checkNew && "Create New Upload"}
-            </Typography>
-           }
-          />
-        <CardContent>
-          <Typography gutterBottom variant="body">
-            {prevUploadCheck === prevUploadCheckState.checkReset && "Are you sure you want to delete the previous uploaded files and restart?"}
-            {prevUploadCheck === prevUploadCheckState.checkNew && "Are you sure you want to abandon the previous uploaded?"}
-          </Typography>
-        </CardContent>
-        <CardActions>
-          {prevUploadCheck === prevUploadCheckState.checkReset &&
-            <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadResetContinue}>Yes</Button>
-          }
-          {prevUploadCheck === prevUploadCheckState.checkNew &&
-            <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNewContinue}>Yes</Button>
-          }
-          <Button id="sandbox-upload-continue-no" sx={{'flex':'1'}} size="small" onClick={() => setPrevUploadCheck(prevUploadCheckState.noCheck)}>No</Button>
-        </CardActions>
-     </Card>
+      <Box id='landing-page-upload-reset-wrapper' sx={{ ...theme.palette.screen_overlay }} >
+        <Grid
+          container
+          spacing={0}
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ minHeight: uiSizes.workspace.height + 'px' }}
+        >
+          <Card id='folder-upload-reset' variant="outlined" sx={{ ...theme.palette.folder_upload, minWidth:(uiSizes.workspace.width * 0.8) + 'px' }} >
+            <CardHeader sx={{ textAlign: 'center' }}
+               title={
+                <Typography gutterBottom variant="h6" component="h4">
+                  {prevUploadCheck === prevUploadCheckState.checkReset && "Restart Upload"}
+                  {prevUploadCheck === prevUploadCheckState.checkNew && "Create New Upload"}
+                </Typography>
+               }
+              />
+            <CardContent>
+              <Typography gutterBottom variant="body">
+                {prevUploadCheck === prevUploadCheckState.checkReset && "Are you sure you want to delete the previous uploaded files and restart?"}
+                {prevUploadCheck === prevUploadCheckState.checkNew && "Are you sure you want to abandon the previous uploaded?"}
+              </Typography>
+            </CardContent>
+            <CardActions>
+              {prevUploadCheck === prevUploadCheckState.checkReset &&
+                <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadResetContinue}>Yes</Button>
+              }
+              {prevUploadCheck === prevUploadCheckState.checkNew &&
+                <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNewContinue}>Yes</Button>
+              }
+              <Button id="sandbox-upload-continue-no" sx={{'flex':'1'}} size="small" onClick={() => setPrevUploadCheck(prevUploadCheckState.noCheck)}>No</Button>
+            </CardActions>
+            </Card>
+        </Grid>
+      </Box>
    }
     </React.Fragment>
   );
