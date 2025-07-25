@@ -663,9 +663,11 @@ export default function Home() {
                                breadcrumbName);
             } else {
               console.log('ERROR: unable to find upload ID', uploadId, 'for collection ID', collectionId);
+              addMessage(Level.Warning, "Unable to find the upload to edit");
             }
           } else {
             console.log('ERROR: unable to find collection ID', collectionId);
+            addMessage(Level.Warning, "Unable to find the collection for editing");
           }
         })
         .catch(function(err) {

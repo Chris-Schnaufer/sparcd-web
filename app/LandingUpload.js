@@ -77,7 +77,7 @@ export default function LandingUpload({loadingSandbox, onChange}) {
                   {
                     sandboxItems && sandboxItems.map((obj, idx) => {
                       return (obj.uploads.map((up_obj) => 
-                        <FormControlLabel value={JSON.stringify({bucket:obj.bucket, upload:up_obj.name})} control={<Radio />} label={up_obj.name} key={up_obj.name} />
+                        <FormControlLabel value={JSON.stringify({bucket:obj.bucket, upload:up_obj})} control={<Radio />} label={up_obj.name} key={up_obj.name} />
                       ))
                     })
                   }

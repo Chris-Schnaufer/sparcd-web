@@ -77,9 +77,9 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
     console.log('HACK:UPLOADCLICK:',selUploadInfo);
     const curCollection = curCollectionInfo.find((item) => item.bucket === selUploadInfo.bucket);
     console.log('HACK:    COL:',curCollection);
-    const curUpload = curCollection.uploads.find((item) => item.name === selUploadInfo.name);
+    const curUpload = selUploadInfo.upload;
     console.log('HACK:    UPL:', curUpload);
-    onEditUpload(curCollection.collectionId, curUpload.key, null);
+    onEditUpload(curCollection.id, curUpload.key, null);
   }
 
   // Render the page depending upon user choices
