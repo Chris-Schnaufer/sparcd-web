@@ -146,7 +146,6 @@ export default function FolderUpload({onCancel}) {
   function checkPreviousUpload(path, files) {
     const sandboxPrevUrl = serverURL + '/sandboxPrev?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
-    console.log('HACK:PREV UPLOAD');
 
     formData.append('path', path);
 
@@ -163,7 +162,6 @@ export default function FolderUpload({onCancel}) {
           })
         .then((respData) => {
             // Process the results
-            console.log('HACK:RESPONSE:', respData);
             if (respData.exists === false) {
               setNewUpload(true);
               setNewUploadFiles(files);
@@ -210,7 +208,6 @@ export default function FolderUpload({onCancel}) {
           })
         .then((respData) => {
             // Process the results
-            console.log('HACK:UPLOAD COUNTS', respData);
             setUploadingFileCounts(respData);
             if (respData.uploaded === respData.total) {
               setUploadCompleted(true);
@@ -285,7 +282,6 @@ export default function FolderUpload({onCancel}) {
     const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
     const NUM_FILES_UPLOAD = 1;
-    console.log('HACK:UPLOAD CHUNK');
 
     formData.append('id', uploadId);
     for (let idx = 0; idx < NUM_FILES_UPLOAD && idx < fileChunk.length; idx++) {
@@ -308,8 +304,6 @@ export default function FolderUpload({onCancel}) {
             const nextChunk = fileChunk.slice(NUM_FILES_UPLOAD);
             if (nextChunk.length > 0) {
               window.setTimeout(() => uploadChunk(nextChunk, uploadId), 10);
-            } else {
-              console.log('HACK: Done UPLOAD');
             }
         })
         .catch(function(err) {
@@ -500,7 +494,6 @@ export default function FolderUpload({onCancel}) {
     // Add the upload to the server
     const sandboxNewUrl = serverURL + '/sandboxNew?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
-    console.log('HACK:CONTINUE NEW UPLOAD');
 
     formData.append('collection', collectionSelection.id);
     formData.append('location', locationSelection.idProperty);
@@ -523,7 +516,6 @@ export default function FolderUpload({onCancel}) {
           })
         .then((respData) => {
             // Process the results
-            console.log('HACK:NEW SANDBOX RESPONSE:', respData);
             setNewUpload(false);
             window.setTimeout(() => uploadFolder(newUploadFiles, respData.id), 10);
         })
@@ -563,7 +555,6 @@ export default function FolderUpload({onCancel}) {
     // Reset the upload on the server and then restart the upload
     const sandboxResetUrl = serverURL + '/sandboxReset?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
-    console.log('HACK:RESET UPLOAD');
 
     formData.append('id', continueUploadInfo.id);
     formData.append('files', JSON.stringify(continueUploadInfo.files.map((item) => item.webkitRelativePath)));
@@ -581,7 +572,6 @@ export default function FolderUpload({onCancel}) {
           })
         .then((respData) => {
             // Process the results
-            console.log('HACK:RESET SANDBOX RESPONSE:', respData);
             const curFiles = continueUploadInfo.files;
             const upload_id = continueUploadInfo.id;
             setPrevUploadCheck(prevUploadCheckState.noCheck);

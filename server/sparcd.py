@@ -986,16 +986,10 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
     Return:
         Returns the sandbox entries in collection format
     """
-    print('HACK:SANDBOX COLL: START', flush=True)
     coll_uploads = {}
     return_info = []
 
     # Get information on all the items
-    print('HACK:SANDBOX COLL: ITEMS', len(items), flush=True)
-    #HACK
-    if len(items) > 0:
-        print('HACK:SANDBOX COLL:      ', items[0], flush=True)
-    #HACK
     for one_item in items:
         add_collection = False
         cur_upload = None
@@ -1015,7 +1009,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                 found_uploads = [one_upload for one_upload in found['uploads'] \
                                             if one_item['s3_path'].endswith(one_upload['key']) ]
                 if len(found_uploads) > 0:
-                    cur_upload = found['uploads'][0]
+                    cur_upload = found_uploads[0]
         else:
             # Try to find the collection in the list of collections, otherwise fetch it
             add_collection = True
@@ -1028,7 +1022,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                     found_uploads = [one_upload for one_upload in found['uploads'] \
                                             if one_item['s3_path'].endswith(one_upload['key']) ]
                     if len(found_uploads) > 0:
-                        cur_upload = found['uploads'][0]
+                        cur_upload = found_uploads[0]
             else:
                 found = S3Connection.get_collection_info(url, user, password, bucket,
                                                                             one_item['s3_path'])
@@ -1037,7 +1031,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
                     coll_uploads[bucket]['s3_collection'] = True
 
                     found_uploads = [one_upload for one_upload in found['uploads'] \
-                                            if one_item['s3_path'] == one_upload['uploadPath'] ]
+                                            if one_item['s3_path'] == one_upload['path'] ]
                     if len(found_uploads) > 0:
                         cur_upload = found['uploads'][0]
                         s3_upload = True
@@ -1049,7 +1043,6 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
         if cur_upload is None:
             cur_upload = S3Connection.get_upload_info(url, user, password, bucket,
                                                                                 one_item['s3_path'])
-            print('HACK:  RETURNED UPLOAD:', cur_upload, flush=True)
             if cur_upload is None:
                 print(f'ERROR: Unable to retrieve upload for bucket {bucket}: ' \
                                                                 f'Path: "{one_item['s3_path']}"')
@@ -1398,11 +1391,9 @@ def sandbox():
     # Get the collections to fill in the return data
     all_collections = load_timed_temp_colls(user_info['name'])
 
-    print('HACK:COLLS:',all_collections[0] if all_collections else 'EMPTY', flush=True)
     return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)), sandbox_items, all_collections)
 
-    print('HACK:SANDBOX:',return_sandbox, flush=True)
     return json.dumps(return_sandbox)
 
 
@@ -2054,10 +2045,38 @@ def sandbox_new():
                                         do_decrypt(db.get_password(token)), collection_id, \
                                         comment, client_ts, len(all_files))
 
-    # Check with the DB if the upload has been started before
+    # Upload the CAMTRAP files to S3 storage
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    for one_file in CAMTRAP_FILES:
+        if one_file == DEPLOYMENT_CSV_NAME:
+            data = ','.join(create_deployment_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
+                                                                                    cur_locations))
+        else:
+            data = ''
+
+        S3Connection.upload_file_data(s3_url, user_info["name"],
+                                        do_decrypt(db.get_password(token)), s3_bucket,
+                                        s3_path + '/' + one_file, data, 'application/csv')
+
+    # Add the entries to the database
     upload_id = db.sandbox_new_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
                                         location_id)
 
+    # Update the collection to reflect the new upload
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+                                                    do_decrypt(db.get_password(token)), s3_bucket)
+    if updated_collection:
+        updated_collection = normalize_collection(updated_collection)
+
+        # Check if we have a stored temporary file containing the collections information
+        return_colls = load_timed_temp_colls(user_info['name'])
+        if return_colls:
+            return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
+                                                                    for one_coll in return_colls ]
+            # Save the collections temporarily
+            save_timed_temp_colls(return_colls)
+
+    # Return the new ID
     return json.dumps({'id': upload_id})
 
 
@@ -2095,16 +2114,13 @@ def sandbox_file():
         return "Unauthorized", 401
 
     # Get the location to upload to
-    s3_bucket, s3_path, location_id = db.sandbox_get_s3_info(user_info['name'], upload_id)
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
     s3_url = web_to_s3_url(user_info["url"])
-    print('HACK:S3INFO:',s3_bucket, s3_path, flush=True)
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
 
     # Upload all the received files and update the database
     for one_file in request.files:
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
-        print('HACK: SAVEFILE:',temp_file[1], flush=True)
 
         request.files[one_file].save(temp_file[1])
 
@@ -2118,17 +2134,6 @@ def sandbox_file():
         db.sandbox_file_uploaded(user_info['name'], upload_id, request.files[one_file].filename)
 
         os.unlink(temp_file[1])
-
-    for one_file in CAMTRAP_FILES:
-        if one_file == DEPLOYMENT_CSV_NAME:
-            data = ','.join(create_deployment_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
-                                                                                    cur_locations))
-        else:
-            data = ''
-
-        S3Connection.upload_file_data(s3_url, user_info["name"],
-                                        do_decrypt(db.get_password(token)), s3_bucket,
-                                        s3_path + '/' + one_file, '', 'application/csv')
 
     return json.dumps({'success': True})
 

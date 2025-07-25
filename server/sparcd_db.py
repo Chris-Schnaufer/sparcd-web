@@ -647,16 +647,16 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('SELECT bucket, s3_base_path, location_id FROM sandbox WHERE name=(?) AND upload_id=(?)',
+        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=(?) AND upload_id=(?)',
                                                                             (username, upload_id))
 
         res = cursor.fetchone()
-        if not res or len(res) < 3:
-            return None, None, None
+        if not res or len(res) < 2:
+            return None, None
 
         cursor.close()
 
-        return res[0], res[1], res[2]
+        return res[0], res[1]
 
     def sandbox_upload_counts(self, username: str, upload_id: str) -> tuple:
         """ Returns the total and uploaded count of the files

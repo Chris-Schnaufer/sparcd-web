@@ -79,7 +79,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
     console.log('HACK:    COL:',curCollection);
     const curUpload = selUploadInfo.upload;
     console.log('HACK:    UPL:', curUpload);
-    onEditUpload(curCollection.id, curUpload.key, null);
+    onEditUpload(curCollection.id, curUpload.key, "Home");
   }
 
   // Render the page depending upon user choices
@@ -90,7 +90,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
                          action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload()} : null,
-                                  {'title':'Manage', 
+                                  {'title':'Edit', 
                                    'onClick': handleSandboxEdit,
                                    'disabled': curSandboxInfo && curSandboxInfo.length > 0 && selUploadInfo != null ? false : true
                                   }
