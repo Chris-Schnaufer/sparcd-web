@@ -5,7 +5,7 @@ import csv
 import concurrent.futures
 import dataclasses
 import datetime
-from io import StringIO
+from io import BytesIO, StringIO
 import json
 import os
 import tempfile
@@ -750,4 +750,4 @@ class S3Connection:
         """
         minio = Minio(url, access_key=user, secret_key=password)
 
-        minio.put_object(bucket, path, StringIO(data), len(data), content_type=content_type)
+        minio.put_object(bucket, path, BytesIO(data.encode()), len(data), content_type=content_type)

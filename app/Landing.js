@@ -23,9 +23,10 @@ import { CollectionsInfoContext, MobileDeviceContext, SandboxInfoContext, SizeCo
  * @param {boolean} loadingSandbox Set to true when sandbox items are being loaded
  * @param {function} onUserAction Function to call when the user clicks an action element
  * @param {function} onEditUpload Called when the user wants to edit the selected upload
+ * @param {function} onSandboxRefresh Called to have the sandbox refreshed from the server
  * @returns {object} The rendered UI
  */
-export default function Landing({loadingCollections, loadingSandbox, onUserAction, onEditUpload}) {
+export default function Landing({loadingCollections, loadingSandbox, onUserAction, onEditUpload, onSandboxRefresh}) {
   const theme = useTheme();
   const curCollectionInfo = React.useContext(CollectionsInfoContext);
   const curSandboxInfo = React.useContext(SandboxInfoContext);
@@ -89,12 +90,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
         <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}} sx={{ 'margin': '4vw' }} >
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
-                         action={[!mobileDevice ? {'title':'New Upload', 'onClick':() => newUpload()} : null,
-                                  {'title':'Edit', 
-                                   'onClick': handleSandboxEdit,
-                                   'disabled': curSandboxInfo && curSandboxInfo.length > 0 && selUploadInfo != null ? false : true
-                                  }
-                                 ]}
+                         action={[!mobileDevice ? {'title':'Upload', 'onClick':() => newUpload()} : null]}
             >
               <LandingUpload loadingSandbox={loadingSandbox} onChange={setUploadSelection} />
             </LandingCard>
@@ -122,7 +118,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
           </Grid>
         </Grid>
       </Box>
-      { haveNewUpload && <FolderUpload onCancel={() => setHaveNewUpload(false)}/>
+      { haveNewUpload && <FolderUpload onCompleted={() => {setHaveNewUpload(false);onSandboxRefresh();}} onCancel={() => setHaveNewUpload(false)}/>
       }
     </React.Fragment>
   );

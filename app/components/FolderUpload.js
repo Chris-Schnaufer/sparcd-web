@@ -37,10 +37,11 @@ const prevUploadCheckState = {
 /**
  * Renders the UI for uploading a folder of images
  * @function
+ * @param {function} onCompleted The function to call when an upload is completed
  * @param {function} onCancel The function to call when the user cancels the upload
  * @returns {object} The rendered UI
  */
-export default function FolderUpload({onCancel}) {
+export default function FolderUpload({onCompleted, onCancel}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
@@ -68,6 +69,7 @@ export default function FolderUpload({onCancel}) {
   const [workingUploadId, setWorkingUploadId] = React.useState(null); // The active upload ID
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
+  let cancelUploadCountCheck = false; // Used to stop the checks for upload counts (which would go until the counts match)
 
   const getTooltipInfoOpen = getTooltipInfo.bind(FolderUpload);
 
@@ -209,7 +211,10 @@ export default function FolderUpload({onCancel}) {
         .then((respData) => {
             // Process the results
             setUploadingFileCounts(respData);
-            if (respData.uploaded === respData.total) {
+            if (cancelUploadCountCheck) {
+              // Do Nothing except reset the flag
+              cancelUploadCountCheck = false;
+            } if (respData.uploaded === respData.total) {
               setUploadCompleted(true);
             } else {
               window.setTimeout(() => getUploadCounts(uploadId), 1000);
@@ -335,8 +340,10 @@ export default function FolderUpload({onCancel}) {
     if (!uploadFiles || uploadFiles.length <= 0) {
       // TODO: Make the message part of the displayed window?
       // TODO: Change to editing upload page after marking as complete
-      addMessage(Level.Information, 'All files have been uploaded already');
+      addMessage(Level.Information, 'All files have been uploaded');
       console.log('All files were uploaded', uploadId);
+      setWorkingUploadId(uploadId);
+      getUploadCounts(uploadId);
       return;
     }
 
@@ -366,7 +373,18 @@ export default function FolderUpload({onCancel}) {
    * @param {object} event The event
    */
   function uploadFiles(event) {
-    const el = document.getElementById('folder_select');
+    // Disable buttons
+    let el = document.getElementById('folder_upload');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('folder_cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
+    // Continue processing
+    el = document.getElementById('folder_select');
 
     // Reset any uploaded counts
     setUploadingFileCounts({total:0, uploaded:0});
@@ -438,14 +456,14 @@ export default function FolderUpload({onCancel}) {
   }
 
   /**
-   * Allows the user to edit the recent upload
+   * Handles the user being done with an upload
    * @function
    */
-  function editUpload() {
+  function doneUpload() {
     const curUploadId = workingUploadId;
     serverUploadCompleted(curUploadId,
       () => { // Success
-        // TODO: Edit this upload
+        onCompleted();
       });
   }
 
@@ -466,6 +484,7 @@ export default function FolderUpload({onCancel}) {
         setUploadingFiles(false);
         setUploadCompleted(false);
         setUploadingFileCounts({total:0, uploaded:0});
+        onCompleted();
       });
   }
 
@@ -482,6 +501,16 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function cancelDetails() {
+    // Disable the buttons
+    let el = document.getElementById('sandbox-upload-details-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-details-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     setNewUpload(false);
     setNewUploadFiles(null);
   }
@@ -491,6 +520,16 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function continueNewUpload() {
+    // Disable the buttons
+    let el = document.getElementById('sandbox-upload-details-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-details-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     // Add the upload to the server
     const sandboxNewUrl = serverURL + '/sandboxNew?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
@@ -534,6 +573,24 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function prevUploadContinue() {
+    // Disable buttons
+    let el = document.getElementById('sandbox-upload-continue-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-restart');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-create');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     setUploadingFiles(true);
     uploadFolder(continueUploadInfo.files, continueUploadInfo.id);
     setContinueUploadInfo(null);
@@ -544,6 +601,24 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function prevUploadRestart() {
+    // Disable buttons
+    let el = document.getElementById('sandbox-upload-continue-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-restart');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-create');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     setPrevUploadCheck(prevUploadCheckState.checkReset);
   }
 
@@ -552,6 +627,20 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function prevUploadResetContinue() {
+    // Disable the buttons
+    let el = document.getElementById('prevUploadCreateNewContinue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-reset');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-no');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     // Reset the upload on the server and then restart the upload
     const sandboxResetUrl = serverURL + '/sandboxReset?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
@@ -586,14 +675,59 @@ export default function FolderUpload({onCancel}) {
       console.log('Reset Upload Unknown Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while preparing for reset sandbox upload');
     }
-}
+  }
 
   /**
    * Creates a new upload for these files
    * @function
    */
   function prevUploadCreateNew() {
+    // Disable buttons
+    let el = document.getElementById('sandbox-upload-continue-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-restart');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-create');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     setPrevUploadCheck(prevUploadCheckState.checkNew);
+  }
+
+/**
+   * Cancel the upload for these files
+   * @function
+   */
+  function prevUploadCancel() {
+    // Disable buttons
+    // TODO: Change these to query for button types and disable those
+    let el = document.getElementById('sandbox-upload-continue-continue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-restart');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-create');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-cancel');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
+    setContinueUploadInfo(null)
   }
 
   /**
@@ -601,6 +735,20 @@ export default function FolderUpload({onCancel}) {
    * @function
    */
   function prevUploadCreateNewContinue() {
+    // Disable the buttons
+    let el = document.getElementById('prevUploadCreateNewContinue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-reset');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-no');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
     serverUploadCompleted(continueUploadInfo.id,
       () => { // Success
           const uploadFiles = continueUploadInfo.allFiles;
@@ -612,6 +760,28 @@ export default function FolderUpload({onCancel}) {
           setNewUploadFiles(uploadFiles);
       }
     )
+  }
+
+  /**
+   * Handles cancelling both when asked to continue creating a new upload, or resetting an upload
+   * @function
+   */
+  function prevUploadResetCreateCancel() {
+    // Disable the buttons
+    let el = document.getElementById('prevUploadCreateNewContinue');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-reset');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+    el = document.getElementById('sandbox-upload-continue-no');
+    if (el) {
+      el.disabled = 'disabled';
+    }
+
+    setPrevUploadCheck(prevUploadCheckState.noCheck);
   }
 
   /**
@@ -871,7 +1041,7 @@ export default function FolderUpload({onCancel}) {
             }
             { uploadCompleted &&
               <React.Fragment>
-                <Button id="folder_upload_continue" sx={{'flex':'1'}} size="small" onClick={editUpload}>Continue</Button>
+                <Button id="folder_upload_continue" sx={{'flex':'1'}} size="small" onClick={doneUpload}>Done</Button>
                 <Button id="folder_upload_another" sx={{'flex':'1'}} size="small" onClick={anotherUpload}>Upload Another</Button>
               </React.Fragment>
             }
@@ -942,7 +1112,7 @@ export default function FolderUpload({onCancel}) {
             <Button id="sandbox-upload-continue-continue" sx={{'flex':'1'}} size="small" onClick={prevUploadContinue}>Continue Upload</Button>
             <Button id="sandbox-upload-continue-restart" sx={{'flex':'1'}} size="small" onClick={prevUploadRestart}>Restart Upload</Button>
             <Button id="sandbox-upload-continue-create" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
-            <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={() => setContinueUploadInfo(null)}>Cancel</Button>
+            <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={prevUploadCancel}>Cancel</Button>
           </CardActions>
         </Card>
         </Grid>
@@ -975,12 +1145,12 @@ export default function FolderUpload({onCancel}) {
             </CardContent>
             <CardActions>
               {prevUploadCheck === prevUploadCheckState.checkReset &&
-                <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadResetContinue}>Yes</Button>
+                <Button id="sandbox-upload-continue-reset" sx={{'flex':'1'}} size="small" onClick={prevUploadResetContinue}>Yes</Button>
               }
               {prevUploadCheck === prevUploadCheckState.checkNew &&
                 <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNewContinue}>Yes</Button>
               }
-              <Button id="sandbox-upload-continue-no" sx={{'flex':'1'}} size="small" onClick={() => setPrevUploadCheck(prevUploadCheckState.noCheck)}>No</Button>
+              <Button id="sandbox-upload-continue-no" sx={{'flex':'1'}} size="small" onClick={prevUploadResetCreateCancel}>No</Button>
             </CardActions>
             </Card>
         </Grid>

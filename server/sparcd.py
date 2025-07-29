@@ -105,7 +105,8 @@ KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','loc
 
 # Camtrap file names
 DEPLOYMENT_CSV_NAME = 'deployments.csv'
-CAMTRAP_FILES = [DEPLOYMENT_CSV_NAME, 'media.csv', 'observations.csv']
+MEDIA_CSV_NAME = 'media.csv'
+CAMTRAP_FILES = [DEPLOYMENT_CSV_NAME, MEDIA_CSV_NAME, 'observations.csv']
 
 # Don't run if we don't have a database or passcode
 if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
@@ -881,7 +882,7 @@ def create_deployment_data(collection_id: str, location_id: str, all_locations: 
     Return:
         A tuple containing the deployment data
     """
-    our_location = [one_loc for one_loc in all_locations if one_loc['propertyId'] == location_id]
+    our_location = [one_loc for one_loc in all_locations if one_loc['idProperty'] == location_id]
     if our_location:
         our_location = our_location[0]
     else:
@@ -890,7 +891,7 @@ def create_deployment_data(collection_id: str, location_id: str, all_locations: 
                                     'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0}
 
     return [    collection_id + ':' + location_id,      # Deployment id
-                our_location['idProeprty'],             # Location ID
+                our_location['idProperty'],             # Location ID
                 our_location['nameProperty'],           # Location name
                 str(our_location['latProperty']),       # Location latitude
                 str(our_location['lngProperty']),       # Location longitude
@@ -914,6 +915,70 @@ def create_deployment_data(collection_id: str, location_id: str, all_locations: 
                 '',                                     # Notes
             ]
 
+
+def create_media_data(collection_id: str, location_id: str, s3_base_path: str, \
+                                                                    all_files: tuple) -> tuple:
+    """ Returns the tuple containing the media data
+    Arguments:
+        collection_id: the ID of the collection (used for unique names)
+        location_id: the ID of the location to use
+        s3_base_path: the base server path of the files
+        all_files: the list of files
+    Return:
+        A tuple containing tuples of the the media data
+    """
+    return [
+            ('/'.join((s3_base_path,one_file)),     # Media ID
+            f'{collection_id}:{location_id}',       # Deployment ID
+            '/'.join((s3_base_path,one_file)),      # Sequence ID
+            '',                                     # Capture method
+            '',                                     # Timestamp
+            '/'.join((s3_base_path,one_file)),      # File path
+            os.path.basename(one_file),             # File name
+            '',                                     # File media type
+            '',                                     # EXIF data
+            'FALSE',                                # Favorite
+            ''                                      # Comments
+            )
+        for one_file in all_files
+        ]
+
+
+def create_observation_data(collection_id: str, location_id: str, s3_base_path: str, \
+                                                                    all_files: tuple) -> tuple:
+    """ Returns the tuple containing the observation data
+    Arguments:
+        collection_id: the ID of the collection (used for unique names)
+        location_id: the ID of the location to use
+        s3_base_path: the base server path of the files
+        all_files: the list of files
+    Return:
+        A tuple containing tuples of the the observation data
+    """
+    return [
+            ('',                                    # Observation ID
+            f'{collection_id}:{location_id}',       # Deployment ID
+            '',                                     # Sequence ID
+            '/'.join((s3_base_path,one_file)),      # Media ID
+            '',                                     # Timestamp
+            '',                                     # Observation type
+            'FALSE',                                # Camera setup
+            '',                                     # Taxon ID
+            '',                                     # Scientific name
+            '',                                     # Count
+            '',                                     # Count new species
+            '',                                     # Life stage
+            '',                                     # Sex
+            '',                                     # Behaviour
+            '',                                     # Individual ID
+            '',                                     # Classification method
+            '',                                     # Classified by
+            '',                                     # Classification timestmp
+            '',                                     # Classification confidence
+            '',                                     # Comments
+            )
+        for one_file in all_files
+        ]
 
 
 def zip_iterator(read_fd: int):
@@ -991,6 +1056,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
 
     # Get information on all the items
     for one_item in items:
+        print('HACK: ITEM:',one_item,flush=True)
         add_collection = False
         cur_upload = None
         s3_upload = False
@@ -1052,8 +1118,13 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
 
         # Check if we need to normalize the upload now
         if s3_upload is True and coll_uploads[bucket]['s3_collection'] is False:
-            coll_uploads[bucket]['uploads'].append(normalize_upload(cur_upload))
+            cur_upload = normalize_upload(cur_upload)
+            if 'complete' in one_item:
+                cur_upload['uploadCompleted'] = one_item['complete']
+            coll_uploads[bucket]['uploads'].append()
         else:
+            if 'complete' in one_item:
+                cur_upload['uploadCompleted'] = one_item['complete']
             coll_uploads[bucket]['uploads'].append(cur_upload)
 
         if add_collection is True:
@@ -1074,6 +1145,14 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
 def index():
     """Default page"""
     print("RENDERING TEMPLATE",DEFAULT_TEMPLATE_PAGE,os.getcwd(),flush=True)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    print('HACK:     IP:',client_ip, flush=True)
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    print('HACK:     USER AGENT:',client_user_agent, flush=True)
+    if not client_user_agent or client_user_agent == '-':
+        return 'Resource not found', 404
     return render_template(DEFAULT_TEMPLATE_PAGE)
 
 
@@ -2034,6 +2113,7 @@ def sandbox_new():
     # Get all the file names
     try:
         all_files = json.loads(all_files)
+        print('HACK:   FILE:',all_files[0])
     except json.JSONDecodeError as ex:
         print('ERROR: Unable to load file list JSON', ex, flush=True)
         return "Not Found", 406
@@ -2051,8 +2131,14 @@ def sandbox_new():
         if one_file == DEPLOYMENT_CSV_NAME:
             data = ','.join(create_deployment_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
                                                                                     cur_locations))
+        elif one_file == MEDIA_CSV_NAME:
+            data = '\n'.join([','.join(one_media) for one_media in \
+                                    create_media_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
+                                                                            s3_path, all_files)])
         else:
-            data = ''
+            data = '\n'.join([','.join(one_media) for one_media in \
+                                    create_observation_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
+                                                                            s3_path, all_files)])
 
         S3Connection.upload_file_data(s3_url, user_info["name"],
                                         do_decrypt(db.get_password(token)), s3_bucket,
@@ -2119,6 +2205,7 @@ def sandbox_file():
 
     # Upload all the received files and update the database
     for one_file in request.files:
+        print('HACK:   ONEFILE:',request.files[one_file].mimetype,request.files[one_file].content_type,flush=True)
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
