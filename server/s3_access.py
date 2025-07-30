@@ -406,13 +406,10 @@ class S3Connection:
         # Location data
         upload_info = None
         upload_info_path = os.path.join(upload_path, DEPLOYMENT_CSV_FILE_NAME)
-        print('HACK:  GET CSV', bucket, upload_info_path, flush=True)
         csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if csv_data is not None:
-            print('HACK:  CSV DATA', csv_data,flush=True)
             reader = csv.reader(StringIO(csv_data))
             for csv_info in reader:
-                print('HACK:  READ ROW:',len(csv_info),flush=True)
                 if csv_info and len(csv_info) >= 23:
                     upload_info = {
                                  'path':upload_path,
@@ -470,6 +467,11 @@ class S3Connection:
                     # Add the species
                     if cur_img.get('species') is None:
                         cur_img['species'] = []
+
+                    # Only return items that have data
+                    if not csv_info[8] or not csv_info[9]:
+                        continue
+
                     cur_img['species'].append({ 'name':common_name, \
                                                 'scientificName':csv_info[8], \
                                                 'count':csv_info[9]})
@@ -698,7 +700,7 @@ class S3Connection:
                             'date':
                                 {'year':timestamp.year,'month':timestamp.month,'day':timestamp.day},
                             'time':
-                                {'hour':timestamp.hour,'minute':timestamp.hour,
+                                {'hour':timestamp.hour,'minute':timestamp.minute,
                                     'second':timestamp.second,'nano':timestamp.microsecond}
                         },
                         'imagesWithSpecies':0,
@@ -719,8 +721,8 @@ class S3Connection:
 
 
     @staticmethod
-    def upload_opened_file(url: str, user: str, password: str, bucket: str, path: str, \
-                            localname:str) -> None:
+    def upload_file(url: str, user: str, password: str, bucket: str, path: str, \
+                                                                            localname:str) -> None:
         """ Uploads the data from the file to the specified bucket in the specified
             object path
         Arguments:
@@ -728,7 +730,7 @@ class S3Connection:
             user: the name of the user to use when connecting
             password: the user's password
             bucket: the bucket to upload to
-            path: path under the bucket to the object data to
+            path: path under the bucket to the object data
             localname: the local filename of the file to upload
         """
         minio = Minio(url, access_key=user, secret_key=password)
@@ -744,10 +746,65 @@ class S3Connection:
             user: the name of the user to use when connecting
             password: the user's password
             bucket: the bucket to upload to
-            path: path under the bucket to the object data to
+            path: path under the bucket to the object data
             data: the data to upload
             content_type: the content type of the upload
         """
         minio = Minio(url, access_key=user, secret_key=password)
 
         minio.put_object(bucket, path, BytesIO(data.encode()), len(data), content_type=content_type)
+
+    @staticmethod
+    def get_camtrap_file(url: str, user: str, password: str, bucket: str, \
+                                                                    path: str) -> Optional[tuple]:
+        """ Loads the CAMTRAP CSV and returns a tuple containing the row data as tuples
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            path: path under the bucket to the camtrap data
+        Return:
+            Returns the loaded data or None
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        csv_data = get_s3_file(minio, bucket, path, temp_file[1])
+
+        os.unlink(temp_file[1])
+
+        camtrap_data = []
+        if csv_data is not None:
+            reader = csv.reader(StringIO(csv_data))
+            for csv_row in reader:
+                if csv_row and len(csv_row) >= 5:
+                    camtrap_data.append(list(csv_row))
+
+        return camtrap_data
+
+    @staticmethod
+    def upload_camtrap_data(url: str, user: str, password: str, bucket: str, \
+                                                        path: str, data: tuple) -> None:
+        """ Uploads camtrap data as a CSV file to the specified path
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            path: path under the bucket to the camtrap data
+            data: a tuple of camtrap data containing tuples of each row's data
+        """
+        temp_file = tempfile.mkstemp(suffix='.csv', prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        with open(temp_file[1], 'w', newline='', encoding='utf-8') as ofile:
+            csv_writer = csv.writer(ofile)
+            for one_row in data:
+                csv_writer.writerow(one_row)
+
+        S3Connection.upload_file(url, user, password, bucket, path, temp_file[1])
+
+        os.unlink(temp_file[1])

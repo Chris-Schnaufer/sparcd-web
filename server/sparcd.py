@@ -39,10 +39,8 @@ from text_formatters.coordinate_utils import deg2utm, SOUTHERN_AZ_UTM_ZONE
 import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
-from s3_access import S3Connection
-
-# Our prefix
-SPARCD_PREFIX = 'sparcd_'
+from s3_access import S3Connection, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
+                      OBSERVATIONS_CSV_FILE_NAME, CAMTRAP_FILE_NAMES, SPARCD_PREFIX
 
 # Starting point for uploading files from server
 RESOURCE_START_PATH = os.path.abspath(os.path.dirname(__file__))
@@ -90,23 +88,16 @@ TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
 # Timeout for query results on disk
 QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
 
-# Environment varriable for where to find the UI
-ENV_NAME_BUILD_FOLDER = 'SPARCD_BUILD'
-# Default path to the UI build
-BUILD_FOLDER_DEFAULT = os.path.join(os.getcwd(), 'out')
-# Working amount of time after last action before session is expired
-WORKING_BUILD_PATH = os.environ.get(ENV_NAME_BUILD_FOLDER, BUILD_FOLDER_DEFAULT)
 # UI definitions for serving
 DEFAULT_TEMPLATE_PAGE = 'index.html'
+
+# Some CAMTRAP definitions
+# TODO: Move camtrap definitions to their own file (from here and s3_access)
+CAMTRAP_MEDIA_TYPE_IDX = 7
 
 # List of known query form variable keys
 KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','locations',
                     'month','species','startDate','years']
-
-# Camtrap file names
-DEPLOYMENT_CSV_NAME = 'deployments.csv'
-MEDIA_CSV_NAME = 'media.csv'
-CAMTRAP_FILES = [DEPLOYMENT_CSV_NAME, MEDIA_CSV_NAME, 'observations.csv']
 
 # Don't run if we don't have a database or passcode
 if not DEFAULT_DB_PATH or not os.path.exists(DEFAULT_DB_PATH):
@@ -981,6 +972,80 @@ def create_observation_data(collection_id: str, location_id: str, s3_base_path: 
         ]
 
 
+def save_camtrap_file(filename: str, data: object) -> bool:
+    """ Saves the data to the specified name
+    Arguments:
+        filename: the name of the file to save to
+        data: the data to save
+    Return:
+        Returns True is the data is saved into the file
+    """
+    # TODO: make this use CSV instance
+    save_path = os.path.join(tempfile.gettempdir(),SPARCD_PREFIX+filename)
+    with open(save_path, 'w', encoding='utf-8') as ofile:
+        ofile.write(json.dumps(data))
+
+    return True
+
+
+def load_camtrap_media(url: str, user: str, token: str, db: SPARCdDatabase, bucket: str, \
+                                                                    s3_path: str) -> Optional[dict]:
+    """ Returns the media camtrap information with the file names as the keys (the filenames are the
+        portion of media path after the S3 path)
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        token: the session token
+        db: the active database
+        bucket: the bucket downloaded from
+        s3_path: the S3 path of the CAMTRAP CSV file
+    Return:
+        A dict with file names as the keys and its row as the value
+    Notes:
+        e.g.: assuming the S3 path is "/my/s3/path" and the media path is
+        "/my/s3/path/to/media.jpg", the key would be "to/media.jpg"
+    """
+    loaded_media = load_camtrap_info(url, user, token, db, bucket, s3_path, MEDIA_CSV_FILE_NAME)
+    if loaded_media:
+        s3_path_len = len(s3_path) + 1 # We add one to remove the separator
+        return {one_row[0][s3_path_len:]: one_row for one_row in loaded_media}
+
+    return None
+
+
+def load_camtrap_info(url: str, user: str, token: str, db: SPARCdDatabase, bucket: str, \
+                                                    s3_path: str, filename: str) -> Optional[tuple]:
+    """ Returns the contents of the CAMTRAP CSV file as a tuple containing row tuples
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        token: the session token
+        bucket: the bucket downloaded from
+        db: the active database
+        s3_path: the S3 path of the CAMTRAP CSV file
+        filename: the name of the file to load
+    Return:
+        A tuple containing the rows of the file as tuples
+    Notes:
+        Looks on the local file system to see if the contents are available. If not found there,
+        the file is downloaded from S3
+    """
+    # First try the local file system
+    load_path = os.path.join(tempfile.gettempdir(),
+                    SPARCD_PREFIX+bucket+'_'+os.path.basename(s3_path)+'_'+filename)
+    if os.path.exists(load_path):
+        with open(load_path, 'r', encoding='utf-8') as infile:
+            try:
+                return json.loads(infile.read())
+            except json.JSONDecodeError as ex:
+                infile.close()
+                print(f'Unable to load CAMTRAP file {filename} locally: {load_path}',flush=True)
+                print(ex, flush=True)
+
+    # Try S3 since we don't have the data
+    return S3Connection.get_camtrap_file(url, user, do_decrypt(db.get_password(token)),
+                                                        bucket, '/'.join((s3_path, filename)))
+
 def zip_iterator(read_fd: int):
     """ Reads the data in the pipe and yields it
     Arguments:
@@ -1056,7 +1121,6 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
 
     # Get information on all the items
     for one_item in items:
-        print('HACK: ITEM:',one_item,flush=True)
         add_collection = False
         cur_upload = None
         s3_upload = False
@@ -1121,7 +1185,7 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
             cur_upload = normalize_upload(cur_upload)
             if 'complete' in one_item:
                 cur_upload['uploadCompleted'] = one_item['complete']
-            coll_uploads[bucket]['uploads'].append()
+            coll_uploads[bucket]['uploads'].append(cur_upload)
         else:
             if 'complete' in one_item:
                 cur_upload['uploadCompleted'] = one_item['complete']
@@ -2113,7 +2177,6 @@ def sandbox_new():
     # Get all the file names
     try:
         all_files = json.loads(all_files)
-        print('HACK:   FILE:',all_files[0])
     except json.JSONDecodeError as ex:
         print('ERROR: Unable to load file list JSON', ex, flush=True)
         return "Not Found", 406
@@ -2127,18 +2190,22 @@ def sandbox_new():
 
     # Upload the CAMTRAP files to S3 storage
     cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
-    for one_file in CAMTRAP_FILES:
-        if one_file == DEPLOYMENT_CSV_NAME:
+    for one_file in CAMTRAP_FILE_NAMES:
+        if one_file == DEPLOYMENT_CSV_FILE_NAME:
             data = ','.join(create_deployment_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
                                                                                     cur_locations))
-        elif one_file == MEDIA_CSV_NAME:
-            data = '\n'.join([','.join(one_media) for one_media in \
-                                    create_media_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
-                                                                            s3_path, all_files)])
+        elif one_file == MEDIA_CSV_FILE_NAME:
+            # TODO: just upload the saved CSV file to the server
+            media_data = create_media_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
+                                                                            s3_path, all_files)
+            save_camtrap_file(s3_bucket+'_'+os.path.basename(s3_path)+'_'+MEDIA_CSV_FILE_NAME,
+                                                                                    media_data)
+
+            data = '\n'.join([','.join(one_media) for one_media in media_data])
         else:
             data = '\n'.join([','.join(one_media) for one_media in \
-                                    create_observation_data(s3_bucket[len(SPARCD_PREFIX):], location_id,
-                                                                            s3_path, all_files)])
+                                    create_observation_data(s3_bucket[len(SPARCD_PREFIX):],
+                                                            location_id, s3_path, all_files)])
 
         S3Connection.upload_file_data(s3_url, user_info["name"],
                                         do_decrypt(db.get_password(token)), s3_bucket,
@@ -2205,20 +2272,20 @@ def sandbox_file():
 
     # Upload all the received files and update the database
     for one_file in request.files:
-        print('HACK:   ONEFILE:',request.files[one_file].mimetype,request.files[one_file].content_type,flush=True)
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
         request.files[one_file].save(temp_file[1])
 
         # Upload the file to S3
-        S3Connection.upload_opened_file(s3_url, user_info["name"],
+        S3Connection.upload_file(s3_url, user_info["name"],
                                         do_decrypt(db.get_password(token)), s3_bucket,
                                         s3_path + '/' + request.files[one_file].filename,
                                         temp_file[1])
 
         # Update the database entry to show the file is uploaded
-        db.sandbox_file_uploaded(user_info['name'], upload_id, request.files[one_file].filename)
+        db.sandbox_file_uploaded(user_info['name'], upload_id, request.files[one_file].filename,
+                                    request.files[one_file].mimetype,)
 
         os.unlink(temp_file[1])
 
@@ -2342,6 +2409,22 @@ def sandbox_completed():
     token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Get the sandbox information
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
+    s3_url = web_to_s3_url(user_info["url"])
+
+    # Update the MEDIA csv file to include media types
+    media_info = load_camtrap_media(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
+    file_mimetypes = db.get_file_mimetypes(user_info['name'], upload_id)
+
+    for one_key,one_type in file_mimetypes:
+        media_info[one_key][CAMTRAP_MEDIA_TYPE_IDX] = one_type
+
+    # Upload the MEDIA csv file to the server
+    S3Connection.upload_camtrap_data(s3_url, user_info["name"], do_decrypt(db.get_password(token)),
+                                     s3_bucket, '/'.join((s3_path, MEDIA_CSV_FILE_NAME)),
+                                     (media_info[one_key] for one_key in media_info.keys()) )
 
     # Mark the upload as completed
     db.sandbox_upload_complete(user_info['name'], upload_id)

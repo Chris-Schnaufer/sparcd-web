@@ -70,6 +70,9 @@ export default function FolderUpload({onCompleted, onCancel}) {
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let cancelUploadCountCheck = false; // Used to stop the checks for upload counts (which would go until the counts match)
+  let disableUploadDetails = false; // Used to lock out multiple clicks
+  let disableUploadPrev = false; // Used to lock out multiple clicks
+  let disableUploadCheck = false; // Used to lock out multiple clicks
 
   const getTooltipInfoOpen = getTooltipInfo.bind(FolderUpload);
 
@@ -217,7 +220,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
             } if (respData.uploaded === respData.total) {
               setUploadCompleted(true);
             } else {
-              window.setTimeout(() => getUploadCounts(uploadId), 1000);
+              window.setTimeout(() => getUploadCounts(uploadId), 2000);
             }
         })
         .catch(function(err) {
@@ -376,11 +379,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
     // Disable buttons
     let el = document.getElementById('folder_upload');
     if (el) {
-      el.disabled = 'disabled';
+      el.disabled = true;
     }
     el = document.getElementById('folder_cancel');
     if (el) {
-      el.disabled = 'disabled';
+      el.disabled = true;
     }
 
     // Continue processing
@@ -501,15 +504,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function cancelDetails() {
-    // Disable the buttons
-    let el = document.getElementById('sandbox-upload-details-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Set to disable multiple clicks
+    if (disableUploadDetails === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-details-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadDetails = true;
 
     setNewUpload(false);
     setNewUploadFiles(null);
@@ -520,15 +519,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function continueNewUpload() {
-    // Disable the buttons
-    let el = document.getElementById('sandbox-upload-details-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Set to disable multiple clicks
+    if (disableUploadDetails === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-details-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadDetails = true;
 
     // Add the upload to the server
     const sandboxNewUrl = serverURL + '/sandboxNew?t=' + encodeURIComponent(uploadToken);
@@ -573,23 +568,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadContinue() {
-    // Disable buttons
-    let el = document.getElementById('sandbox-upload-continue-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadPrev === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-restart');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-create');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadPrev = true;
 
     setUploadingFiles(true);
     uploadFolder(continueUploadInfo.files, continueUploadInfo.id);
@@ -601,23 +584,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadRestart() {
-    // Disable buttons
-    let el = document.getElementById('sandbox-upload-continue-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadPrev === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-restart');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-create');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadPrev = true;
 
     setPrevUploadCheck(prevUploadCheckState.checkReset);
   }
@@ -627,19 +598,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadResetContinue() {
-    // Disable the buttons
-    let el = document.getElementById('prevUploadCreateNewContinue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadCheck === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-reset');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-no');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadCheck = true;
 
     // Reset the upload on the server and then restart the upload
     const sandboxResetUrl = serverURL + '/sandboxReset?t=' + encodeURIComponent(uploadToken);
@@ -682,23 +645,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadCreateNew() {
-    // Disable buttons
-    let el = document.getElementById('sandbox-upload-continue-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadPrev === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-restart');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-create');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadPrev = true;
 
     setPrevUploadCheck(prevUploadCheckState.checkNew);
   }
@@ -708,24 +659,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadCancel() {
-    // Disable buttons
-    // TODO: Change these to query for button types and disable those
-    let el = document.getElementById('sandbox-upload-continue-continue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadPrev === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-restart');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-create');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-cancel');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadPrev = true;
 
     setContinueUploadInfo(null)
   }
@@ -735,19 +673,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadCreateNewContinue() {
-    // Disable the buttons
-    let el = document.getElementById('prevUploadCreateNewContinue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadCheck === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-reset');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-no');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadCheck = true;
 
     serverUploadCompleted(continueUploadInfo.id,
       () => { // Success
@@ -767,19 +697,11 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    */
   function prevUploadResetCreateCancel() {
-    // Disable the buttons
-    let el = document.getElementById('prevUploadCreateNewContinue');
-    if (el) {
-      el.disabled = 'disabled';
+    // Used to prevent multiple clicks
+    if (disableUploadCheck === true) {
+      return;
     }
-    el = document.getElementById('sandbox-upload-continue-reset');
-    if (el) {
-      el.disabled = 'disabled';
-    }
-    el = document.getElementById('sandbox-upload-continue-no');
-    if (el) {
-      el.disabled = 'disabled';
-    }
+    disableUploadCheck = true;
 
     setPrevUploadCheck(prevUploadCheckState.noCheck);
   }

@@ -863,7 +863,7 @@ export default function Home() {
                 <CollectionsInfoContext.Provider value={collectionInfo}>
                   <SandboxInfoContext.Provider value={sandboxInfo}>
                     <Landing loadingCollections={loadingCollections} loadingSandbox={loadingSandbox} onUserAction={setCurrentAction} 
-                             onEditUpload={editCollectionUpload} onSandboxRefresh={loadSandbox}
+                             onEditUpload={editCollectionUpload} onSandboxRefresh={() => {loadSandbox(lastToken);loadCollections(lastToken);}}
                     />
                   </SandboxInfoContext.Provider>
                 </CollectionsInfoContext.Provider>

@@ -737,7 +737,6 @@ class SPARCdDatabase:
 
         return upload_id
 
-
     def sandbox_upload_complete(self, username: str, upload_id: str) -> None:
         """ Marks the sandbox upload as completed by resetting the path
         Arguments:
@@ -756,12 +755,14 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
-    def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str) -> None:
+    def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
+                                                                            mimetype: str) -> None:
         """ Marks the file as upload as uploaded
         Arguments:
             username: the name of the person starting the upload
             upload_id: the ID of the upload
             filename: the name of the uploaded file to mark as uploaded
+            mimetype: the mimetype of the file uploaded
         """
         if self._conn is None:
             raise RuntimeError('Attempting to mark file as uploaded in the database ' \
@@ -769,10 +770,37 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE WHERE sandbox_files.filename=(?) '\
-                            'AND sandbox_id in ' \
+        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=(?) WHERE '\
+                            'sandbox_files.filename=(?) AND sandbox_id in ' \
                         '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?))',
-                                                                    (filename, username, upload_id))
+                                                        (mimetype,filename, username, upload_id))
 
         self._conn.commit()
         cursor.close()
+
+
+    def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the file paths and mimetypes for an upload
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing tuples of the found file paths and mimetypes
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get upload mimetypes from the database '\
+                                                                                'before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT source_path, mimetype FROM sandbox_files WHERE sandbox_id IN '\
+                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?))',
+                                                                            (username, upload_id))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return ()
+
+        cursor.close()
+
+        return ((one_row[0], one_row[1]) for one_row in res)

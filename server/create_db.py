@@ -93,7 +93,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'timestamp INTEGER, upload_id TEXT DEFAULT NULL)',
              'CREATE TABLE sandbox_files(id INTEGER PRIMARY KEY ASC, sandbox_id INTEGER NOT NULL, '\
                             'filename TEXT NOT NULL, source_path TEXT, ' \
-                            'uploaded BOOLEAN DEFAULT FALSE, timestamp INTEGER)',
+                            'uploaded BOOLEAN DEFAULT FALSE, mimetype TEXT DEFAULT NULL, ' \
+                            'timestamp INTEGER)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 
