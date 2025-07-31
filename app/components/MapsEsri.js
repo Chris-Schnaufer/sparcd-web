@@ -34,6 +34,7 @@ import { LocationsInfoContext } from '../serverInfo';
 export default function MapsEsri({center, mapName, mapChoices, onChange, top, width, height}) {
   const locationItems = React.useContext(LocationsInfoContext);
   const [layerCollection, setLayerCollection] = React.useState(null); // The array of layers to display
+  const [generatedMap, setGeneratedMap] = React.useState(false);
 
   /**
    * Generates the locations layer for display
@@ -42,58 +43,63 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
   const getLocationLayer = React.useCallback(() => {
     let curCollection = layerCollection || [];
     if (!layerCollection) {
-      let features = locationItems.map((item, idx) => 
-        new Graphic({
-                geometry: new Point({x:parseFloat(item.lngProperty),
-                                     y:parseFloat(item.latProperty), 
-                                     z:parseFloat(item.elevationProperty)
-                                   }),
-                symbol: {
-                  type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
-                  color: "blue",
-                  size: 8,
-                  outline: { // autocasts as new SimpleLineSymbol()
-                    width: 0.5,
-                    color: "darkblue"
+      let startIdx = 0;
+      console.log('HACK:GENERATELAYER',locationItems);
+      while (startIdx * 100 < locationItems.length) {
+        let features = locationItems.slice(startIdx * 100,(startIdx+1)*100).map((item, idx) => 
+          new Graphic({
+                  geometry: new Point({x:parseFloat(item.lngProperty),
+                                       y:parseFloat(item.latProperty), 
+                                       z:parseFloat(item.elevationProperty)
+                                     }),
+                  symbol: {
+                    type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+                    color: "blue",
+                    size: 8,
+                    outline: { // autocasts as new SimpleLineSymbol()
+                      width: 0.5,
+                      color: "darkblue"
+                    }
+                  },
+                  attributes: {...item, ...{objectId: idx}},
+                  popupTemplate: {
+                    title: item.idProperty,
+                    content: [{
+                        type: 'fields',
+                        fieldInfos: [
+                          {
+                            fieldName: 'nameProperty',
+                            label: 'Name',
+                            visible: true,
+                          },
+                          {
+                            fieldName: 'latProperty',
+                            label: 'Latitude',
+                            visible: true,
+                          },
+                          {
+                            fieldName: 'lngProperty',
+                            label: 'Longitude',
+                            visible: true,
+                          },
+                          {
+                            fieldName: 'elevationProperty',
+                            label: 'Elevation',
+                            visible: true,
+                          }
+                        ]
+                      }]
                   }
-                },
-                attributes: {...item, ...{objectId: idx}},
-                popupTemplate: {
-                  title: item.idProperty,
-                  content: [{
-                      type: 'fields',
-                      fieldInfos: [
-                        {
-                          fieldName: 'nameProperty',
-                          label: 'Name',
-                          visible: true,
-                        },
-                        {
-                          fieldName: 'latProperty',
-                          label: 'Latitude',
-                          visible: true,
-                        },
-                        {
-                          fieldName: 'lngProperty',
-                          label: 'Longitude',
-                          visible: true,
-                        },
-                        {
-                          fieldName: 'elevationProperty',
-                          label: 'Elevation',
-                          visible: true,
-                        }
-                      ]
-                    }]
-                }
-              })
-      );
+                })
+        );
 
-      let layer = new GraphicsLayer({graphics: features});
+        let layer = new GraphicsLayer({graphics: features});
 
-      curCollection.push(layer);
-      setLayerCollection(curCollection);
+        curCollection.push(layer);
+        startIdx++;
+      }
     }
+    setLayerCollection(curCollection);
 
     return curCollection;
   }, [layerCollection, locationItems])
@@ -101,7 +107,8 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
   // When the map div is available, setup the map
   React.useLayoutEffect(() => {
     const mapEl = document.getElementById('viewDiv');
-    if (mapEl) {
+    if (mapEl && !generatedMap) {
+      setGeneratedMap(true);
       const layers = getLocationLayer();                      // Displayed layers
       const map = new Map({basemap:mapName, layers:layers});  // Create the map of desired ty[e]
 
