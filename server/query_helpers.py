@@ -109,29 +109,30 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
             image_dt = None
             image_gmt_dt = None
             # pylint: disable=broad-exception-caught
-            try:
-                image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
-                if need_gmt_dt:
-                    image_gmt_dt = datetime.datetime.utcfromtimestamp(image_dt.timestamp())
-            except Exception:
-                print(f'Error converting image timestamp: {one_image["name"]} ' \
-                      f'{one_image["timestamp"]} from upload {one_upload["bucket"]} '\
-                      f'{one_upload["name"]}')
-                print(ex)
-                excluded = True
-                continue
+            if 'timestamp' in one_image and one_image['timestamp']:
+                try:
+                    image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
+                    if need_gmt_dt:
+                        image_gmt_dt = datetime.datetime.utcfromtimestamp(image_dt.timestamp())
+                except Exception as ex:
+                    print(f'Error converting image timestamp: {one_image["name"]} ' \
+                          f'{one_image["timestamp"]} from upload {one_upload["bucket"]} '\
+                          f'{one_upload["name"]}')
+                    print(ex)
+                    excluded = True
+                    continue
 
             # Filter the image
             for one_filter in filters:
                 match(one_filter[0]):
                     case 'dayofweek':
-                        if not image_dt.weekday() in one_filter[1]:
+                        if image_dt is None or image_dt.weekday() not in one_filter[1]:
                             excluded = True
                     case 'hour':
-                        if image_dt.hour not in one_filter[1]:
+                        if image_dt is None or image_dt.hour not in one_filter[1]:
                             excluded = True
                     case 'month':
-                        if image_dt.month not in one_filter[1]:
+                        if image_dt is None or image_dt.month not in one_filter[1]:
                             excluded = True
                     case 'species':
                         found = False
@@ -144,14 +145,14 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                     case 'years':
                         if years_filter is None:
                             years_filter = json.loads(one_filter[1])
-                        if not years_filter['yearStart'] <= image_dt.year <= \
+                        if image_dt is None or not years_filter['yearStart'] <= image_dt.year <= \
                                                                             years_filter['yearEnd']:
                             excluded = True
                     case 'endDate': # Need to compare against GMT of filter
-                        if image_gmt_dt > end_date_ts:
+                        if image_gmt_dt is None or image_gmt_dt > end_date_ts:
                             excluded = True
                     case 'startDate': # Need to compare against GMT of filter
-                        if image_gmt_dt < start_date_ts:
+                        if image_gmt_dt is None or image_gmt_dt < start_date_ts:
                             excluded = True
 
                 # Break loop as soon as it's excluded
