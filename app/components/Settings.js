@@ -21,7 +21,7 @@ import * as utils from '../utils';
 // Default settings if we never received them
 const defaultSettings = { dateFormat:'MDY', 
                           timeFormat:'24',
-                          measurementFormat:'feet',
+                          measurementFormat:'meters',
                           sandersonDirectory:false,
                           sandersonOutput:false,
                           autonext:true,
@@ -61,6 +61,7 @@ function ensure_settings(settings) {
 export default function Settings({curSettings, onChange, onClose, onLogout}) {
   const theme = useTheme();
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
+  const [email, setEmail] = React.useState(curSettings.email); // The working email
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [titlebarRect, setTitlebarRect] = React.useState(null); // Set when the UI displays
   const [userSettings, setUserSettings] = React.useState(curSettings ? ensure_settings(curSettings) : defaultSettings);
@@ -146,11 +147,32 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
    * @param {object} value The new value to store
    */
   function handleValueChange(valueKey, value) {
-    const userSettingsCopy = {...userSettings};
     const curSettings = userSettings;
     curSettings[valueKey] = value;
     setUserSettings(curSettings);
     setChangedValue(valueKey + value + '');
+    onChange(curSettings);
+  }
+
+  /**
+   * Handles the user changing the email field
+   * @function
+   * @param {object} event The event object
+   */
+  function handleEmailChange(event) {
+    setEmail(event.target.value);
+  }
+
+  /**
+   * Handles the blur of the email field
+   * @function
+   * @param {object} event The event object
+   */
+  function handleEmailBlur(event) {
+    const curSettings = userSettings;
+    curSettings.email = event.target.value;
+    setUserSettings(curSettings);
+    setChangedValue(event.target.value);
     onChange(curSettings);
   }
 
@@ -176,7 +198,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                   spacing={1}
                   sx={{overflowY:'scroll', paddingTop:'5px'}}
           >
-            <Grid key={"setting-dates"} >
+            <Grid id="setting-dates" >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -187,7 +209,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 renderInput={(params) => <TextField {...params} label="Dates" />}
               />
             </Grid>
-            <Grid key={"setting-time"} >
+            <Grid id="setting-time" >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -198,7 +220,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 renderInput={(params) => <TextField {...params} label="Times" />}
               />
             </Grid>
-            <Grid key={"setting-measurements"} >
+            <Grid id="setting-measurements" >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -209,7 +231,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 renderInput={(params) => <TextField {...params} label="Measurements" />}
               />
             </Grid>
-            <Grid key={"setting-coordinates"} >
+            <Grid id="setting-coordinates" >
               <Autocomplete
                 disablePortal
                 disableClearable
@@ -220,7 +242,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                 renderInput={(params) => <TextField {...params} label="Coordinates" />}
               />
             </Grid>
-            <Grid key={"setting-options"} >
+            <Grid id="setting-options" >
               <FormGroup>
                 <FormControlLabel
                     control={
@@ -247,6 +269,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
                     label="Automatically Select Next Image"
                 />
               </FormGroup>
+            </Grid>
+            <Grid id="setting-email-wrapper" sx={{width:'100%'}} >
+              <TextField id='setting-email' hiddenLabel value={email} variant='outlined' type='email' placeholder='email address'
+                          onChange={handleEmailChange} onBlur={handleEmailBlur} pattern=".+@beststartupever\.com"
+                          sx={{width:'100%', '&:invalid':{backgroundColor:'rgba(255,0,0.1)'}}} />
             </Grid>
           </Grid>
         </CardContent>

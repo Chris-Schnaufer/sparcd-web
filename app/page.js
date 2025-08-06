@@ -519,10 +519,10 @@ export default function Home() {
             curSettings['autonext'] = !curSettings['autonext'] ? true : 
                                                       typeof(curSettings['autonext']) === 'boolean' ? curSettings['autonext'] : 
                                                                               curSettings['autonext'].toLowerCase() === 'true';
-            curSettings['sandersonDirectory'] = !curSettings['sandersonDirectory'] ? true : 
+            curSettings['sandersonDirectory'] = !curSettings['sandersonDirectory'] ? false : 
                                                       typeof(curSettings['sandersonDirectory']) === 'boolean' ? curSettings['sandersonDirectory'] :
                                                                               curSettings['sandersonDirectory'].toLowerCase() === 'true';
-            curSettings['sandersonOutput'] = !curSettings['sandersonOutput'] ? true : 
+            curSettings['sandersonOutput'] = !curSettings['sandersonOutput'] ? false : 
                                                       typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
                                                                               curSettings['sandersonOutput'].toLowerCase() === 'true';
             setUserSettings({name:resp['name'], settings:curSettings, admin:resp['admin']});
@@ -754,6 +754,7 @@ export default function Home() {
     formData.append('sandersonOutput', newSettings.sandersonOutput);
     formData.append('timeFormat', newSettings.timeFormat);
     formData.append('coordinatesDisplay', newSettings.coordinatesDisplay);
+    formData.append('email', newSettings.email);
 
     try {
       const resp = fetch(setSettingsUrl, {

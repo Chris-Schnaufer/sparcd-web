@@ -212,19 +212,20 @@ class SPARCdDatabase:
 
         return ''
 
-    def update_user_settings(self, username: str, settings: str) ->None:
+    def update_user_settings(self, username: str, settings: str, email: str) ->None:
         """ Updates the user's settings in the database
         Arguments
             username: the name of the user to update
             settings: the new settings to set
+            email: the updated email address
         """
         if self._conn is None:
             raise RuntimeError('update_user_settings: Attempting to access database before '\
                                     'connecting')
 
-
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE users SET settings=(?) WHERE name=(?)', (settings,username))
+        cursor.execute('UPDATE users SET settings=(?), email=(?) WHERE name=(?)',
+                                                                        (settings,email,username))
         self._conn.commit()
         cursor.close()
 

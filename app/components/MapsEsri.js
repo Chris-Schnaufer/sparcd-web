@@ -44,7 +44,6 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
     let curCollection = layerCollection || [];
     if (!layerCollection) {
       let startIdx = 0;
-      console.log('HACK:GENERATELAYER',locationItems);
       while (startIdx * 100 < locationItems.length) {
         let features = locationItems.slice(startIdx * 100,(startIdx+1)*100).map((item, idx) => 
           new Graphic({

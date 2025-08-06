@@ -1387,8 +1387,9 @@ def login_token():
             # Update our session information
             session['key'] = token
             session['last_access'] = curtime
-            return json.dumps({'value':token, 'name':login_info['name'],
-                               'settings':login_info['settings'],
+            return json.dumps({'value':token, 
+                               'name':login_info['name'],
+                               'settings':login_info['settings']|{'email':login_info['email']},
                                'admin':login_info['admin']})
 
         # Delete the old token from the database
@@ -1432,6 +1433,15 @@ def login_token():
     session.permanent = True
     # TODO: https://flask-session.readthedocs.io/en/latest/security.html#session-fixation
     #base.ServerSideSession.session_interface.regenerate(session)
+
+    # Add in the email if we have user settings
+    if 'settings' in user_info and isinstance(user_info['settings'], str) and user_info['settings']:
+        try:
+            cur_settings = json.loads(user_info['settings'])
+            user_info['settings'] = json.dumps(cur_settings|{'email':user_info['email']})
+        except json.JSONDecodeError as ex:
+            print('Unable to add email to user settings:', user_info, flush=True)
+            print(ex)
 
     return json.dumps({'value':session['key'], 'name':user_info['name'],
                        'settings':user_info['settings'], 'admin':user_info['admin']})
@@ -1999,6 +2009,7 @@ def set_settings():
         'timeFormat': request.form.get('timeFormat', None),
         'coordinatesDisplay': request.form.get('coordinatesDisplay', None)
     }
+    new_email = request.form.get('email', None)
 
     # Check what we have from the requestor
     if not token:
@@ -2024,11 +2035,14 @@ def set_settings():
                                         not new_settings[one_key] == user_info['settings'][one_key]:
             user_info['settings'][one_key] = new_settings[one_key]
             modified = True
+    if not new_email == user_info['email']:
+        user_info['email'] = new_email
+        modified = True
 
     if modified:
-        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']))
+        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']), user_info['email'])
 
-    return json.dumps(user_info['settings'])
+    return json.dumps(user_info['settings']|{'email':user_info['email']})
 
 
 @app.route('/locationInfo', methods = ['POST'])
