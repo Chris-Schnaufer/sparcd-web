@@ -596,13 +596,15 @@ export default function Queries({loadingCollections}) {
    * @returns {object} The UI of the query results
    */
   function generateQueryResults(queryResults, maxHeight) {
+    const tabsOrder = userSettings.sandersonOutput ? queryResults.tabs.order : queryResults.tabs.order.filter((item) => !item.includes('DrSanderson'));
     return (
       <Grid container size="grow" alignItems="start" justifyContent="start">
         <Grid size={2}  sx={{backgroundColor:"#EAEAEA", height:maxHeight+'px'}}>
           <Tabs id='query-results-tabs' value={activeTab} onChange={handleTabChange} aria-label="Query results" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
-          { queryResults.tabs.order.map((item, idx) => 
-              <Tab label={
+          { tabsOrder.map((item, idx) => {
+              return (
+                <Tab label={
                           <Grid container direction="row" alignItems="center" justifyContent="center">
                             <Grid>
                               <Typography gutterBottom variant="body2">
@@ -618,13 +620,15 @@ export default function Queries({loadingCollections}) {
                             </Tooltip>
                           </Grid>
                          }
-                   key={item} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} />
-            )
+                   key={item} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+                />
+                )
+            })
           }
           </Tabs>
         </Grid>
         <Grid size={10} sx={{overflowX:'scroll',display:'flex'}}>
-          { queryResults.tabs.order.map((item, idx) => {
+          { tabsOrder.map((item, idx) => {
               return (
                 <TabPanel id={'query-result-panel-'+item} value={activeTab} index={idx} key={item+'-'+idx} 
                           style={{overflow:'scroll', width:'100%', position:'relative',margin:'0 16px auto 8px', height:(maxHeight-20)+'px'}}>
