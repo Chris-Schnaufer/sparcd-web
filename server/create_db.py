@@ -95,6 +95,12 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'filename TEXT NOT NULL, source_path TEXT, ' \
                             'uploaded BOOLEAN DEFAULT FALSE, mimetype TEXT DEFAULT NULL, ' \
                             'timestamp INTEGER)',
+             'CREATE TABLE sandbox_species(id INTEGER PRIMARY KEY ASC, ' \
+                            'sandbox_file_id INTEGER NOT NULL, obs_date TEXT, obs_common TEXT, ' \
+                            'obs_scientific TEXT, obs_count INTEGER)',
+             'CREATE TABLE sandbox_locations(id INTEGER PRIMARY KEY ASC, '\
+                            'sandbox_file_id INTEGER NOT NULL, loc_name TEXT, loc_id TEXT, ' \
+                            'loc_elevation REAL)'
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 

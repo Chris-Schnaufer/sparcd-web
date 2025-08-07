@@ -34,6 +34,7 @@ from flask import Flask, abort, render_template, request, Response, send_file, s
 from flask_cors import CORS, cross_origin
 from flask_session import Session
 
+import image_utils
 from text_formatters.results import Results
 from text_formatters.coordinate_utils import deg2utm, SOUTHERN_AZ_UTM_ZONE
 import query_helpers
@@ -93,7 +94,13 @@ DEFAULT_TEMPLATE_PAGE = 'index.html'
 
 # Some CAMTRAP definitions
 # TODO: Move camtrap definitions to their own file (from here and s3_access)
+CAMTRAP_MEDIA_ID_IDX = 0
 CAMTRAP_MEDIA_TYPE_IDX = 7
+CAMTRAP_OBSERVATION_MEDIA_ID_IDX = 3
+CAMTRAP_OBSERVATION_DATE_IDX = 4
+CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX = 8
+CAMTRAP_OBSERVATION_COUNT_IDX = 9
+CAMTRAP_OBSERVATION_COMMENT_IDX = 19
 
 # List of known query form variable keys
 KNOWN_QUERY_KEYS = ['collections','dayofweek','elevations','endDate','hour','locations',
@@ -1008,9 +1015,41 @@ def load_camtrap_media(url: str, user: str, token: str, db: SPARCdDatabase, buck
     loaded_media = load_camtrap_info(url, user, token, db, bucket, s3_path, MEDIA_CSV_FILE_NAME)
     if loaded_media:
         s3_path_len = len(s3_path) + 1 # We add one to remove the separator
-        return {one_row[0][s3_path_len:]: one_row for one_row in loaded_media}
+        return {one_row[CAMTRAP_MEDIA_ID_IDX][s3_path_len:]: one_row for one_row in loaded_media}
 
     return None
+
+def load_camtrap_observations(url: str, user: str, token: str, db: SPARCdDatabase, bucket: str, \
+                                                                    s3_path: str) -> Optional[dict]:
+    """ Returns the observations camtrap information with the file names as the keys (the filenames
+        are the portion of observations path after the S3 path)
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        token: the session token
+        db: the active database
+        bucket: the bucket downloaded from
+        s3_path: the S3 path of the CAMTRAP CSV file
+    Return:
+        A dict with file names as the keys and its rows as the value
+    Notes:
+        e.g.: assuming the S3 path is "/my/s3/path" and the media path is
+        "/my/s3/path/to/media.jpg", the key would be "to/media.jpg"
+    """
+    loaded_obs = load_camtrap_info(url, user, token, db, bucket, s3_path,
+                                                                        OBSERVATIONS_CSV_FILE_NAME)
+
+    return_obs = None
+    if loaded_obs:
+        return_obs = {}
+        s3_path_len = len(s3_path) + 1 # We add one to remove the separator
+        for one_row in loaded_obs:
+            filename = one_row[CAMTRAP_OBSERVATION_MEDIA_ID_IDX][s3_path_len:]
+            if filename not in return_obs:
+                return_obs[filename] = []
+            return_obs[filename].append(one_row)
+
+    return return_obs
 
 
 def load_camtrap_info(url: str, user: str, token: str, db: SPARCdDatabase, bucket: str, \
@@ -1387,7 +1426,7 @@ def login_token():
             # Update our session information
             session['key'] = token
             session['last_access'] = curtime
-            return json.dumps({'value':token, 
+            return json.dumps({'value':token,
                                'name':login_info['name'],
                                'settings':login_info['settings']|{'email':login_info['email']},
                                'admin':login_info['admin']})
@@ -2040,7 +2079,8 @@ def set_settings():
         modified = True
 
     if modified:
-        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']), user_info['email'])
+        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']),
+                                                                                user_info['email'])
 
     return json.dumps(user_info['settings']|{'email':user_info['email']})
 
@@ -2285,11 +2325,12 @@ def sandbox_file():
     s3_url = web_to_s3_url(user_info["url"])
 
     # Upload all the received files and update the database
+    temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+    os.close(temp_file[0])
     for one_file in request.files:
-        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
-        os.close(temp_file[0])
-
         request.files[one_file].save(temp_file[1])
+
+        cur_species, cur_location, cur_timestamp = image_utils.get_embedded_image_info(temp_file[1])
 
         # Upload the file to S3
         S3Connection.upload_file(s3_url, user_info["name"],
@@ -2298,10 +2339,14 @@ def sandbox_file():
                                         temp_file[1])
 
         # Update the database entry to show the file is uploaded
-        db.sandbox_file_uploaded(user_info['name'], upload_id, request.files[one_file].filename,
-                                    request.files[one_file].mimetype,)
+        file_id = db.sandbox_file_uploaded(user_info['name'], upload_id,
+                                request.files[one_file].filename, request.files[one_file].mimetype)
 
-        os.unlink(temp_file[1])
+        # Check if we need to store the species and locations
+        if (cur_species and cur_timestamp) or cur_location:
+            db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat())
+
+    os.unlink(temp_file[1])
 
     return json.dumps({'success': True})
 
@@ -2440,7 +2485,64 @@ def sandbox_completed():
                                      s3_bucket, '/'.join((s3_path, MEDIA_CSV_FILE_NAME)),
                                      (media_info[one_key] for one_key in media_info.keys()) )
 
+    # Update the OBSERVATIONS with species information
+    obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
+    file_species = db.get_file_species(user_info['name'], upload_id)
+    if file_species:
+        for one_species in file_species:
+            added = False
+            if one_species['filename'] in obs_info:
+                for one_row in obs_info[one_species['filename']]:
+                    # See if we have an open entry
+                    if not one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX]:
+                        one_row[CAMTRAP_OBSERVATION_DATE_IDX] = one_species['timestamp']
+                        one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] = one_species['scientific']
+                        one_row[CAMTRAP_OBSERVATION_COUNT_IDX] = str(one_species['count'])
+                        one_row[CAMTRAP_OBSERVATION_COMMENT_IDX] = \
+                                                            f'[COMMONNAME:{one_species["common"]}]'
+                        added = True
+                        break
+            else:
+                # Missing file entry
+                obs_info[one_species['filename']] = []
+
+            # Add a new entry if needed
+            if not added:
+                obs_info[one_species['filename']].append((
+                    '',                                                  # Observation ID
+                    s3_bucket[len(SPARCD_PREFIX):]+one_species['loc_id'],# Deployment ID
+                    '',                                                  # Sequence ID
+                    '/'.join((s3_path,one_species['filename'])),         # Media ID
+                    one_species['timestamp'],                            # Timestamp
+                    '',                                                  # Observation type
+                    'FALSE',                                             # Camera setup
+                    '',                                                  # Taxon ID
+                    one_species['scientific'],                           # Scientific name
+                    str(one_species['count']),                           # Count
+                    '0',                                                 # Count new
+                    '',                                                  # Life stage
+                    '',                                                  # Sex
+                    '',                                                  # Behavior
+                    '',                                                  # Individual ID
+                    '',                                                  # Classification method
+                    '',                                                  # Classified by
+                    '',                                                  # Classification timestamp
+                    '1.0000',                                            # Classification confidence
+                    f'[COMMONNAME:{one_species["common"]}]'              # Comment
+                    ))
+
+        # Upload the OBSERVATIONS csv file to the server
+        # Tuple of row tuples for each file. (((,,),(,,)),((,,),(,,)), ...) Each row is also a tuple
+        # We flatten further on the call so we're left with a single tuple containing all rows
+        row_groups = (obs_info[one_key] for one_key in obs_info)
+        S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+                                    do_decrypt(db.get_password(token)),
+                                     s3_bucket, '/'.join((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                     [one_row for one_set in row_groups for one_row in one_set] )
+
     # Mark the upload as completed
     db.sandbox_upload_complete(user_info['name'], upload_id)
+
+    # Ignore updating deployment with location
 
     return json.dumps({'success': True})

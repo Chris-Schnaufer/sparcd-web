@@ -80,8 +80,8 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
       <Box sx={{ flexGrow: 1, 'width': '100vw' }} >
         <Grid id='sparcd-header-items' container direction="column" spacing={0} sx={{flexGrow:1}}>
           <Grid id='sparcd-header-image-wrapper' container direction="row" spacing={3} sx={{flexGrow:1}}>
-            <Grid id='sparcd-header-image-link' size="grow" container direction="row" onClick={() => window.location.href="/"} sx={{cursor:'pointer'}}>
-                <div
+            <Grid id='sparcd-header-image-link' size="grow" container direction="row" sx={{cursor:'pointer'}}>
+                <div onClick={() => window.location.href="/"}
                   aria-description="Scientific Photo Analysis for Research & Conservation database"
                   className={styles.titlebar_title}>SPARC&apos;d
                 </div>

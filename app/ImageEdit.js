@@ -291,7 +291,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
             <Grid size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
                   visibility:(curSpecies ? 'visible' : 'hidden')}}>
               {curSpecies.map((curItem) =>
-                <ImageEditSpecies key={name+curItem.name} name={curItem.name} count={curItem.count} onDelete={handleSpeciesDelete}
+                <ImageEditSpecies key={name+curItem.name} name={curItem.name?curItem.name:curItem.scientificName} count={curItem.count} onDelete={handleSpeciesDelete}
                                   onChange={handleInputChange} onBlur={handleBlur} />
               )}
             </Grid>

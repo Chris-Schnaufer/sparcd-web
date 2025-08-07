@@ -757,24 +757,77 @@ class SPARCdDatabase:
         cursor.close()
 
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
-                                                                            mimetype: str) -> None:
+                                                                    mimetype: str) -> Optional[str]:
         """ Marks the file as upload as uploaded
         Arguments:
             username: the name of the person starting the upload
             upload_id: the ID of the upload
             filename: the name of the uploaded file to mark as uploaded
             mimetype: the mimetype of the file uploaded
+        Return:
+            Returns the ID of the updated file
         """
         if self._conn is None:
             raise RuntimeError('Attempting to mark file as uploaded in the database ' \
                                                                                 'before connecting')
 
-        # Get the date
+        # Get the file's ID
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=(?) WHERE '\
+        cursor.execute('SELECT id FROM sandbox_files WHERE '\
                             'sandbox_files.filename=(?) AND sandbox_id in ' \
-                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?))',
-                                                        (mimetype,filename, username, upload_id))
+                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?)) LIMIT 1',
+                                                        (filename, username, upload_id))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return None
+
+        sandbox_file_id = res[0][0]
+
+        # Update the file's mimetype
+        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=(?) WHERE '\
+                            'sandbox_files.filename=(?) AND id=(?)',
+                                                        (mimetype,filename, sandbox_file_id))
+
+        self._conn.commit()
+        cursor.close()
+
+        return sandbox_file_id
+
+    def sandbox_add_file_info(self, file_id: str, species: tuple, location: dict, \
+                                                                        timestamp: str) -> None:
+        """ Marks the file as upload as uploaded
+        Arguments:
+            file_id: the ID of the uploaded file add species and location to
+            species: a tuple containing tuples of species common and scientific names, and counts
+            location: a dict containing name, id, and elevation information
+            timestamp: the timestamp associated with the entries
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add species and location to an upload file in the ' \
+                                                                    'database before connecting')
+
+        if not species or species is None or not location or location is None:
+            print('INFO: No species or location specified for updating uploaded file ',
+                        f'{file_id}', flush=True)
+            return
+
+        cursor = self._conn.cursor()
+        if species:
+            cursor.executemany('INSERT INTO ' \
+                                    'sandbox_species(sandbox_file_id, obs_date, obs_common,' \
+                                                                    'obs_scientific, obs_count) ' \
+                                    'VALUES ((?),(?),(?),(?),(?))',
+                    ((file_id,timestamp,one_species['common'],one_species['scientific'], \
+                                    int(one_species['count'])) \
+                            for one_species in species) )
+
+        if location:
+            cursor.execute('INSERT INTO sandbox_locations(sandbox_file_id, loc_name, loc_id, ' \
+                                                                                'loc_elevation) ' \
+                                    'VALUES ((?),(?),(?),(?))', 
+                        (file_id, location['name'], location['id'], \
+                                                                float(location['elevation'])) )
 
         self._conn.commit()
         cursor.close()
@@ -805,3 +858,44 @@ class SPARCdDatabase:
         cursor.close()
 
         return ((one_row[0], one_row[1]) for one_row in res)
+
+
+    def get_file_species(self, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the file species information for an upload
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a tuple containing a dict for each species entry of the upload. Each dict
+            has the filename, timestamp, scientific name, count, common name, and location id
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get upload mimetypes from the database '\
+                                                                                'before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        query = \
+            'WITH loc AS (SELECT id, location_id as loc_id ' \
+                                                'FROM sandbox WHERE name=(?) AND upload_id=(?)),' \
+                    'files AS (SELECT loc.loc_id AS loc_id,sf.id AS id, sf.filename ' \
+                                        'FROM sandbox_files sf,loc WHERE sf.sandbox_id=loc.id) ' \
+                'SELECT files.loc_id, files.filename, ssp.obs_date, ssp.obs_common, ' \
+                                                            'ssp.obs_scientific, ssp.obs_count ' \
+                            'FROM sandbox_species ssp, files WHERE ssp.sandbox_file_id=files.id'
+
+        cursor.execute(query, (username, upload_id))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return ()
+
+        cursor.close()
+
+        return ({'loc_id': one_row[0],
+                 'filename': one_row[1],
+                 'timestamp': one_row[2],
+                 'common': one_row[3],
+                 'scientific': one_row[4],
+                 'count': one_row[5]
+                 } for one_row in res)
