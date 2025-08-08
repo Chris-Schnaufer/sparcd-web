@@ -7,7 +7,7 @@ import datetime
 import hashlib
 import io
 import json
-from multiprocessing import connection, Lock, Semaphore, synchronize
+from multiprocessing import Lock, synchronize
 import os
 import re
 import shutil
@@ -17,7 +17,7 @@ import threading
 import time
 import traceback
 from typing import Optional
-from urllib.parse import urlparse, quote as urlquote
+from urllib.parse import urlparse
 import uuid
 import zipfile
 from cachelib.file import FileSystemCache
@@ -29,10 +29,10 @@ import requests
 from cryptography.fernet import Fernet
 from minio import Minio
 from minio.error import MinioException
-from flask import Flask, abort, render_template, request, Response, send_file, send_from_directory,\
-                  session, url_for
-from flask_cors import CORS, cross_origin
-from flask_session import Session
+from flask import Flask, render_template, request, Response, send_file, send_from_directory,\
+                  url_for  #session,
+from flask_cors import cross_origin
+#from flask_session import Session
 
 import image_utils
 from text_formatters.results import Results
@@ -57,7 +57,7 @@ ENV_NAME_DB = 'SPARCD_DB'
 # Environment variable name for passcode
 ENV_NAME_PASSCODE = 'SPARCD_CODE'
 # Environment variable name for session storage folder
-ENV_NAME_SESSION_PATH = 'SPARCD_SESSION_FOLDER'
+#ENV_NAME_SESSION_PATH = 'SPARCD_SESSION_FOLDER'
 # Environment variable name for session expiration timeout
 ENV_NAME_SESSION_EXPIRE = 'SPARCD_SESSION_TIMEOUT'
 # Default timeout in seconds
@@ -65,7 +65,7 @@ SESSION_EXPIRE_DEFAULT_SEC = 10 * 60 * 60
 # Working database storage path
 DEFAULT_DB_PATH = os.environ.get(ENV_NAME_DB,  None)
 # Working session storage path
-DEFAULT_SESSION_PATH = os.environ.get(ENV_NAME_SESSION_PATH, tempfile.gettempdir())
+#DEFAULT_SESSION_PATH = os.environ.get(ENV_NAME_SESSION_PATH, tempfile.gettempdir())
 # Default timeout when requesting an image
 DEFAULT_IMAGE_FETCH_TIMEOUT_SEC = 10.0
 # Working passcode
@@ -125,11 +125,11 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=600,
 )
-SESSION_TYPE = 'filesystem'
-SESSION_SERIALIZATION_FORMAT = 'json'
-SESSION_CACHELIB = FileSystemCache(threshold=500, cache_dir=DEFAULT_SESSION_PATH)
+#SESSION_TYPE = 'filesystem'
+#SESSION_SERIALIZATION_FORMAT = 'json'
+#SESSION_CACHELIB = FileSystemCache(threshold=500, cache_dir=DEFAULT_SESSION_PATH)
 app.config.from_object(__name__)
-Session(app)
+#Session(app)
 
 # Intialize the database connection
 DB = SPARCdDatabase(DEFAULT_DB_PATH)
@@ -210,9 +210,12 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
+    print('HACK:LOGININFO:',login_info,flush=True)
     if login_info and 'settings' in login_info:
         login_info['settings'] = json.loads(login_info['settings'])
-    print('USER INFO',login_info,flush=True)
+    if login_info and 'species' in login_info:
+        login_info['species'] = json.loads(login_info['species'])
+    print('USER INFO',login_info['name'], flush=True)
     if login_info is not None:
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
@@ -1424,8 +1427,8 @@ def login_token():
             curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
             # Everything checks out
             # Update our session information
-            session['key'] = token
-            session['last_access'] = curtime
+#            session['key'] = token
+#            session['last_access'] = curtime
             return json.dumps({'value':token,
                                'name':login_info['name'],
                                'settings':login_info['settings']|{'email':login_info['email']},
@@ -1459,17 +1462,20 @@ def login_token():
     new_key = uuid.uuid4().hex
     db.reconnect()
     # TODO Move the encryption to S3 instance & pass in the encryption key
-    db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip, \
+    db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip,
                     user_agent=user_agent_hash, s3_url=s3_url)
     user_info = db.get_user(user)
     if not user_info:
-        user_info = db.auto_add_user(user)
+        # Get the species
+        cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+                                                                                    user, password)
+        user_info = db.auto_add_user(user, species=cur_species)
 
     # We have a new login, save everything
-    session.clear()
-    session['last_access'] = curtime
-    session['key'] = new_key
-    session.permanent = True
+#    session.clear()
+#    session['last_access'] = curtime
+#    session['key'] = new_key
+#    session.permanent = True
     # TODO: https://flask-session.readthedocs.io/en/latest/security.html#session-fixation
     #base.ServerSideSession.session_interface.regenerate(session)
 
@@ -1482,7 +1488,7 @@ def login_token():
             print('Unable to add email to user settings:', user_info, flush=True)
             print(ex)
 
-    return json.dumps({'value':session['key'], 'name':user_info['name'],
+    return json.dumps({'value':new_key, 'name':user_info['name'],
                        'settings':user_info['settings'], 'admin':user_info['admin']})
 
 
@@ -1533,9 +1539,9 @@ def collections():
         return_colls.append(normalize_collection(one_coll))
 
     # Everything checks out
-    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
+#    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
     # Update our session information
-    session['last_access'] = curtime
+#    session['last_access'] = curtime
 
     # Save the collections temporarily
     save_timed_temp_colls(return_colls)
@@ -1659,10 +1665,47 @@ def species():
 
     # Get the species to return
     s3_url = web_to_s3_url(user_info["url"])
+    user_species = user_info['species']
+
+    # Get the current species to see if we need to update the user's species
     cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
+
+    # TODO: Timestamp the downloaded species and the user-specific species and only update as needed
+    keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
+    keyed_user = {one_species['scientificName']:one_species for one_species in user_species}
+
+    # Check the easy path first
+    updated = False
+    if not user_species:
+        user_species = cur_species
+    else:
+        # Try to find meaningfull differences
+        all_keys = tuple(set(keyed_species.keys())|set(keyed_user.keys()))
+        for one_key in all_keys:
+            # First check for changes to existing species, else check for and add new species
+            if one_key in keyed_species and one_key in keyed_user:
+                if not keyed_species[one_key]['name'] == keyed_user[one_key]['name']:
+                    keyed_user[one_key]['name'] = keyed_species[one_key]['name']
+                    updated = True
+                if not keyed_species[one_key]['speciesIconURL'] == \
+                                                            keyed_user[one_key]['speciesIconURL']:
+                    keyed_user[one_key]['speciesIconURL'] = keyed_species[one_key]['speciesIconURL']
+                    updated = True
+            elif one_key in keyed_species:
+                # New species for this user (not in both sets of species but in downloaed species)
+                keyed_user[one_key] = keyed_species[one_key]
+                updated = True
+
+    # Save changes if any were made
+    if updated is True:
+        user_species = [keyed_user[one_key] for one_key in keyed_user]
+        species_json = json.dumps(user_species)
+        db.save_user_species(user_info['name'], species_json)
+        return species_json
+
     # Return the collections
-    return json.dumps(cur_species)
+    return json.dumps(user_species)
 
 
 @app.route('/upload', methods = ['GET'])
@@ -1723,9 +1766,9 @@ def upload():
         save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
 
     # Everything checks out
-    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
+#    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
     # Update our session information
-    session['last_access'] = curtime
+#    session['last_access'] = curtime
 
     # Prepare the return data
     for one_img in all_images:
@@ -1733,8 +1776,10 @@ def upload():
                                     i=do_encrypt(json.dumps({ 'k':one_img["key"],
                                                               'p':save_path
                                                              })))
+        one_img['s3_path'] = do_encrypt(one_img['s3_path'])
+        one_img['upload'] = collection_upload
+
         del one_img['bucket']
-        del one_img['s3_path']
         del one_img['s3_url']
         del one_img['key']
 
@@ -2116,7 +2161,7 @@ def location_info():
         return "Not Found", 406
 
     # Check what we have from the requestor
-    if not token or not loc_id or not loc_name or not loc_lat or not loc_lon or not loc_ele:
+    if not all(item for item in [token, loc_id, loc_name, loc_lat, loc_lon, loc_ele]):
         return "Not Found", 406
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -2212,8 +2257,8 @@ def sandbox_new():
     timezone = request.form.get('tz', None)
 
     # Check what we have from the requestor
-    if not token or not location_id or not collection_id or not comment or not rel_path or \
-            not all_files or not timestamp or not timezone:
+    if not all(item for item in [token, location_id, collection_id, comment, rel_path, all_files, \
+                                                                            timestamp, timezone]):
         return "Not Found", 406
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -2358,7 +2403,7 @@ def sandbox_counts():
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the success of storing the uploaded image
+        Returns the counts of how many sandbox images are marked as uploaded
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -2392,11 +2437,11 @@ def sandbox_counts():
 @app.route('/sandboxReset', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def sandbox_reset():
-    """ Handles the upload for a new image
+    """ Resets the sandbox to start an upload from the beginning
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the success of storing the uploaded image
+        Returns the new upload ID
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -2439,11 +2484,11 @@ def sandbox_reset():
 @app.route('/sandboxCompleted', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def sandbox_completed():
-    """ Handles the upload for a new image
+    """ Marks a sandbox as completely uploaded
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the success of storing the uploaded image
+        Returns success if everything works out
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -2544,5 +2589,162 @@ def sandbox_completed():
     db.sandbox_upload_complete(user_info['name'], upload_id)
 
     # Ignore updating deployment with location
+
+    return json.dumps({'success': True})
+
+
+@app.route('/collectionLocation', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def image_location():
+    """ Handles the location for images changing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns success unless there's an issue
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('IMAGE LOCATION', flush=True)
+
+    timestamp = request.form.get('timestamp', None)
+    coll_id = request.form.get('collection', None)
+    upload_id = request.form.get('upload', None)
+    loc_id = request.form.get('locid', None)
+
+    # Check what we have from the requestor
+    if not token or not coll_id or not upload_id or not loc_id or not timestamp:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    bucket = SPARCD_PREFIX + coll_id
+    upload_path = f'Collections/{coll_id}/Uploads/{upload_id}'
+
+    db.add_collection_edit(bucket, upload_path, user_info['name'], timestamp, loc_id)
+
+    return json.dumps({'success': True})
+
+
+@app.route('/imageSpecies', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def image_species():
+    """ Handles the species and counts for an image changing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns success unless there's an issue
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('IMAGE SPECIES', flush=True)
+
+    timestamp = request.form.get('timestamp', None)
+    coll_id = request.form.get('collection', None)
+    upload_id = request.form.get('upload', None)
+    path = request.form.get('path', None) # Image path on S3 under bucket
+    scientific_name = request.form.get('species', None) # Scientific name
+    count = request.form.get('count', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [token, timestamp, coll_id, upload_id, path, scientific_name, \
+                                                                                            count]):
+        return "Not Found", 406
+
+    path = do_decrypt(path)
+    if upload_id not in path or coll_id not in path:
+        return "Not Found", 404
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    bucket = SPARCD_PREFIX + coll_id
+
+    db.add_image_species_edit(bucket, path, user_info['name'], timestamp, scientific_name, count)
+
+    return json.dumps({'success': True})
+
+
+@app.route('/speciesKeybind', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def species_keybind():
+    """ Handles the adding/changing a species keybind
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns success unless an issue is found
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('IMAGE SPECIES', flush=True)
+
+    common = request.form.get('common', None) # Species name
+    scientific = request.form.get('scientific', None) # Species scientific name
+    new_key = request.form.get('key', None)
+
+    print('HACK:SPECIESKEYBIND:',scientific,new_key,flush=True)
+
+    # Check what we have from the requestor
+    if not token or not common or not scientific or not new_key:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the species
+    if 'species' in user_info and user_info['species']:
+        cur_species = user_info['species']
+    else:
+        s3_url = web_to_s3_url(user_info["url"])
+        cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+
+    # Update the species
+    found = False
+    for one_species in cur_species:
+        if one_species['scientificName'] == scientific:
+            one_species['keyBinding'] = new_key[0]
+            found = True
+            break
+
+    # Add entry if it's not in the species
+    if not found:
+        cur_species.append({'name':common, 'scientificName':scientific, 'keyBinding':new_key[0], \
+                                            "speciesIconURL": "https://i.imgur.com/4qz5mI0.png"})
+
+    db.save_user_species(user_info['name'], json.dumps(cur_species))
 
     return json.dumps({'success': True})

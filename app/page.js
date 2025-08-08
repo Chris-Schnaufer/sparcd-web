@@ -656,9 +656,9 @@ export default function Home() {
             if (curUpload) {
               // Add our token in
               const curImages = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
-              console.log('HACK:CURIMAGES:',respData);
+              console.log('HACK:CURIMAGES:',respData, curUpload);
               setCurrentAction(UserActions.UploadEdit, 
-                               {collectionId, name:curUpload.name, location:curUpload.location, images:curImages},
+                               {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
                                true,
                                breadcrumbName);
             } else {

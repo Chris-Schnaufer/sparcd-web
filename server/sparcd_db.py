@@ -127,17 +127,17 @@ class SPARCdDatabase:
         cursor.execute('WITH ti AS (SELECT token, name, timestamp, client_ip, user_agent,' \
                           '(strftime("%s", "now")-timestamp) AS elapsed_sec, s3_url FROM TOKENS ' \
                           'WHERE token=(?)) '\
-                       'SELECT u.name, u.email, u.settings, u.administrator, ti.s3_url, ' \
-                          'ti.timestamp, ti.elapsed_sec, ti.client_ip, ti.user_agent ' \
+                       'SELECT u.name, u.email, u.settings, u.species, u.administrator, ' \
+                          'ti.s3_url, ti.timestamp, ti.elapsed_sec, ti.client_ip, ti.user_agent ' \
                           'FROM users u JOIN ti ON u.name = ti.name',
                     (token,))
         res = cursor.fetchone()
         cursor.close()
 
         if res and len(res) >= 8:
-            return {'name':res[0], 'email':res[1], 'settings':res[2], 'admin':res[3], \
-                    'url':res[4], 'timestamp':res[5], 'elapsed_sec':res[6], \
-                    'client_ip':res[7], 'user_agent':res[8]}
+            return {'name':res[0], 'email':res[1], 'settings':res[2], 'species':res[3], \
+                    'admin':res[4], 'url':res[5], 'timestamp':res[6], 'elapsed_sec':res[7], \
+                    'client_ip':res[8], 'user_agent':res[9]}
 
         return None
 
@@ -152,21 +152,24 @@ class SPARCdDatabase:
             raise RuntimeError('get_user: attempting to access database before connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('SELECT name, email, settings, administrator FROM users WHERE name=(?)',
-                                                                                        (username,))
+        cursor.execute('SELECT name, email, settings, species, administrator FROM users ' \
+                                'WHERE name=(?)', (username,))
         res = cursor.fetchone()
         cursor.close()
 
         if res and len(res) >= 4:
-            return {'name': res[0], 'email':res[1], 'settings':res[2], 'admin':res[3]}
+            return {'name': res[0], 'email':res[1], 'settings':res[2], 'species':res[3], \
+                    'admin':res[4]}
 
         return None
 
-    def auto_add_user(self, username: str, email: str=None) -> Optional[dict]:
+    def auto_add_user(self, username: str, species: str, email: str=None) -> Optional[dict]:
         """ Add a user that doesn't exist. The user received default permissions as defined
             in the DB
         Arguments:
             username: the name of the user to add
+            species: the species information for the user
+            email: the user's email
         Returns:
             A dict containing the user's name, email, settings, and admin level
         Note:
@@ -179,7 +182,8 @@ class SPARCdDatabase:
 
         cursor = self._conn.cursor()
         try:
-            cursor.execute('INSERT INTO users(name, email) VALUES(?,?)', (username,email))
+            cursor.execute('INSERT INTO users(name, email, species) VALUES(?,?,?)',
+                                                                        (username,email,species))
             self._conn.commit()
         except sqlite3.IntegrityError as ex:
             # TODO: Track this exception here to prevent something?
@@ -817,7 +821,7 @@ class SPARCdDatabase:
             cursor.executemany('INSERT INTO ' \
                                     'sandbox_species(sandbox_file_id, obs_date, obs_common,' \
                                                                     'obs_scientific, obs_count) ' \
-                                    'VALUES ((?),(?),(?),(?),(?))',
+                                    'VALUES (?,?,?,?,?)',
                     ((file_id,timestamp,one_species['common'],one_species['scientific'], \
                                     int(one_species['count'])) \
                             for one_species in species) )
@@ -825,7 +829,7 @@ class SPARCdDatabase:
         if location:
             cursor.execute('INSERT INTO sandbox_locations(sandbox_file_id, loc_name, loc_id, ' \
                                                                                 'loc_elevation) ' \
-                                    'VALUES ((?),(?),(?),(?))', 
+                                    'VALUES (?,?,?,?)', 
                         (file_id, location['name'], location['id'], \
                                                                 float(location['elevation'])) )
 
@@ -899,3 +903,69 @@ class SPARCdDatabase:
                  'scientific': one_row[4],
                  'count': one_row[5]
                  } for one_row in res)
+
+    def add_collection_edit(self, bucket: str, upload_path: str, username: str, timestamp: str, \
+                                                                            loc_id: str) -> None:
+        """ Stores the edit for a collection
+        Arguments:
+            bucket: the S3 bucket the collection is in
+            upload_path: the path to the uploads folder under the bucket
+            username: the name of the user making the change
+            timestamp: the timestamp of the change
+            loc_id: the new location ID
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to save collection changes to the database '\
+                                                                                'before connecting')
+
+        # Add the entry to the database
+        cursor = self._conn.cursor()
+        cursor.execute('INSERT INTO collection_edits(bucket, s3_base_path, username, ' \
+                                                                        'edit_timestamp, loc_id) '\
+                                    'VALUES(?,?,?,?,?)', 
+                            (bucket, upload_path, username, timestamp, loc_id))
+
+        self._conn.commit()
+        cursor.close()
+
+    def add_image_species_edit(self, bucket: str, file_path: str, username: str, timestamp: str, \
+                                                                species: str, count: str) -> None:
+        """ Adds a species entry for a file to the database
+        Arguments:
+            bucket: the S3 bucket the file is in
+            file_path: the path to the file the change applies to
+            username: the name of the user making the change
+            timestamp: the timestamp of the change
+            species: the scientific name of the species
+            count: the number of individuals of the species
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to save file species changes to the database '\
+                                                                                'before connecting')
+
+        # Add the entry to the database
+        cursor = self._conn.cursor()
+        cursor.execute('INSERT INTO image_edits(bucket, s3_file_path, username, edit_timestamp, ' \
+                                                                    'obs_scientific, obs_count) '\
+                                    'VALUES(?,?,?,?,?,?)', 
+                            (bucket, file_path, username, timestamp, species, count))
+
+        self._conn.commit()
+        cursor.close()
+
+    def save_user_species(self, username: str, species: str) -> None:
+        """ Saves the species entry for the user
+        Arguments:
+            username: the name of the user to update
+            species: the species information to save
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to update a user file species to the database '\
+                                                                                'before connecting')
+
+        # Add the entry to the database
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE users SET species=? WHERE name=?', (species,username))
+
+        self._conn.commit()
+        cursor.close()

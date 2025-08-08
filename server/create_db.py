@@ -75,7 +75,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
     # Loop through and create all the database objects
     stmts = ('CREATE TABLE users(id INTEGER PRIMARY KEY ASC, name TEXT UNIQUE NOT NULL, ' \
                             'email TEXT DEFAULT NULL, settings TEXT DEFAULT "{}", ' \
-                            'administrator INT DEFAULT 0, auto_added INT DEFAULT 1)',
+                            'species TEXT default "{}", administrator INT DEFAULT 0, ' \
+                            'auto_added INT DEFAULT 1)',
              'CREATE TABLE tokens(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'password TEXT NOT NULL, s3_url TEXT NOT NULL, token TEXT UNIQUE, ' \
                             'timestamp INTEGER, client_ip TEXT, user_agent TEXT)',
@@ -100,7 +101,14 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'obs_scientific TEXT, obs_count INTEGER)',
              'CREATE TABLE sandbox_locations(id INTEGER PRIMARY KEY ASC, '\
                             'sandbox_file_id INTEGER NOT NULL, loc_name TEXT, loc_id TEXT, ' \
-                            'loc_elevation REAL)'
+                            'loc_elevation REAL)',
+             'CREATE TABLE image_edits(id INTEGER PRIMARY KEY ASC, bucket TEXT NOT NULL, ' \
+                            's3_file_path TEXT NOT NULL, username TEXT NOT NULL, ' \
+                            'edit_timestamp TEXT NOT NULL, obs_scientific TEXT NOT NULL, ' \
+                            'obs_count INTEGER DEFAULT 0)',
+             'CREATE TABLE collection_edits(id INTEGER PRIMARY KEY ASC, bucket TEXT NOT NULL, ' \
+                            's3_base_path TEXT NOT NULL, username TEXT NOT NULL, ' \
+                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL)'
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 

@@ -67,7 +67,7 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
 
   // Return the UI
   return (
-    <Card>
+    <Card sx={{backgroundColor:'rgb(255,255,255,0.8)'}}>
       <CardContent>
         <Typography gutterBottom sx={{ color: 'text.primary', fontSize: 14, textAlign: 'center' }} >
           Setting new keybinding for &nbsp;
@@ -84,7 +84,8 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
       </CardContent>
       <CardActions>
         <Button sx={{flex:'1'}} onClick={() => {setCurKeybind(null);onChange(null);}}>Clear</Button>
-        <Button sx={{flex:'1'}} onClick={() => {onChange(curKeybind);onClose();}}>Done</Button>
+        <Button sx={{flex:'1'}} onClick={() => {onChange(curKeybind);onClose();}}>Update</Button>
+        <Button sx={{flex:'1'}} onClick={onClose}>Cancel</Button>
     </CardActions>
     </Card>
   );

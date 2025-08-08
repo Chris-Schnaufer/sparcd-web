@@ -11,9 +11,11 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
-import { LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, UploadEditContext } from './serverInfo';
+import { AddMessageContext, LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, 
+          UploadEditContext } from './serverInfo';
 import ImageEdit from './ImageEdit';
 import ImageTile from './components/ImageTile';
+import { Level } from './components/Messages';
 import LocationSelection from './LocationSelection';
 import SpeciesKeybind from './components/SpeciesKeybind';
 import SpeciesSidebar from './components/SpeciesSidebar';
@@ -30,14 +32,15 @@ import * as utils from './utils';
  */
 export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const theme = useTheme();
-  const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
   const sidebarSpeciesRef = React.useRef(null);  // Used for sizeing
   const sidebarTopRef = React.useRef(null);   // Used for sizeing
+  const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
+  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const curUpload = React.useContext(UploadEditContext);
-  const speciesItems = React.useContext(SpeciesInfoContext);
+  const editToken = React.useContext(TokenContext);  // Login token
   const locationItems = React.useContext(LocationsInfoContext);
   const narrowWindow = React.useContext(NarrowWindowContext);
-  const editToken = React.useContext(TokenContext);  // Login token
+  const speciesItems = React.useContext(SpeciesInfoContext);
   const uiSizes = React.useContext(SizeContext);
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
@@ -213,16 +216,46 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    */
   const onLocationContinue = React.useCallback((event) => {
     const locEl = document.getElementById('upload-edit-location');
-    const uploadLocationUrl = serverURL + '/uploadLocation';
-    // TODO: save new location on server
-    /* TODO: make call and wait for response & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(uploadLocationUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
+    if (!locEl) {
+      console.log('ERROR: Unable to find edited location ID for updating');
+      return;
+    }
+
+    // Check for a change so we don't make unneeded edits
+    if (locEl.value !== curUpload.location) {
+
+      const updateLocationUrl = serverURL + '/collectionLocation?t=' + encodeURIComponent(editToken);
+      const formData = new FormData();
+
+      formData.append('timestamp', new Date().toISOString());
+      formData.append('collection', curUpload.collectionId);
+      formData.append('upload', curUpload.upload);
+      formData.append('locid', locEl.value);
+
+      try {
+        const resp = fetch(updateLocationUrl, {
+          method: 'POST',
+          body: formData
+        }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+              }
+            })
+          .then((respData) => {
+              // Nothing to do            
+          })
+          .catch(function(err) {
+            console.log('Update Location Error: ',err);
+            addMessage(Level.Error, 'A problem ocurred while updating the collection location');
+        });
+      } catch (error) {
+        console.log('Update Location Unknown Error: ',err);
+        addMessage(Level.Error, 'An unkown problem ocurred while updating the collection location');
+      }
+    }
+
     curUpload.location = locEl.value;
     setCurEditState(editingStates.listImages);
     setEditingLocation(false);
@@ -312,19 +345,41 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    */
   function keybindChange(speciesName, newKey) {
     const newKeySpeciesIdx = speciesItems.findIndex((item) => item.name === speciesName);
-    if (newKeySpeciesIdx > -1) {
-      const keybindUrl = serverURL + '/keybind';
-      // TODO: save new keybind on server
-      /* TODO: make call and wait for response & return correct result
-               need to handle null, 'invalid', and token values
-      const resp = await fetch(keybindUrl, {
-        'method': 'POST',
-        'data': formData
-      });
-      console.log(resp);
-      */
-      speciesItems[newKeySpeciesIdx].keyBinding = newKey;
+    if (newKeySpeciesIdx <= -1) {
+      return;
     }
+
+    const keybindUrl = serverURL + '/speciesKeybind?t=' + encodeURIComponent(editToken);
+    const formData = new FormData();
+
+    formData.append('common', speciesItems[newKeySpeciesIdx].name);
+    formData.append('scientific', speciesItems[newKeySpeciesIdx].scientificName);
+    formData.append('key', newKey);
+
+    try {
+      const resp = fetch(keybindUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Nothing to do            
+        })
+        .catch(function(err) {
+          console.log('Update Location Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while updating the keybinding');
+      });
+    } catch (error) {
+      console.log('Update Location Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while updating the keybinding');
+    }
+
+    speciesItems[newKeySpeciesIdx].keyBinding = newKey;
   }
 
   /**
@@ -389,16 +444,44 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     }
     curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
 
-    const speciesUrl = serverURL + '/updateSpecies';
-    // TODO: save new species count on server
-    /* TODO: make call and wait for response & return correct result
-             need to handle null, 'invalid', and token values
-    const resp = await fetch(speciesUrl, {
-      'method': 'POST',
-      'data': formData
-    });
-    console.log(resp);
-    */
+    const curKeySpeciesIdx = speciesItems.findIndex((item) => item.scientificName === curUpload.images[curImageIdx].species[curSpeciesIdx].scientificName);
+    if (curKeySpeciesIdx <= -1) {
+      console.log('Warning: Unable to find species',speciesName,'in list of species for updating image',imageName);
+      return;
+    }
+
+    const speciesUrl = serverURL + '/imageSpecies?t=' + encodeURIComponent(editToken);
+    const formData = new FormData();
+
+    formData.append('timestamp', new Date().toISOString());
+    formData.append('collection', curUpload.collectionId);
+    formData.append('upload', curUpload.upload);
+    formData.append('path', curUpload.images[curImageIdx].s3_path);
+    formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
+    formData.append('count', speciesCount);
+
+    try {
+      const resp = fetch(speciesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Nothing to do
+        })
+        .catch(function(err) {
+          console.log('Update Species Count Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while updating the image species');
+      });
+    } catch (err) {
+      console.log('Update Species Count Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
+    }
   }
 
   /**
@@ -665,14 +748,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
                        'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', backgroundColor:'rgb(0,0,0,0.7)' }}>
-              <Grid size={{ xs: 12, sm: 12, md:12 }}>
-                <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
-                                name={speciesKeybindName}
-                                parentId='image-edit-species-image'
-                                onClose={() => setSpeciesKeybindName(null)}
-                                onChange={(newKey) => keybindChange(speciesKeybindName, newKey)}
-                />
-            </Grid>
+              <SpeciesKeybind keybind={speciesItems.find((item)=>item.name===speciesKeybindName).keyBinding}
+                              name={speciesKeybindName}
+                              parentId='image-edit-species-image'
+                              onClose={() => setSpeciesKeybindName(null)}
+                              onChange={(newKey) => keybindChange(speciesKeybindName, newKey)}
+              />
           </Grid>
         : null
       }

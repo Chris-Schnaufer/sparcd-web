@@ -183,13 +183,20 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
    */
   function handleInputChange(event, speciesName) {
     const newValue = event.target.value === '' ? 0 : Number(event.target.value);
-    onSpeciesChange(speciesName, newValue);
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
     if (speciesIdx == -1) {
       console.log('Error: unable to find species for updating count', speciesName);
       return;
     }
+
+    // Do nothing if the value hasn't changed
+    if (workingSpecies[speciesIdx].count == newValue) {
+      return;
+    }
+
+    // Make the change
+    onSpeciesChange(speciesName, newValue);
     workingSpecies[speciesIdx].count = newValue;
     curSpecies = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
