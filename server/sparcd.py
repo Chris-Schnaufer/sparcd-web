@@ -20,7 +20,6 @@ from typing import Optional
 from urllib.parse import urlparse
 import uuid
 import zipfile
-from cachelib.file import FileSystemCache
 import dateutil.parser
 import dateutil.tz
 from PIL import Image
@@ -30,9 +29,8 @@ from cryptography.fernet import Fernet
 from minio import Minio
 from minio.error import MinioException
 from flask import Flask, render_template, request, Response, send_file, send_from_directory,\
-                  url_for  #session,
+                  url_for
 from flask_cors import cross_origin
-#from flask_session import Session
 
 import image_utils
 from text_formatters.results import Results
@@ -56,16 +54,12 @@ ALLOWED_IMAGE_EXTENSIONS=['.png','.jpg','.jpeg','.ico','.gif']
 ENV_NAME_DB = 'SPARCD_DB'
 # Environment variable name for passcode
 ENV_NAME_PASSCODE = 'SPARCD_CODE'
-# Environment variable name for session storage folder
-#ENV_NAME_SESSION_PATH = 'SPARCD_SESSION_FOLDER'
 # Environment variable name for session expiration timeout
 ENV_NAME_SESSION_EXPIRE = 'SPARCD_SESSION_TIMEOUT'
 # Default timeout in seconds
 SESSION_EXPIRE_DEFAULT_SEC = 10 * 60 * 60
 # Working database storage path
 DEFAULT_DB_PATH = os.environ.get(ENV_NAME_DB,  None)
-# Working session storage path
-#DEFAULT_SESSION_PATH = os.environ.get(ENV_NAME_SESSION_PATH, tempfile.gettempdir())
 # Default timeout when requesting an image
 DEFAULT_IMAGE_FETCH_TIMEOUT_SEC = 10.0
 # Working passcode
@@ -125,11 +119,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=600,
 )
-#SESSION_TYPE = 'filesystem'
-#SESSION_SERIALIZATION_FORMAT = 'json'
-#SESSION_CACHELIB = FileSystemCache(threshold=500, cache_dir=DEFAULT_SESSION_PATH)
 app.config.from_object(__name__)
-#Session(app)
 
 # Intialize the database connection
 DB = SPARCdDatabase(DEFAULT_DB_PATH)
@@ -1426,9 +1416,6 @@ def login_token():
         if token_valid:
             curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
             # Everything checks out
-            # Update our session information
-#            session['key'] = token
-#            session['last_access'] = curtime
             return json.dumps({'value':token,
                                'name':login_info['name'],
                                'settings':login_info['settings']|{'email':login_info['email']},
@@ -1470,14 +1457,6 @@ def login_token():
         cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
                                                                                     user, password)
         user_info = db.auto_add_user(user, species=cur_species)
-
-    # We have a new login, save everything
-#    session.clear()
-#    session['last_access'] = curtime
-#    session['key'] = new_key
-#    session.permanent = True
-    # TODO: https://flask-session.readthedocs.io/en/latest/security.html#session-fixation
-    #base.ServerSideSession.session_interface.regenerate(session)
 
     # Add in the email if we have user settings
     if 'settings' in user_info and isinstance(user_info['settings'], str) and user_info['settings']:
@@ -1537,11 +1516,6 @@ def collections():
     return_colls = []
     for one_coll in all_collections:
         return_colls.append(normalize_collection(one_coll))
-
-    # Everything checks out
-#    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
-    # Update our session information
-#    session['last_access'] = curtime
 
     # Save the collections temporarily
     save_timed_temp_colls(return_colls)
@@ -1764,11 +1738,6 @@ def upload():
 
         # Save the images so we can reload them later
         save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
-
-    # Everything checks out
-#    curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
-    # Update our session information
-#    session['last_access'] = curtime
 
     # Prepare the return data
     for one_img in all_images:
