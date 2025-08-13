@@ -39,9 +39,7 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
              borderRadius:'5px', minWidth:'400px'
           }}
     >
-      <Grid size={{ xs:6, sm:6, md:6 }} sx={{flex:'6', position:'relative', marginRight:'auto'}}>
-        <Grid container direction="row">
-          <Grid>
+          <Grid size={8}>
               <Typography id={"species-name-"+name} variant="body" sx={{textTransform:'Capitalize',color:'inherit'}}>
                 {name}
               </Typography>
@@ -62,9 +60,7 @@ export default function ImageEditSpecies({name, count, onDelete, onChange, onBlu
                 sx={{flex:'6', position:'relative', marginLeft:'auto', color:'inherit'}}
               />
           </Grid>
-        </Grid>
-      </Grid>
-      <Grid size={{ xs:1, sm:1, md:1 }} sx={{flex:'1', position:'relative', marginLeft:'auto'}}>
+      <Grid sx={{marginLeft:'auto'}} size={1}>
         <HighlightOffOutlinedIcon color='inherit' onClick={() => onDelete(name)}/>
       </Grid>
     </Grid>

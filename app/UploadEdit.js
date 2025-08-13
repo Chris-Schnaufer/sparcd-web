@@ -273,13 +273,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   // Handling keypress events when adding a species to an image
   React.useEffect(() => {
     function onKeypress(event) {
-      if (curEditState == editingStates.editImage) {
+      if (curEditState === editingStates.editImage) {
         if (event.key !== 'Meta') {
           const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
           if (speciesKeyItem) {
             handleSpeciesAdd(speciesKeyItem);
+            event.preventDefault();
           }
-          event.preventDefault();
         }
       }
     }

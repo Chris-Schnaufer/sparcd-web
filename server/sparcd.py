@@ -211,12 +211,12 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     db.reconnect()
     login_info = db.get_token_user_info(token)
     print('HACK:LOGININFO:',login_info,flush=True)
-    if login_info and 'settings' in login_info:
-        login_info['settings'] = json.loads(login_info['settings'])
-    if login_info and 'species' in login_info:
-        login_info['species'] = json.loads(login_info['species'])
-    print('USER INFO',login_info['name'], flush=True)
     if login_info is not None:
+        if login_info and 'settings' in login_info:
+            login_info['settings'] = json.loads(login_info['settings'])
+        if login_info and 'species' in login_info:
+            login_info['species'] = json.loads(login_info['species'])
+        print('USER INFO',login_info['name'], flush=True)
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
            client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
