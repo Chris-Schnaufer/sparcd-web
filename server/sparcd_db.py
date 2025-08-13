@@ -969,3 +969,36 @@ class SPARCdDatabase:
 
         self._conn.commit()
         cursor.close()
+
+    def get_image_species_edits(self, bucket: str, upload_path: str) -> dict:
+        """ Returns all the saved edits for this bucket and upload path
+        Arguments:
+            bucket: the S3 bucket the collection is in
+            upload_path: the upload path to get the edit for
+        Return:
+            Returns a dict with the edits. The dict has a key of <bucket>:<upload_path> and
+            contains a dict with keys consisting of the file's S3 paths. The value associated with
+            the file's paths is a tuple of tuples that contain the scientific name and the count
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to fetch image species edits from the database '\
+                                                                                'before connecting')
+
+        # Get the edits
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT s3_file_path,obs_scientific,obs_count FROM image_edits WHERE ' \
+                                    'bucket=? AND s3_file_path like ? ORDER BY edit_timestamp ASC',
+                            (bucket, upload_path+'%'))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return {bucket + ':' + upload_path:tuple()}
+
+        file_species = {}
+        for one_result in res:
+            if one_result[0] in file_species:
+                file_species[one_result[0]].append(one_result[1:])
+            else:
+                file_species[one_result[0]] = [one_result[1:]]
+
+        return {bucket + ':' + upload_path:file_species}

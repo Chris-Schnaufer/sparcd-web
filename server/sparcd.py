@@ -200,7 +200,7 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
-    print('HACK:LOGININFO:',login_info,flush=True)
+    print('HACK:LOGININFO:',login_info,'Species:',len(login_info['species']),flush=True)
     if login_info is not None:
         if login_info and 'settings' in login_info:
             login_info['settings'] = json.loads(login_info['settings'])
@@ -1739,6 +1739,37 @@ def upload():
         # Save the images so we can reload them later
         save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
 
+    # Get species data from the database and update the images
+    edits = {}
+    for one_image in all_images:
+        # Find any edits for this image
+        upload_path = os.path.dirname(one_image['s3_path'])
+        edit_key = one_image['bucket'] + ':' + upload_path
+        if not edit_key in edits:
+            edits = {**edits, **db.get_image_species_edits(one_image['bucket'], upload_path)}
+        if not one_image['s3_path'] in edits[edit_key]:
+            continue
+
+        species_edits = edits[edit_key][one_image['s3_path']]
+        for one_species in species_edits:
+            # Look for exiting species in image
+            found = False
+            for one_img_species in one_image['species']:
+                if one_species[0] == one_img_species['scientificName']:
+                    one_img_species['count'] = one_species[1]
+                    found = True
+            # Add it in if not found
+            if found is False:
+                found_species = [one_item for one_item in user_info['species'] if \
+                                        one_item['scientificName'] == one_species[0]]
+                if found_species and len(found_species) > 0:
+                    found_species = found_species[0]
+                else:
+                    found_species = {'name': 'Unknown'}
+                one_image['species'].append({'name':found_species['name'],
+                                             'scientificName':one_species[0],
+                                             'count':one_species[1]})
+
     # Prepare the return data
     for one_img in all_images:
         one_img['url'] = url_for('image', _external=True,
@@ -2674,8 +2705,6 @@ def species_keybind():
     common = request.form.get('common', None) # Species name
     scientific = request.form.get('scientific', None) # Species scientific name
     new_key = request.form.get('key', None)
-
-    print('HACK:SPECIESKEYBIND:',scientific,new_key,flush=True)
 
     # Check what we have from the requestor
     if not token or not common or not scientific or not new_key:
