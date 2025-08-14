@@ -175,7 +175,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
       );
     }
 
-    console.log('HACK:GENUSER',curUserInfo[0]);
     return (
       <Grid container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%', overflowX:'scroll'}} >
         <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
@@ -265,38 +264,38 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
       <Grid container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%', overflowX:'scroll'}} >
         <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
               sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
-          <Grid size={6}>
+          <Grid size={5}>
             <Typography nowrap="true" variant="body2" sx={{fontWeight:'bold', fontSize:'initial'}}>
               Name
             </Typography>
           </Grid>
-          <Grid size={3} sx={{marginRight:'auto'}}>
+          <Grid size={4} sx={{marginRight:'auto'}}>
             <Typography nowrap="true" variant="body2" sx={{fontWeight:'bold', fontSize:'initial'}}>
-              SOMETHING ELSE
+              ID
             </Typography>
           </Grid>
           <Grid sizeo={3} sx={{leftMargin:'auto'}}>
             <Typography nowrap="true" variant="body2" sx={{fontWeight:'bold', fontSize:'initial'}}>
-              ANOTHER THING
+              email
             </Typography>
           </Grid>
         </Grid>
         { collectionInfo.map((item, idx) => 
             <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
                   sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}}} >
-              <Grid size={6}>
+              <Grid size={5}>
                 <Typography nowrap="true" variant="body2">
                   {item.name}
                 </Typography>
               </Grid>
-              <Grid size={3} sx={{marginRight:'auto'}}>
+              <Grid size={4} sx={{marginRight:'auto'}}>
                 <Typography nowrap="true" variant="body2">
-                  X
+                  {item.id}
                 </Typography>
               </Grid>
               <Grid sizeo={3} sx={{leftMargin:'auto'}}>
                 <Typography nowrap="true" variant="body2">
-                  Y
+                  {item.email}
                 </Typography>
               </Grid>
           </Grid>
@@ -430,7 +429,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
             sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:55555}}
       >
       <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
-        <Grid size={2}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
+        <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
           <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
                 scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
             { adminTabs.map((item, idx) =>
@@ -459,7 +458,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
             />
           </Tabs>
         </Grid>
-        <Grid size={10} sx={{overflowX:'scroll',display:'flex'}} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px', overflow:'scroll', padding:'0px 25px 15px 15px'}}>
+        <Grid size={11} sx={{overflowX:'scroll',display:'flex'}} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px', overflow:'scroll', padding:'0px 25px 15px 15px'}}>
           { adminTabs.map((item,idx) => 
               <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
                         style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
