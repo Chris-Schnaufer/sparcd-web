@@ -248,11 +248,9 @@ export default function Queries({loadingCollections}) {
    * @function
    */
   function handleQuery() {
-    const queryUrl = serverURL + '/query';
+    const queryUrl = serverURL + '/query?t=' + encodeURIComponent(queryToken)
     const formData = getQueryFormData(filters);
     const queryId = Date.now();
-
-    formData.append('token', queryToken);
 
     console.log('QUERY');
 

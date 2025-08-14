@@ -23,7 +23,6 @@ class SPARCdDatabase:
         """Handles closing the connection and other cleanup
         """
         if self._conn is not None:
-            self._conn.close()
             self._conn = None
 
     def database_info(self) -> tuple:
@@ -1002,3 +1001,23 @@ class SPARCdDatabase:
                 file_species[one_result[0]] = [one_result[1:]]
 
         return {bucket + ':' + upload_path:file_species}
+
+    def get_admin_edit_users(self) -> tuple:
+        """ Returns the user information for administrative editing
+        Return:
+            Returns a tuple of name, email, administrator privileges, and if they were auto-added
+            for each user
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to fetch image species edits from the database '\
+                                                                                'before connecting')
+
+        # Get the edits
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT name, email, administrator, auto_added FROM users ORDER BY name ASC')
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return []
+
+        return res

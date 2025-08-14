@@ -12,10 +12,16 @@ import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import LoginIcon from '@mui/icons-material/Login';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
-import { geographicCoordinates } from '../serverInfo';
+import { geographicCoordinates, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
@@ -56,13 +62,19 @@ function ensure_settings(settings) {
  * @param {function} onChange Handler for when a setting is changed
  * @param {function} onClose Handler for when the settings are to be closed
  * @param {function} onLogout Handler for the user wants to log out
+ * @param {function} onAdminSettings Handler for an admin user wanting to make changes
  * @returns {object} Returns the UI to render
  */
-export default function Settings({curSettings, onChange, onClose, onLogout}) {
+export default function Settings({curSettings, onChange, onClose, onLogout, onAdminSettings}) {
   const theme = useTheme();
+  const settingsToken = React.useContext(TokenContext);  // Login token
+  const passwordRef = React.useRef();
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
   const [email, setEmail] = React.useState(curSettings.email); // The working email
+  const [isAdmin, setIsAdmin] = React.useState(false); // Used in case the user is an admin
+  const [getPassword, setGetPassword] = React.useState(false); // Used to signal that we need the user's password
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
+  const [showPassword, setShowPassword] = React.useState(false);  // Show the password?
   const [titlebarRect, setTitlebarRect] = React.useState(null); // Set when the UI displays
   const [userSettings, setUserSettings] = React.useState(curSettings ? ensure_settings(curSettings) : defaultSettings);
 
@@ -125,6 +137,67 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
       }
   });
 
+  // Adds a mouse click handler to the document, and automatically removes it
+  React.useEffect(() => {
+    if (getPassword && passwordRef.current) {
+      passwordRef.current.focus();
+    }
+  }, [getPassword, passwordRef]);
+
+  /**
+   * Handler that toggles the show password state
+   * @function
+   */
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  /**
+   * Supresses the default handling of a mouse down event on the password field
+   * @function
+   * @param {object} event The event object
+   */
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
+  };
+
+  /**
+   * Supresses the default handliong of a mouse up event on the password field
+   * @function
+   * @param {object} event The event object
+   */
+  const handleMouseUpPassword = (event) => {
+    event.preventDefault();
+  };
+
+  /**
+   * Checks if the user is an admin
+   * @function
+   */
+  const checkIfAdmin = React.useCallback(() => {
+    try {
+      const isAdminUrl = serverURL + '/adminCheck?t=' + encodeURIComponent(settingsToken)
+      const resp = fetch(isAdminUrl, {
+        method: 'GET'
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed checked to see if user is an admin: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Process the results
+            if (respData.value === true) {
+              setIsAdmin(true);
+            }
+        })
+        .catch(function(err) {
+          console.log('Check For Admin Error: ', err);
+      });
+    } catch (error) {
+      console.log('Check For Admin Unknown Error: ',err);
+    }
+  }, [settingsToken, setIsAdmin])
+
   /**
    * Calculate our sizes and positions
    * @function
@@ -176,6 +249,28 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
     onChange(curSettings);
   }
 
+  /**
+   * Handler for Admin editing request
+   * @function
+   */
+  function handleAdmin() {
+    console.log('HACK:SETTING PASSWORD NEEDED');
+    setGetPassword(true);
+  }
+
+  /**
+   * Handles the user logging in for admin
+   * @function
+   */
+  function handleLogin() {
+    console.log('HACK:HANDLE LOGIN');
+    const el = document.getElementById('password_entry');
+    if (el && typeof(onAdminSettings) === 'function') {
+      const newPw = el.value;
+      onAdminSettings(newPw);
+    }
+  }
+
   // Default the titlebar dimensions if it's not rendered yet
   let workingRect = titlebarRect;
   if (workingRect == null) {
@@ -185,9 +280,14 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
     }
   }
 
+  // Admin check
+  React.useLayoutEffect(() => {
+    checkIfAdmin();
+  }, []);
+
   // Return the UI
   return (
-    <Box id='settings-wrapper'
+    <Grid id='settings-wrapper'
          sx={{position:'absolute', top:(workingRect.y+20)+'px', right:'20px',
              border:'1px solid grey', backgroundColor:'silver', boxShadow:'2px 3px 3px #bbbbbb'}}
     >
@@ -281,10 +381,71 @@ export default function Settings({curSettings, onChange, onClose, onLogout}) {
           <Grid container id="settings-actions-wrapper" direction="row" sx={{justifyContent:'space-between', alignItems:'center', width:'100%'}}
           >
             <Button variant="contained" onClick={() => onClose()}>Close</Button>
+            {isAdmin && <Button variant="contained" onClick={() => handleAdmin()} disabled={getPassword}>Admin</Button>}
             <Button variant="contained" onClick={() => onLogout()}>Logout</Button>
           </Grid>
         </CardActions>
       </Card>
-    </Box>
+      { getPassword &&
+        <Grid id="settings-get-password-wrapper" justifyContent="center" alignItems="center" 
+              sx={{position:'absolute', top:0, right:0, bottom:'50px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
+          <Grid container direction="column" justifyContent="center" alignItems="center"
+                sx={{backgroundColor:'rgb(230,230,230)', padding:'15px 0', marginTop:'30%'}} spacing={2}>
+            <div id="admin-settings-login-close" sx={{height:'20px', flex:'1'}} onClick={() => setGetPassword(false)} style={{marginLeft:'auto', marginRight:'10px', cursor:'pointer'}} >
+                <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
+                                                 padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)',fontWeight:'bold'}
+                                               }}>
+                  X
+                </Typography>
+
+            </div>
+            <div>
+              <Typography gutterBottom variant="h6" component="h6">
+                Please log in again
+              </Typography>
+              <Typography gutterBottom variant="body2">
+                to access adminstration pages
+              </Typography>
+            </div>
+              <TextField required 
+                    id='password_entry'
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    size='small'
+                    sx={{width:'95%', margin:'0px'}}
+                    inputProps={{style: {fontSize: 12}}}
+                    inputRef={passwordRef}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                      input: {
+                        endAdornment: 
+                          <InputAdornment position='end'>
+                            <IconButton
+                              aria-label={
+                                showPassword ? 'hide the password' : 'display the password'
+                              }
+                              onClick={handleClickShowPassword}
+                              onMouseDown={handleMouseDownPassword}
+                              onMouseUp={handleMouseUpPassword}
+                              edge='end'
+                            >
+                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>,
+                      },
+                    }}
+                    />
+               <Button size='small' color='login_button'
+                      sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
+                      onClick={handleLogin}
+              >
+                Login
+              </Button>
+          </Grid>
+        </Grid>
+      }
+    </Grid>
   );
 }

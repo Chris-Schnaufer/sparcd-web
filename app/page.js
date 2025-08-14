@@ -14,6 +14,7 @@ import Login from './Login';
 import { Level, makeMessage, Messages } from './components/Messages';
 import Maps from './Maps';
 import Queries from './Queries';
+import SettingsAdmin from './components/SettingsAdmin';
 import theme from './Theme';
 import TitleBar from './components/TitleBar';
 import UploadManage from './UploadManage';
@@ -125,6 +126,7 @@ export default function Home() {
   const [curSearchHandler, setCurSearchHandler] = React.useState(null);
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
+  const [displayAdminSettings, setDisplayAdminSettings] =  React.useState(false); // Admin settings editing
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
   const [lastToken, setLastToken] = React.useState(null);
@@ -737,6 +739,55 @@ export default function Home() {
   }
 
   /**
+   * Handles enabling administration editing
+   * @function
+   * @param {string} pw The password to use to check for permission
+   * @param {function} {cbSuccess} The success callback
+   * @param {function} {cbFail} The failure callback
+   */
+  function handleAdminSettings(pw, cbSuccess, cbFail) {
+    // Check that the password is accurate and display the admin settings pages
+    const settingsCheckUrl = serverURL + '/settingsAdmin?t=' + encodeURIComponent(lastToken);
+    console.log('HACK:ADMINSETTINGS');
+    cbSuccess ||= () => {};
+    cbFail ||= () => {};
+
+    const formData = new FormData();
+
+    formData.append('value', pw);
+
+    try {
+      const resp = fetch(settingsCheckUrl, {
+        credentials: 'include',
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to check admin permissions: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Check the return
+            if (respData.success === true) {
+              cbSuccess();
+              setDisplayAdminSettings(true);
+            } else {
+              cbFail();
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Settings Error: ',err);
+          cbFail();
+      });
+    } catch (error) {
+      console.log('Admin Settings Unknown Error: ',err);
+      cbFail();
+    }
+  }
+
+  /**
    * Updates the user's settings on the server
    * @function
    * @param {object} newSettings The settings to save on the server for the user
@@ -950,10 +1001,12 @@ export default function Home() {
         <MobileDeviceContext.Provider value={mobileDevice}>
         <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
         <UserSettingsContext.Provider value={userSettings.settings}>
-          <NarrowWindowContext.Provider value={narrowWindow}>
-            <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
-                      onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
-                      breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb}/>
+        <NarrowWindowContext.Provider value={narrowWindow}>
+            <TokenContext.Provider value={lastToken}>
+              <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
+                        onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
+                        breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings}/>
+            </TokenContext.Provider>
             {!curLoggedIn ? 
               <LoginValidContext.Provider value={loginValidStates}>
                 <Login prev_url={dbURL} prev_user={dbUser} prev_remember={dbRemember} onLogin={handleLogin}
@@ -983,7 +1036,20 @@ export default function Home() {
                   <Messages messages={messages} close_cb={handleCloseMessage}/>
                 </Grid>
             }
-          </NarrowWindowContext.Provider>
+            { displayAdminSettings &&
+                  <TokenContext.Provider value={lastToken}>
+                  <CollectionsInfoContext.Provider value={collectionInfo}>
+                  <LocationsInfoContext.Provider value={locationInfo}>
+                  <SpeciesInfoContext.Provider value={speciesInfo}>
+                  <AddMessageContext.Provider value={addMessage}>
+                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations} loadingSpecies={loadingSpecies} />
+                  </AddMessageContext.Provider>
+                  </SpeciesInfoContext.Provider>
+                  </LocationsInfoContext.Provider>
+                  </CollectionsInfoContext.Provider>
+                  </TokenContext.Provider>
+            }
+        </NarrowWindowContext.Provider>
         </UserSettingsContext.Provider>
         </SizeContext.Provider>
         </MobileDeviceContext.Provider>

@@ -12,9 +12,10 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { Level } from './Messages';
 import Settings from './Settings';
 import styles from './components.module.css';
-import { UserSettingsContext } from '../serverInfo';
+import { AddMessageContext, UserSettingsContext } from '../serverInfo';
 
 /**
  * Renders the title bar
@@ -28,8 +29,9 @@ import { UserSettingsContext } from '../serverInfo';
  * @param {function} onLogout The handler for the user wanting to logout
  * @returns {object} The rendered UI
  */
-export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout}) {
+export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings}) {
   const [showSettings, setShowSettings] = React.useState(false);
+  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
   /**
    * Handles the clicking of the search icon
@@ -71,6 +73,16 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
   function handleSettingsClose() {
     setShowSettings(false);
   }
+
+  /**
+   * Handles the user wanting to make admin changes
+   * @function
+   * @param {string} pw The password for administration editing
+   */
+  const handleAdminSettings = React.useCallback((pw) => {
+    console.log('HACK:HANDLEADMINSETTINGS');
+    onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Invalid password')});
+  }, [onAdminSettings, handleSettingsClose, addMessage, Level]);
 
   const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};
 
@@ -134,7 +146,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
         </Grid>
       </Box>
       {showSettings && onSettings != null && <Settings curSettings={userSettings} onChange={onSettings} onClose={handleSettingsClose} 
-                                                       onLogout={() => {handleSettingsClose();onLogout();}} />
+                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={(pw) => handleAdminSettings(pw)} />
       }
     </header>
     );

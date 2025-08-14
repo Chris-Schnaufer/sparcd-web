@@ -94,6 +94,8 @@ CAMTRAP_OBSERVATION_MEDIA_ID_IDX = 3
 CAMTRAP_OBSERVATION_DATE_IDX = 4
 CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX = 8
 CAMTRAP_OBSERVATION_COUNT_IDX = 9
+CAMTRAP_OBSERVATION_COUNT_NEW_IDX = 10
+CAMTRAP_OBSERVATION_CONFIDENCE_INDEX = 18
 CAMTRAP_OBSERVATION_COMMENT_IDX = 19
 
 # List of known query form variable keys
@@ -200,13 +202,13 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
-    print('HACK:LOGININFO:',login_info,'Species:',len(login_info['species']),flush=True)
+    #print('HACK:LOGININFO:',login_info,flush=True)
     if login_info is not None:
         if login_info and 'settings' in login_info:
             login_info['settings'] = json.loads(login_info['settings'])
         if login_info and 'species' in login_info:
             login_info['species'] = json.loads(login_info['species'])
-        print('USER INFO',login_info['name'], flush=True)
+        print('USER INFO',login_info['name'],'Species:',len(login_info['species']), flush=True)
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
            client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
@@ -299,9 +301,9 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
     for one_coll in loaded_colls:
         new_coll = one_coll
         new_coll['permissions'] = None
-        if 'all_permissions' in one_coll and one_coll['all_permissions']:
+        if 'allPermissions' in one_coll and one_coll['allPermissions']:
             try:
-                for one_perm in one_coll['all_permissions']:
+                for one_perm in one_coll['allPermissions']:
                     if one_perm and 'usernameProperty' in one_perm and \
                                 one_perm['usernameProperty'] == user:
                         new_coll['permissions'] = one_perm
@@ -1122,6 +1124,7 @@ def normalize_collection(coll: dict) -> dict:
                 'description': coll['descriptionProperty'],
                 'id': coll['idProperty'],
                 'permissions': coll['permissions'],
+                'allPermissions': coll['all_permissions'],
                 'uploads': []
               }
     cur_uploads = []
@@ -1418,8 +1421,8 @@ def login_token():
             # Everything checks out
             return json.dumps({'value':token,
                                'name':login_info['name'],
-                               'settings':login_info['settings']|{'email':login_info['email']},
-                               'admin':login_info['admin']})
+                               'settings':login_info['settings']|{'email':login_info['email']}
+                               })
 
         # Delete the old token from the database
         db.reconnect()
@@ -1468,7 +1471,7 @@ def login_token():
             print(ex)
 
     return json.dumps({'value':new_key, 'name':user_info['name'],
-                       'settings':user_info['settings'], 'admin':user_info['admin']})
+                       'settings':user_info['settings']})
 
 
 @app.route('/collections', methods = ['GET'])
@@ -1505,7 +1508,7 @@ def collections():
     # and return that
     return_colls = load_timed_temp_colls(user_info['name'])
     if return_colls:
-        return json.dumps(return_colls)
+        return json.dumps([{**one_coll, **{'allPermissions':None}} for one_coll in return_colls])
 
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])
@@ -1521,7 +1524,7 @@ def collections():
     save_timed_temp_colls(return_colls)
 
     # Return the collections
-    return json.dumps(return_colls)
+    return json.dumps([{**one_coll, **{'allPermissions':None}} for one_coll in return_colls])
 
 
 @app.route('/sandbox', methods = ['GET'])
@@ -1857,6 +1860,7 @@ def query():
         is invalid/missing/expired, a new token is returned
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
 
     print('QUERY', request)
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -1869,7 +1873,6 @@ def query():
 
     have_error = False
     filters = []
-    token = None
     for key, value in request.form.items(multi=True):
         match key:
             case 'collections' | 'dayofweek' | 'elevations' | 'hour' | 'locations' | \
@@ -1882,9 +1885,6 @@ def query():
                     break
             case 'endDate' | 'startDate':
                 filters.append((key, datetime.datetime.fromisoformat(value)))
-                break
-            case 'token':
-                token = value
                 break
             case _:
                 print(f'Error: unknown query key detected: {key}')
@@ -2543,8 +2543,13 @@ def sandbox_completed():
                         one_row[CAMTRAP_OBSERVATION_DATE_IDX] = one_species['timestamp']
                         one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] = one_species['scientific']
                         one_row[CAMTRAP_OBSERVATION_COUNT_IDX] = str(one_species['count'])
+                        one_row[CAMTRAP_OBSERVATION_COUNT_NEW_IDX] = '0'
                         one_row[CAMTRAP_OBSERVATION_COMMENT_IDX] = \
                                                             f'[COMMONNAME:{one_species["common"]}]'
+
+                        if not one_row[CAMTRAP_OBSERVATION_CONFIDENCE_INDEX]:
+                            one_row[CAMTRAP_OBSERVATION_CONFIDENCE_INDEX] = '1.0000'
+
                         added = True
                         break
             else:
@@ -2746,3 +2751,184 @@ def species_keybind():
     db.save_user_species(user_info['name'], json.dumps(cur_species))
 
     return json.dumps({'success': True})
+
+
+@app.route('/adminCheck', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_check():
+    """ Checks if the user might be an admin
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN CHECK', flush=True)
+
+    # Check what we have from the requestor
+    if not token:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    return {'value': user_info['admin'] == 1}
+
+
+@app.route('/settingsAdmin', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def settings_admin():
+    """ Confirms the password is correct for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN CHECK', flush=True)
+
+    pw = request.form.get('value', None)
+
+    # Check what we have from the requestor
+    if not token or not pw:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Log onto S3 to make sure the information is correct
+    pw_ok = False
+    try:
+        s3_url = web_to_s3_url(user_info["url"])
+        minio = Minio(s3_url, access_key=user_info["name"], secret_key=pw)
+        _ = minio.list_buckets()
+        pw_ok = True
+    except MinioException as ex:
+        print(f'Admin password check failed for {user_info["name"]}:', ex)
+        return "Not Found", 404
+
+    return json.dumps({'success': pw_ok})
+
+
+@app.route('/adminUsers', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_users():
+    """ Returns user information for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the list of registered users and their information
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN USERS', flush=True)
+
+    # Check what we have from the requestor
+    if not token:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the users and fill in the collection information
+    all_users = db.get_admin_edit_users()
+
+    if not all_users:
+        return json.dumps(all_users)
+
+    # Organize the collection permissions by user
+    all_collections = load_timed_temp_colls(user_info['name'])
+    user_collections = {}
+    for one_coll in all_collections:
+        if 'allPermissions' in one_coll and one_coll['allPermissions'] is not None:
+            for one_perm in one_coll['allPermissions']:
+                if one_perm['usernameProperty'] not in user_collections:
+                    user_collections[one_perm['usernameProperty']] = []
+                user_collections[one_perm['usernameProperty']].append({
+                    'name':one_coll['name'],
+                    'owner':one_perm['ownerProperty'] if 'ownerProperty' in one_perm else False,
+                    'read':one_perm['readProperty'] if 'readProperty' in one_perm else False,
+                    'write':one_perm['uploadProperty'] if 'uploadProperty' in one_perm else False,
+                    })
+
+    # Put it all together
+    return_users = []
+    for one_user in all_users:
+        return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
+                             'auto': one_user[3] == 1,
+                             'collections': user_collections[one_user[0]]})
+
+    return json.dumps(return_users)
+
+@app.route('/adminSpecies', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_species():
+    """ Returns "official" species for admin editing (not user-specific)
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the list of official species
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN SPECIES', flush=True)
+
+    # Check what we have from the requestor
+    if not token:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the species
+    s3_url = web_to_s3_url(user_info["url"])
+    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+
+    return json.dumps(cur_species)

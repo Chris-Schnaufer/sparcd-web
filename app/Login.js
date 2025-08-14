@@ -63,7 +63,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   /**
-   * Supresses the default handliong of a mouse down event on the password field
+   * Supresses the default handling of a mouse down event on the password field
    * @function
    * @param {object} event The event object
    */

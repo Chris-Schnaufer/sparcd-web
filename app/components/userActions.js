@@ -8,7 +8,8 @@ export const UserActions = {
   'UploadEdit': 20,
   'Collection': 30,
   'Query': 40,
-  'Maps': 50
+  'Maps': 50,
+  'AdminEdit': 60,
 };
 
 export default UserActions;
