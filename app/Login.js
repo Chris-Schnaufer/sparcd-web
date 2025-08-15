@@ -38,7 +38,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
   const [workspaceHeight, setWorkspaceHeight] = useState(null);
 
   useLayoutEffect(() => {
-    const focusId = !prev_url ? 'url_entry' : (!prev_user ? 'username_entry' : 'password_entry')
+    const focusId = !prev_url ? 'url-entry' : (!prev_user ? 'username-entry' : 'password-entry')
     const el = document.getElementById(focusId);
     if (el) {
       el.focus();
@@ -95,13 +95,13 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
    * @function
    */
   function callLoginFunc() {
-    let ctrl = document.getElementById('url_entry');
+    let ctrl = document.getElementById('url-entry');
     const url = ctrl.value;
-    ctrl = document.getElementById('username_entry');
+    ctrl = document.getElementById('username-entry');
     const user = ctrl.value;
-    ctrl = document.getElementById('password_entry');
+    ctrl = document.getElementById('password-entry');
     const password = ctrl.value;
-    ctrl = document.getElementById('remember_login_fields');
+    ctrl = document.getElementById('remember-login-fields');
     const remember = ctrl.checked;
 
     onLogin(url, user, password, remember);
@@ -125,7 +125,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
               autoComplete='off'
             >
               <TextField required 
-                    id='url_entry'
+                    id='url-entry'
                     label="Database URL"
                     defaultValue={prev_url}
                     size='small'
@@ -139,7 +139,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     }}
                     />
               <TextField required 
-                    id='username_entry'
+                    id='username-entry'
                     label="Username"
                     defaultValue={prev_user}
                     size='small'
@@ -153,7 +153,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     }}
                     />
               <TextField required 
-                    id='password_entry'
+                    id='password-entry'
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
                     size='small'
@@ -186,7 +186,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                       <FormControlLabel 
                         required 
                         size="small"
-                        control={<Checkbox id='remember_login_fields' checked={rememberChecked} onChange={rememberChanged} />}
+                        control={<Checkbox id='remember-login-fields' checked={rememberChecked} onChange={rememberChanged} />}
                         label={<span style={{ fontSize:12, color:'rgba(0, 0, 0, 0.6)' }}>Remember URL and username</span>}
                         />
                     </FormGroup>

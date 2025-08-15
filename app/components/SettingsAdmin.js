@@ -6,7 +6,6 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import ExitToAppOutlinedIcon from '@mui/icons-material/ExitToAppOutlined';
 import Grid from '@mui/material/Grid';
-import GlobalStyles from '@mui/material/GlobalStyles';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
@@ -319,51 +318,51 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <table id='admin-settings-users-details-wrapper' style={{width:'100%', padding:'0px 5px 0 5px', borderCollapse:"collapse"}} >
-        <thead id="admin-settings-collection-header" style={{width:'100%', backgroundColor:'lightgrey'}} >
-        <tr>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingLeft:'5px'}}>
+      <Grid id='admin-settings-users-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
+            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+        <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
+              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
+          <Grid size={2}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
               Name
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid size={3}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               Email
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid size={5}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               Collections
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid sizeo={1}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               Admin
             </Typography>
-          </th>
-          <th scope="col" style={{leftMargin:'auto', borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingRight:'5px'}}>
+          </Grid>
+          <Grid sizeo={1} sx={{leftMargin:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingRight:'5px'}}>
               Auto
             </Typography>
-          </th>
-        </tr>
-        </thead>
-        <tbody id='admin-settings-details' style={{overflowY:'scroll', width:'100%', maxHeight:detailsHeight+'px', display:'block' }}>
-        <GlobalStyles styles={{ tr: { width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} } }} />
+          </Grid>
+        </Grid>
+        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
         { curUserInfo.map((item,idx) => 
-            <tr key={item.name+'-'+idx} onDoubleClick={(event) => dblClickFunc(event,item)} >
-              <td style={{padding:'0px 5px 0px 5px'}}>
+            <Grid container direction="row" id={"admin-user-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
+                  sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
+              <Grid size={2}>
                 <Typography nowrap="true" variant="body2">
                   {item.name}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px'}}>
+              </Grid>
+              <Grid size={3}>
                 <Typography nowrap="true" variant="body2">
                   {item.email}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px'}}>
+              </Grid>
+              <Grid size={5}>
                 <Typography nowrap="true" variant="body2">
                   { item.collections.map((colItem, colIdx) => 
                       <React.Fragment key={colItem.name+'-'+colIdx}>
@@ -379,21 +378,21 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
                       </React.Fragment>
                   )}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px'}}>
-                <Typography nowrap="true" variant="body2" align="center">
+              </Grid>
+              <Grid size={1}>
+                <Typography nowrap="true" variant="body2" align="right">
                   {item.admin ? 'Y' : ' '}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px'}}>
-                <Typography nowrap="true" variant="body2" align="center">
+              </Grid>
+              <Grid size={1}>
+                <Typography nowrap="true" variant="body2" align="right">
                   {item.auto ? 'Y' : 'N'}
                 </Typography>
-              </td>
-            </tr>
+              </Grid>
+            </Grid>
         )}
-        </tbody>
-      </table>
+          </Grid>
+      </Grid>
     );
   }
 
@@ -413,49 +412,49 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <table id='admin-settings-collections-details-wrapper' style={{width:'100%', padding:'0px 5px 0 5px', borderCollapse:"collapse"}} >
-        <thead id="admin-settings-collection-header" style={{width:'100%', backgroundColor:'lightgrey'}} >
-        <tr>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingLeft:'5px'}}>
+      <Grid id='admin-settings-collections-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
+            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+        <Grid id="admin-settings-collection-header" container direction="row" justifyContent="space-between" alignItems="start"
+              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
+          <Grid size={5}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
               Name
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid size={4} sx={{marginRight:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               ID
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px', marginLeft:'auto'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingRight:'5px'}}>
+          </Grid>
+          <Grid sizeo={3} sx={{leftMargin:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingRight:'5px'}}>
               email
             </Typography>
-          </th>
-        </tr>
-        </thead>
-        <tbody id='admin-settings-details' style={{overflowY:'scroll',width:'100%', maxHeight:detailsHeight+'px', display:'block' }}>
-        <GlobalStyles styles={{ tr: { width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} } }} />
+          </Grid>
+        </Grid>
+        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
         { selectedCollections.map((item, idx) => 
-            <tr id={"admin-species-"+idx} key={item.name+'-'+idx} onDoubleClick={(event) => dblClickFunc(event,item)} >
-              <td style={{padding:'0px 5px 0px 5px'}}>
+            <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
+                  sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }} onDoubleClick={(event) => dblClickFunc(event,item)} >
+              <Grid size={5}>
                 <Typography nowrap="true" variant="body2">
                   {item.name}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px'}}>
+              </Grid>
+              <Grid size={4} sx={{marginRight:'auto'}}>
                 <Typography nowrap="true" variant="body2">
                   {item.id}
                 </Typography>
-              </td>
-              <td style={{padding:'0px 5px 0px 5px', leftMargin:'auto'}}>
+              </Grid>
+              <Grid sizeo={3} sx={{leftMargin:'auto'}}>
                 <Typography nowrap="true" variant="body2">
                   {item.email}
                 </Typography>
-              </td>
-            </tr>
+              </Grid>
+          </Grid>
         )}
-        </tbody>
-      </table>
+        </Grid>
+      </Grid>
     );
   }
 
@@ -481,49 +480,49 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <table id='admin-settings-species-details-wrapper' style={{width:'100%', padding:'0px 5px 0 5px', borderCollapse:"collapse"}} >
-        <thead id="admin-settings-species-header" style={{width:'100%', backgroundColor:'lightgrey'}} >
-        <tr>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingLeft:'5px'}}>
+      <Grid id='admin-settings-species-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
+            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+        <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
+              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
+          <Grid size={5}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
               Name
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid size={5} sx={{marginRight:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               Scientific Name
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px', marginLeft:'auto'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingRight:'5px'}}>
+          </Grid>
+          <Grid sizeo={2} sx={{leftMargin:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingRight:'5px'}}>
               Key Binding
             </Typography>
-          </th>
-        </tr>
-        </thead>
-        <tbody id='admin-settings-details' style={{overflowY:'scroll',width:'100%', maxHeight:detailsHeight+'px', display:'block' }}>
-        <GlobalStyles styles={{ tr: { width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} } }} />
+          </Grid>
+        </Grid>
+        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
         { curSpecies.map((item, idx) => 
-              <tr id={"admin-species-"+idx} key={item.name+'-'+idx} onDoubleClick={(event) => dblClickFunc(event,item)} >
-                <td style={{padding:'0px 5px 0px 5px'}}>
+              <Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} direction="row" justifyContent="space-between" alignItems="start"
+                    sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}}} onDoubleClick={(event) => dblClickFunc(event,item)} >
+                <Grid size={5}>
                   <Typography nowrap="true" variant="body2">
                     {item.name}
                   </Typography>
-                </td>
-                <td style={{padding:'0px 5px 0px 5px'}}>
+                </Grid>
+                <Grid size={5} sx={{marginRight:'auto'}}>
                   <Typography nowrap="true" variant="body2">
                     {item.scientificName}
                   </Typography>
-                </td>
-                <td style={{padding:'0px 5px 0px 5px', leftMargin:'auto'}}>
-                  <Typography nowrap="true" variant="body2" align="center">
+                </Grid>
+                <Grid sizeo={2} sx={{leftMargin:'auto'}}>
+                  <Typography nowrap="true" variant="body2">
                     {item.keyBinding}
                   </Typography>
-                </td>
-              </tr>
+                </Grid>
+              </Grid>
         )}
-        </tbody>
-      </table>
+        </Grid>
+      </Grid>
     );
   }
 
@@ -543,62 +542,61 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
 
     dblClickFunc = dblClickFunc ? dblClickFunc : () => {};
     return (
-      <table id='admin-settings-locations-details-wrapper' style={{width:'100%', padding:'0px 5px 0 5px', borderCollapse:"collapse"}} >
-        <thead id="admin-settings-species-header" style={{width:'100%', backgroundColor:'lightgrey'}} >
-        <tr>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingLeft:'5px'}}>
+      <Grid id='admin-settings-locations-details-wrapper' container direction="column" justifyContent="center" alignItems="center"
+            sx={{width:'100%', padding:'0px 5px 0 5px'}} >
+        <Grid id="admin-settings-species-header" container direction="row" justifyContent="space-between" alignItems="start"
+              sx={{width:'100%', backgroundColor:'lightgrey', borderBottom:'1px solid black'}} >
+          <Grid size={5}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingLeft:'5px'}}>
               Name
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}}>
+          </Grid>
+          <Grid size={3} sx={{marginRight:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}}>
               ID
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold'}} align="center" >
+          </Grid>
+          <Grid size={2} sx={{marginRight:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold'}} align="center" >
               Active
             </Typography>
-          </th>
-          <th scope="col" style={{borderBottom:'1px solid grey', padding:'0px 10px 0px 10px', marginLeft:'auto'}}>
-            <Typography nowrap="true" variant="body" style={{fontWeight:'bold', paddingRight:'5px'}}>
+          </Grid>
+          <Grid sizeo={2} sx={{marginLeft:'auto'}}>
+            <Typography nowrap="true" variant="body" sx={{fontWeight:'bold', paddingRight:'5px'}}>
               Location
             </Typography>
-          </th>
-        </tr>
-        </thead>
-        <tbody id='admin-settings-details' style={{overflowY:'scroll', width:'100%', maxHeight:detailsHeight+'px', display:'block' }}>
-        <GlobalStyles styles={{ tr: { width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} } }} />
+          </Grid>
+        </Grid>
+        <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
         { selectedLocations.map((item, idx) => {
             const extraAttribs = item.activeProperty || idx == 0 ? {} : {color:'grey'};
-            return (
-              <tr id={"admin-species-"+idx} key={item.name+'-'+idx} style={{...extraAttribs}} onDoubleClick={(event) => dblClickFunc(event,item)} >
-                <td style={{padding:'0px 5px 0px 5px'}}>
+            return (<Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
+                    sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}, ...extraAttribs }} onDoubleClick={(event) => dblClickFunc(event,item)} >
+                <Grid size={5}>
                   <Typography nowrap="true" variant="body2" >
                     {item.nameProperty}
                   </Typography>
-                </td>
-                <td style={{padding:'0px 5px 0px 5px'}}>
+                </Grid>
+                <Grid size={3} sx={{marginRight:'auto'}}>
                   <Typography nowrap="true" variant="body2">
                     {item.idProperty}
                   </Typography>
-                </td>
-                <td style={{padding:'0px 5px 0px 5px'}}>
+                </Grid>
+                <Grid size={2} sx={{marginRight:'auto'}}>
                   <Typography nowrap="true" variant="body2" align="center">
                     {item.activeProperty || idx == 0 ? 'Y' : ' '}
                   </Typography>
-                </td>
-                <td style={{padding:'0px 5px 0px 5px'}}>
-                  <Typography nowrap="true" variant="body2" align="right" style={{whiteSpace:'pre'}}>
+                </Grid>
+                <Grid size={2} sx={{marginLeft:'auto'}} >
+                  <Typography nowrap="true" variant="body2" align="right">
                     {item.latProperty + ', ' + item.lngProperty}
                   </Typography>
-                </td>
-              </tr>
+                </Grid>
+              </Grid>
             );}
         )}
-        </tbody>
-      </table>
+        </Grid>
+      </Grid>
     );
   }
 

@@ -264,7 +264,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    */
   function handleLogin() {
     console.log('HACK:HANDLE LOGIN');
-    const el = document.getElementById('password_entry');
+    const el = document.getElementById('password-entry');
     if (el && typeof(onAdminSettings) === 'function') {
       const newPw = el.value;
       onAdminSettings(newPw);
@@ -408,7 +408,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               </Typography>
             </div>
               <TextField required 
-                    id='password_entry'
+                    id='password-entry'
                     label="Password"
                     type={showPassword ? 'text' : 'password'}
                     size='small'
