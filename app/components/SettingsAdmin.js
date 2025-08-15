@@ -21,6 +21,14 @@ import { Level } from './Messages';
 import { AddMessageContext, CollectionsInfoContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
+const EditingStates = {
+  None: 0,
+  User: 1,
+  Collection: 2,
+  Species: 3,
+  Location: 4,
+};
+
 /**
  * Returns the UI for administrator tasks
  * @function
@@ -38,6 +46,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
   const panelsWrapperRef = React.useRef(null);  // Used for sizeing
   const [activeTab, setActiveTab] = React.useState(0);
   const [detailsHeight, setDetailsHeight] = React.useState(500); // Height for displaying details
+  const [editingState, setEditingState] = React.useState({type:EditingStates.None, data:null})
   const [masterSpecies, setMasterSpecies] = React.useState(null); // Contains information on species
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [userInfo, setUserInfo] = React.useState(null); // Contains information on users
@@ -204,6 +213,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
   function handleUserEdit(event, user) {
     console.log('HACK:HANDLEUSER',user);
     event.stopPropagation();
+    setEditingState({type:EditingStates.User, data:user});
   }
 
   /**
@@ -215,6 +225,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
   function handleCollectionEdit(event, collection) {
     console.log('HACK:HANDLECOLLECTION',collection);
     event.stopPropagation();
+    setEditingState({type:EditingStates.Collection, data:collection});
   }
 
   /**
@@ -226,6 +237,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
   function handleSpeciesEdit(event, species) {
     console.log('HACK:HANDLESPECIES',species);
     event.stopPropagation();
+    setEditingState({type:EditingStates.Species, data:species});
   }
 
   /**
@@ -237,6 +249,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
   function handleLocationEdit(event, location) {
     console.log('HACK:HANDLELOCATION',location);
     event.stopPropagation();
+    setEditingState({type:EditingStates.Location, data:location});
   }
 
   /**
@@ -600,6 +613,22 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
     );
   }
 
+  /**
+   * Generates the UI for the editing of settings entries
+   * @function
+   */
+  function generateEditingUI() {
+    console.log('HACK:',editingState,EditingStates.None,!!editingState, editingState.type !== EditingStates.None);
+    return (
+      <Box id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
+            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(255,0,0,0.5)', 
+                 display:editingState && editingState.type !== EditingStates.None ? 'flex' : 'none'}}
+      >
+          HERE I AM
+      </Box>
+    );
+  }
+
   // Setup the tab and page generation
   const adminTabs = [
     {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:'Add User', newFunc:handleUserEdit, searchFunc:searchUsers},
@@ -613,80 +642,81 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
       <Grid id="settings-admin-wrapper" container direction="row" alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:55555}}
       >
-      <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
-        <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
-          <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
-                scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
-            { adminTabs.map((item, idx) =>
-                <Tab id={'admin-settings-tab-'+idx} key={item.name+'-'+idx} label={
-                            <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
-                              {item.name}
-                            </Typography>
-                         }
-                   key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
-                />
+        <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
+          <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
+            <Tabs id='settings-admin-tabs' value={activeTab} onChange={handleTabChange} aria-label="Administrator Settings Edit" orientation="vertical" variant="scrollable"
+                  scrollButtons={false} style={{overflow:'scroll', maxHeight:'100%'}}>
+              { adminTabs.map((item, idx) =>
+                  <Tab id={'admin-settings-tab-'+idx} key={item.name+'-'+idx} label={
+                              <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
+                                {item.name}
+                              </Typography>
+                           }
+                     key={idx} {...a11yPropsTabPanel(idx)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+                  />
+                )
+              }
+              <Tab sx={{paddingTop:'20px'}} label={
+                        <Grid container direction="row" justifyContent="start" alignItems="center" sx={{width:'100%', '&:hover':{borderBottom:'1px solid black'} }}>
+                          <Grid size={'grow'} justifyContent="start">
+                          <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
+                            Done
+                          </Typography>
+                          </Grid>
+                          <div style={{marginLeft:'auto'}} >
+                            <ExitToAppOutlinedIcon />
+                          </div>
+                        </Grid>
+                       }
+                 key={adminTabs.length} {...a11yPropsTabPanel(99)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
+              />
+            </Tabs>
+          </Grid>
+          <Grid id='admin-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
+            { adminTabs.map((item,idx) => 
+                <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
+                          style={{width:'100%', position:'relative', height:uiSizes.workspace.height+'px'}}>
+                  <Grid id="admin-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
+                    <Typography gutterBottom variant="h4" component="h4">
+                      Administration - {item.name}
+                    </Typography>
+                    {item.uiFunc()}
+                  </Grid>
+                </TabPanel>
               )
             }
-            <Tab sx={{paddingTop:'20px'}} label={
-                      <Grid container direction="row" justifyContent="start" alignItems="center" sx={{width:'100%', '&:hover':{borderBottom:'1px solid black'} }}>
-                        <Grid size={'grow'} justifyContent="start">
-                        <Typography gutterBottom variant="body2" sx={{'&:hover':{fontWeight:'bold'} }}>
-                          Done
-                        </Typography>
-                        </Grid>
-                        <div style={{marginLeft:'auto'}} >
-                          <ExitToAppOutlinedIcon />
-                        </div>
-                      </Grid>
-                     }
-               key={adminTabs.length} {...a11yPropsTabPanel(99)} sx={{'&:hover':{backgroundColor:'rgba(0,0,0,0.05)'} }}
-            />
-          </Tabs>
-        </Grid>
-        <Grid id='admin-settings-panel-wrapepr' ref={panelsWrapperRef} size={11} sx={{backgroundColor:'#EAEAEA', borderRadius:'0px 25px 25px 25px'}}>
-          { adminTabs.map((item,idx) => 
-              <TabPanel id={'admin-settings-panel-'+item.name} key={item.name+'-'+idx}  value={activeTab} index={idx}
-                        style={{width:'100%', position:'relative', height:uiSizes.workspace.height+'px'}}>
-                <Grid id="admin-settings-panel-wrapper" container direction="column" justifyContent="center" alignItems="center" sx={{width:'100%'}} >
-                  <Typography gutterBottom variant="h4" component="h4">
-                    Administration - {item.name}
-                  </Typography>
-                  {item.uiFunc()}
-                </Grid>
-              </TabPanel>
-            )
-          }
-          <TabPanel id={'admin-settings-panel-done'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
-                    style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
-            COMPLETED
-          </TabPanel>
-          <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
-                sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
-                     padding:'5px 20px 5px 20px', width:'100%'}}>
-            <Grid>
-              <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
-            </Grid>
-            <Grid>
-              <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
-                        onChange={activeTabInfo.searchFunc}
-                        slotProps={{
-                          input: {
-                            endAdornment:
-                              <InputAdornment position="end">
-                                <IconButton
-                                  aria-label="Searching"
-                                  onClick={activeTabInfo.searchFunc}
-                                >
-                                  <SearchOutlinedIcon />
-                                </IconButton>
-                              </InputAdornment>
-                          },
-                        }}
-             />
+            <TabPanel id={'admin-settings-panel-done'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
+                      style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
+              COMPLETED
+            </TabPanel>
+            <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
+                  sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
+                       padding:'5px 20px 5px 20px', width:'100%'}}>
+              <Grid>
+                <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
+              </Grid>
+              <Grid>
+                <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
+                          onChange={activeTabInfo.searchFunc}
+                          slotProps={{
+                            input: {
+                              endAdornment:
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="Searching"
+                                    onClick={activeTabInfo.searchFunc}
+                                  >
+                                    <SearchOutlinedIcon />
+                                  </IconButton>
+                                </InputAdornment>
+                            },
+                          }}
+               />
+              </Grid>
             </Grid>
           </Grid>
         </Grid>
-      </Grid>
+        { generateEditingUI() }
       </Grid>
   );
 }
