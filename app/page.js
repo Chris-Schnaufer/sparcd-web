@@ -1003,9 +1003,11 @@ export default function Home() {
         <UserSettingsContext.Provider value={userSettings.settings}>
         <NarrowWindowContext.Provider value={narrowWindow}>
             <TokenContext.Provider value={lastToken}>
+            <AddMessageContext.Provider value={addMessage}>
               <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                         breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings}/>
+            </AddMessageContext.Provider>
             </TokenContext.Provider>
             {!curLoggedIn ? 
               <LoginValidContext.Provider value={loginValidStates}>
@@ -1042,7 +1044,7 @@ export default function Home() {
                   <LocationsInfoContext.Provider value={locationInfo}>
                   <SpeciesInfoContext.Provider value={speciesInfo}>
                   <AddMessageContext.Provider value={addMessage}>
-                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations} loadingSpecies={loadingSpecies} />
+                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations} onClose={() => setDisplayAdminSettings(false)}/>
                   </AddMessageContext.Provider>
                   </SpeciesInfoContext.Provider>
                   </LocationsInfoContext.Provider>

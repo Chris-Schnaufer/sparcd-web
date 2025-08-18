@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
+import EditUser from './EditUser';
 import { Level } from './Messages';
 import { AddMessageContext, CollectionsInfoContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -36,7 +37,7 @@ const EditingStates = {
  * @param {boolean} loadingLocations Flag indicating locations are being loaded
  * @param {boolean} loadingSpecies Flag indicating species are being loaded
  */
-export default function SettingsAdmin({loadingCollections, loadingLocations}) {
+export default function SettingsAdmin({loadingCollections, loadingLocations, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
@@ -79,16 +80,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
       setDetailsHeight(panelsWrapperRef.current.offsetHeight - footerHeight - headingsHeight);
     }
   }, [activeTab,panelsWrapperRef,setDetailsHeight]);
-
-  /**
-   * Updates fields when a new tab is selected for display
-   * @function
-   * @param {object} event The triggering event object
-   * @param {object} newValue The new tab value
-   */
-  function handleTabChange(event, newValue) {
-    setActiveTab(newValue);
-  }
 
   /**
    * Internal TabPanel element type
@@ -202,6 +193,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
       console.log('Admin Species Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknwn error ocurred when attempting to load species information');
     }
+  }
+
+  /**
+   * Handles updating the user information
+   * @function
+   */
+  function updateUser(userInfo) {
+    print('HACK: UPDATEUSERINFO', userInfo);
   }
 
   /**
@@ -618,14 +617,15 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
    * @function
    */
   function generateEditingUI() {
-    console.log('HACK:',editingState,EditingStates.None,!!editingState, editingState.type !== EditingStates.None);
     return (
-      <Box id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
-            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(255,0,0,0.5)', 
-                 display:editingState && editingState.type !== EditingStates.None ? 'flex' : 'none'}}
+      <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
+            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
       >
-          HERE I AM
-      </Box>
+      {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser} /> }
+/*      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection} /> }
+      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} /> }
+      {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation} /> }
+*/      </Grid>
     );
   }
 
@@ -636,6 +636,20 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
     {name:'Species', uiFunc:() => generateSpecies(handleSpeciesEdit), newName:'Add Species', newFunc:handleSpeciesEdit, searchFunc:searchSpecies},
     {name:'Locations', uiFunc:() => generateLocations(handleLocationEdit), newName:'Add Location', newFunc:handleLocationEdit, searchFunc:searchLocations},
   ];
+
+  /**
+   * Updates fields when a new tab is selected for display
+   * @function
+   * @param {object} event The triggering event object
+   * @param {object} newValue The new tab value
+   */
+  function handleTabChange(event, newValue) {
+    if (newValue < adminTabs.length) {
+      setActiveTab(newValue);
+    } else {
+      onClose();
+    }
+  }
 
   const activeTabInfo = adminTabs[activeTab];
   return (
@@ -689,34 +703,36 @@ export default function SettingsAdmin({loadingCollections, loadingLocations}) {
                       style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
               COMPLETED
             </TabPanel>
-            <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
-                  sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
-                       padding:'5px 20px 5px 20px', width:'100%'}}>
-              <Grid>
-                <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
+            { activeTabInfo && 
+              <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
+                    sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
+                         padding:'5px 20px 5px 20px', width:'100%'}}>
+                <Grid>
+                  <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
+                </Grid>
+                <Grid>
+                  <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
+                            onChange={activeTabInfo.searchFunc}
+                            slotProps={{
+                              input: {
+                                endAdornment:
+                                  <InputAdornment position="end">
+                                    <IconButton
+                                      aria-label="Searching"
+                                      onClick={activeTabInfo.searchFunc}
+                                    >
+                                      <SearchOutlinedIcon />
+                                    </IconButton>
+                                  </InputAdornment>
+                              },
+                            }}
+                 />
+                </Grid>
               </Grid>
-              <Grid>
-                <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
-                          onChange={activeTabInfo.searchFunc}
-                          slotProps={{
-                            input: {
-                              endAdornment:
-                                <InputAdornment position="end">
-                                  <IconButton
-                                    aria-label="Searching"
-                                    onClick={activeTabInfo.searchFunc}
-                                  >
-                                    <SearchOutlinedIcon />
-                                  </IconButton>
-                                </InputAdornment>
-                            },
-                          }}
-               />
-              </Grid>
-            </Grid>
+            }
           </Grid>
         </Grid>
-        { generateEditingUI() }
+        { editingState.type !== EditingStates.None && generateEditingUI() }
       </Grid>
   );
 }

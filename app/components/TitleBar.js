@@ -80,8 +80,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
    * @param {string} pw The password for administration editing
    */
   const handleAdminSettings = React.useCallback((pw) => {
-    console.log('HACK:HANDLEADMINSETTINGS');
-    onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Invalid password')});
+    onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
   }, [onAdminSettings, handleSettingsClose, addMessage, Level]);
 
   const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};

@@ -268,6 +268,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     if (el && typeof(onAdminSettings) === 'function') {
       const newPw = el.value;
       onAdminSettings(newPw);
+      setGetPassword(false);
     }
   }
 

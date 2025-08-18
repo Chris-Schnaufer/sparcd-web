@@ -2829,7 +2829,7 @@ def settings_admin():
         pw_ok = True
     except MinioException as ex:
         print(f'Admin password check failed for {user_info["name"]}:', ex)
-        return "Not Found", 404
+        return "Not Found", 401
 
     return json.dumps({'success': pw_ok})
 
@@ -2874,24 +2874,27 @@ def admin_users():
     # Organize the collection permissions by user
     all_collections = load_timed_temp_colls(user_info['name'])
     user_collections = {}
-    for one_coll in all_collections:
-        if 'allPermissions' in one_coll and one_coll['allPermissions'] is not None:
-            for one_perm in one_coll['allPermissions']:
-                if one_perm['usernameProperty'] not in user_collections:
-                    user_collections[one_perm['usernameProperty']] = []
-                user_collections[one_perm['usernameProperty']].append({
-                    'name':one_coll['name'],
-                    'owner':one_perm['ownerProperty'] if 'ownerProperty' in one_perm else False,
-                    'read':one_perm['readProperty'] if 'readProperty' in one_perm else False,
-                    'write':one_perm['uploadProperty'] if 'uploadProperty' in one_perm else False,
-                    })
+    if all_collections:
+        for one_coll in all_collections:
+            if 'allPermissions' in one_coll and one_coll['allPermissions'] is not None:
+                for one_perm in one_coll['allPermissions']:
+                    if one_perm['usernameProperty'] not in user_collections:
+                        user_collections[one_perm['usernameProperty']] = []
+                    user_collections[one_perm['usernameProperty']].append({
+                        'name':one_coll['name'],
+                        'id':one_coll['id'],
+                        'owner':one_perm['ownerProperty'] if 'ownerProperty' in one_perm else False,
+                        'read':one_perm['readProperty'] if 'readProperty' in one_perm else False,
+                        'write':one_perm['uploadProperty'] if 'uploadProperty' in one_perm else False,
+                        })
 
     # Put it all together
     return_users = []
+    # TODO: What to do if collections havent been loaded yet?
     for one_user in all_users:
         return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
                              'auto': one_user[3] == 1,
-                             'collections': user_collections[one_user[0]]})
+                             'collections': user_collections[one_user[0]] if user_collections else []})
 
     return json.dumps(return_users)
 
