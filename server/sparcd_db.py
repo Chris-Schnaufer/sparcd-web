@@ -1021,3 +1021,71 @@ class SPARCdDatabase:
             return []
 
         return res
+
+
+    def admin_count(self) -> int:
+        """ Returns the count of administrators in the database
+        Returns:
+            The count of administrators in the database
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to count number of admins from the database '\
+                                                                                'before connecting')
+
+        # Get the edits
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT count(1) FROM users where administrator=1')
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return []
+
+        return int(res[0])
+
+    def update_user(self, old_name: str, new_email: str):
+        """ Updates the user in the database
+        Arguments:
+            old_name: the old user name
+            new_email: the new email to set for the user
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to update the user name & email in the database before '\
+                                    'connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE users SET email=? WHERE name=?',
+                                                                    (new_email, old_name))
+        self._conn.commit()
+        cursor.close()
+
+    def update_species(self, username: str, old_scientific: str, new_scientific: str, \
+                                        new_name: str, new_keybind: str, new_icon_url: str) -> bool:
+        """ Updates the scientific name in the database for later submission
+        Arguments:
+            username: the name of the user making the change
+            old_scientific: the old scientific name of the species
+            new_scientific: the new scientific name of the species
+            new_name: the new name of the species
+            new_keybind: the new keybinding of the species
+            new_icon_url: the new icon url
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to update a species in the database before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id FROM users WHERE name=?', (username,))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return False
+        user_id = res[0][0]
+
+        cursor.execute('INSERT INTO admin_species_edits(user_id,timestamp, old_scientific_name, ' \
+                                                'new_scientific_name, name, keybind, iconURL) ' \
+                            'VALUES(?,strftime("%s", "now"),?,?,?,?,?)',
+                                    (user_id, old_scientific, new_scientific, new_name, \
+                                            new_keybind, new_icon_url))
+        self._conn.commit()
+        cursor.close()
+
+        return True

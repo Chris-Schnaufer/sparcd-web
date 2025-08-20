@@ -2883,9 +2883,12 @@ def admin_users():
                     user_collections[one_perm['usernameProperty']].append({
                         'name':one_coll['name'],
                         'id':one_coll['id'],
-                        'owner':one_perm['ownerProperty'] if 'ownerProperty' in one_perm else False,
-                        'read':one_perm['readProperty'] if 'readProperty' in one_perm else False,
-                        'write':one_perm['uploadProperty'] if 'uploadProperty' in one_perm else False,
+                        'owner':one_perm['ownerProperty'] if 'ownerProperty' in \
+                                                                        one_perm else False,
+                        'read':one_perm['readProperty'] if 'readProperty' in \
+                                                                        one_perm else False,
+                        'write':one_perm['uploadProperty'] if 'uploadProperty' in \
+                                                                        one_perm else False,
                         })
 
     # Put it all together
@@ -2893,8 +2896,8 @@ def admin_users():
     # TODO: What to do if collections havent been loaded yet?
     for one_user in all_users:
         return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
-                             'auto': one_user[3] == 1,
-                             'collections': user_collections[one_user[0]] if user_collections else []})
+                         'auto': one_user[3] == 1,
+                         'collections': user_collections[one_user[0]] if user_collections else []})
 
     return json.dumps(return_users)
 
@@ -2935,3 +2938,102 @@ def admin_species():
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     return json.dumps(cur_species)
+
+@app.route('/adminUserUpdate', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_user_update():
+    """ Confirms the password is correct for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN USER UDPATE', flush=True)
+
+    old_name = request.form.get('oldName', None)
+    new_email = request.form.get('newEmail', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [token, old_name, new_email]):
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    if not user_info['name'] == old_name:
+        return {'success': False, 'message': f'User "{old_name}" not found'}
+
+    db.update_user(old_name, new_email)
+    return {'success': True, 'message': f'Successfully updated user "{old_name}"'}
+
+@app.route('/adminSpeciesUpdate', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_species_update():
+    """ Confirms the password is correct for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN SPECIES UDPATE', flush=True)
+
+    new_name = request.form.get('newName', None)
+    old_scientific = request.form.get('oldScientific', None)
+    new_scientific = request.form.get('newScientific', None)
+    key_binding = request.form.get('keyBinding', '')
+    icon_url = request.form.get('iconURL', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [token, new_name, new_scientific, icon_url]):
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the species
+    s3_url = web_to_s3_url(user_info["url"])
+    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+                                            user_info["name"], do_decrypt(db.get_password(token)))
+
+    # Make sure this is OK to do
+    find_scientific = old_scientific if old_scientific else new_scientific
+    found_match = [one_species for one_species in cur_species if \
+                                                one_species['scientificName'] == find_scientific]
+    if old_scientific is not None and (not found_match or len(found_match) <= 0):
+        return {'success': False, 'message': f'Species "{old_scientific}" not found'}
+    if old_scientific is None and (found_match and len(found_match) > 0):
+        return {'success': False, 'message': f'Species "{new_scientific}" already exists'}
+
+    # Put the change in the DB
+    if db.update_species(user_info['name'], old_scientific, new_scientific, new_name, \
+                                                                            key_binding, icon_url):
+        return {'success': True, 'message': f'Successfully updated species "{find_scientific}"'}
+
+    return {'success': False, \
+                'message': f'A problem ocurred while updating species "{find_scientific}"'}

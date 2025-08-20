@@ -1,4 +1,4 @@
-/** @module components/Settings */
+/** @module components/EditUser */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -16,6 +16,9 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
+import { AddMessageContext } from '../serverInfo';
+import { Level } from './Messages';
+
 /**
  * Handles editing a user's entry
  * @function
@@ -26,29 +29,36 @@ import { useTheme } from '@mui/material/styles';
  */
 export default function EditUser({data, onUpdate, onClose}) {
   const theme = useTheme();
+  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const [isModified, setIsModified] = React.useState(false);
   const [userName, setUserName] = React.useState(data ? data.name : null);
   const [userEmail, setUserEmail] = React.useState(data ? data.email : null);
-  const [userAdmin, setUserAdmin] = React.useState(data ? data.admin : false);
-
-  const isModified = false;
 
   /**
    * Handles saving the changes to the user
    * @function
    */
   function onSaveChanges() {
-    // Save the edited user data
-    // onUpdate(data, onClose, () => {})
-  }
+    console.log('HACK:IS MODIFIED:',isModified, data);
+    if (!isModified) {
+      return;
+    }
 
-  /**
-   * Handles the admin checkbox changing
-   * @functino
-   * @param {object} event The triggering event
-   */
-  function handleAdminChange(event) {
-    setUserAdmin(event.target.checked);
-    setIsModified(true);
+    // Save the edited user data
+    let updatedData = data ? JSON.parse(JSON.stringify(data)) : {};
+
+    let el = document.getElementById('edit-user-name');
+    if (el) {
+      updatedData.name = el.value;
+    }
+
+    el = document.getElementById('edit-user-email');
+    if (el) {
+      updatedData.email = el.value;
+    }
+
+    console.log('HACK:         ',updatedData);
+    onUpdate(updatedData, onClose, (message) => addMessage(Level.Warning, message));
   }
 
   /**
@@ -58,27 +68,58 @@ export default function EditUser({data, onUpdate, onClose}) {
    */
   function generateCollections() {
     return (
-      <Grid container direction="column" justifyContent="start" alignItems="stretch" sx={{padding:'0px 15px 10px 10px'}} >
+      <Grid container direction="column" justifyContent="start" alignItems="stretch" sx={{borderTop:'1px solid black'}} >
+          <Grid container key={'user-edit-coll-titles'} direction="row" justifyContent="space-between" alignItems="center"
+                sx={{backgroundColor:'lightgrey', height:'1.5em'}} >
+            <Grid size={{sm:9}} >
+              <Typography nowrap="true" align="start" component="div">
+                <Box sx={{ fontWeight: 'bold', paddingLeft:'5px' }}>
+                Collection
+                </Box>
+              </Typography>
+            </Grid>
+            <Grid size={{sm:1}} >
+              <Typography nowrap="true" align="center" component="div">
+                <Box sx={{ fontWeight: 'bold' }}>
+                R
+                </Box>
+              </Typography>
+            </Grid>
+            <Grid size={{sm:1}} >
+              <Typography nowrap="true" align="center" component="div">
+                <Box sx={{ fontWeight: 'bold' }}>
+                W
+                </Box>
+              </Typography>
+            </Grid>
+            <Grid size={{sm:1}}  >
+              <Typography nowrap="true" align="center" component="div" sx={{paddingRight:'5px'}}>
+                <Box sx={{ fontWeight: 'bold' }}>
+                O
+                </Box>
+              </Typography>
+            </Grid>
+          </Grid>
         { data.collections.map((item) =>
-          <Grid container key={'user-edit-coll-'+item.id} direction="row" justifyContent="space-between" alignItems="center">
-            <Grid sx={{width:'80%'}} >
-              <Typography variant="body2" >
+          <Grid container key={'user-edit-coll-'+item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{height:'2em'}}>
+            <Grid size={{sm:9}} sx={{paddingLeft:'5px'}} >
+              <Typography variant="body2">
               {item.name}
               </Typography>
             </Grid>
-            <Grid sm={1} >
-              <Typography variant="body2" >
-              {item.read ? 'Y' : 'N'}
+            <Grid size={{sm:1}}  >
+              <Typography variant="body2" align="center">
+              <Checkbox disabled size="small" checked={!!item.read} onChange={() => setIsModified(true)}/>
               </Typography>
             </Grid>
-            <Grid sm={1} >
-              <Typography variant="body2" >
-              {item.write ? 'Y' : 'N'}
+            <Grid size={{sm:1}}  >
+              <Typography variant="body2" align="center">
+              <Checkbox disabled size="small" checked={!!item.write} onChange={() => setIsModified(true)}/>
               </Typography>
             </Grid>
-            <Grid sm={1} >
-              <Typography variant="body2" >
-              {item.owner ? 'Y' : 'N'}
+            <Grid size={{sm:1}}  >
+              <Typography variant="body2" align="center" sx={{paddingRight:'5px'}}>
+              <Checkbox disabled size="small" checked={!!item.owner} onChange={() => setIsModified(true)}/>
               </Typography>
             </Grid>
           </Grid>
@@ -88,7 +129,7 @@ export default function EditUser({data, onUpdate, onClose}) {
   }
 
   return (
-   <Grid> 
+   <Grid sx={{minWidth:'50vw'}} > 
     <Card id="edit-user" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
       <CardHeader id='edit-user-header' title={
                     <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
@@ -122,8 +163,8 @@ export default function EditUser({data, onUpdate, onClose}) {
       />
       <CardContent id='edit-user-details' sx={{paddingTop:'0px', paddingBottom:'0px'}}>
         <Grid container direction="column" justifyContent="start" alignItems="stretch"
-              sx={{minWidth:'400px', border:'1px solid black', borderRadius:'5px', paddingLeft:'5px', backgroundColor:'rgb(255,255,255,0.3)' }}>
-          <TextField required 
+              sx={{minWidth:'400px', border:'1px solid black', borderRadius:'5px', backgroundColor:'rgb(255,255,255,0.3)' }}>
+          <TextField required disabled
                 id='edit-user-name'
                 label="S3 User Name"
                 defaultValue={userName}
@@ -152,9 +193,9 @@ export default function EditUser({data, onUpdate, onClose}) {
                 }}
                 />
             <FormControlLabel key={'edit-user-admin'} sx={{paddingLeft:'10px'}}
-                              control={<Checkbox size="small" 
-                                                 checked={userAdmin}
-                                                 onChange={(event) => handleAdminChange(event)}
+                              control={<Checkbox disabled 
+                                                 size="small" 
+                                                 checked={data ? data.admin : false}
                                         />} 
                               label={<Typography variant="body2">Has administrative rights</Typography>} />
             {generateCollections()}

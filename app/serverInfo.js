@@ -35,6 +35,9 @@ export const UploadEditContext = createContext(null);
 /** React context for user settings */
 export const UserSettingsContext = createContext(null);
 
+/** The default species icon image URL */
+export const DefaultImageIconURL = 'https://i.imgur.com/4qz5mI0.png';
+
 /** Allowed image types **/
 export const AllowedImageMime = [
   'image/jp2',

@@ -1,4 +1,4 @@
-/** @module components/Settings */
+/** @module components/SettingsAdmin */
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
+import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
 import { Level } from './Messages';
 import { AddMessageContext, CollectionsInfoContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
@@ -50,6 +51,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [editingState, setEditingState] = React.useState({type:EditingStates.None, data:null})
   const [masterSpecies, setMasterSpecies] = React.useState(null); // Contains information on species
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
+  const [speciesModified, setSpeciesModified] = React.useState(false); // Indicates the species was modified and needs to be updated on S3
   const [userInfo, setUserInfo] = React.useState(null); // Contains information on users
 
   const [selectedCollections, setSelectedCollections] = React.useState(loadingCollections ? [] : collectionInfo); // Used for searches
@@ -198,9 +200,138 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   /**
    * Handles updating the user information
    * @function
+   * @param {object} userNewInfo The updated user information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
    */
-  function updateUser(userInfo) {
-    print('HACK: UPDATEUSERINFO', userInfo);
+  function updateUser(userNewInfo, onSuccess, onError) {
+    console.log('HACK: UPDATEUSERINFO', userInfo, onSuccess, onError);
+    const settingsCheckUrl = serverURL + '/adminUserUpdate?t=' + encodeURIComponent(settingsToken);
+
+    const formData = new FormData();
+
+    formData.append('oldName', editingState.data.name);
+    formData.append('newEmail', userNewInfo.email);
+    formData.append('admin', userNewInfo.admin);
+
+    try {
+      const resp = fetch(settingsCheckUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Set the species data
+            console.log('HACK:UPDATEUSERINFOR RESP:',respData);
+            if (respData.success) {
+              console.log('HACK:    ',{...editingState, data:{...editingState.data,...{email: userNewInfo.email}}});
+              setEditingState({...editingState, data:{...editingState.data,...{email: userNewInfo.email}}});
+              let curUser = userInfo.filter((item) => item.name === editingState.data.name);
+              console.log('HACK:     ', curUser);
+              if (curUser && curUser.length > 0) {
+                curUser[0]['email'] = userNewInfo.email;
+                console.log('HACK:     ', userInfo);
+              }
+              if (typeof(onSuccess) === 'function') {
+                onSuccess();
+              }
+            } else if (typeof(onError) === 'function') {
+              onError(respData.message);
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Update User Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update user information');
+      });
+    } catch (error) {
+      console.log('Admin Update User Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update user information');
+    }
+  }
+
+  /**
+   * Handles updating the species information
+   * @function
+   * @param {object} newInfo The updated species information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
+   */
+  function updateSpecies(newInfo, onSuccess, onError) {
+    console.log('HACK: UPDATESPECIESINFO',newInfo, onSuccess, onError);
+    const settingsCheckUrl = serverURL + '/adminSpeciesUpdate?t=' + encodeURIComponent(settingsToken);
+
+    const formData = new FormData();
+
+    formData.append('newName', newInfo.name);
+    if (editingState.data) {
+      formData.append('oldScientific', editingState.data.scientificName);
+    }
+    formData.append('newScientific', newInfo.scientificName);
+    formData.append('keyBinding', newInfo.keyBinding);
+    formData.append('iconURL', newInfo.speciesIconURL);
+
+    try {
+      const resp = fetch(settingsCheckUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update species information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Set the species data
+            console.log('HACK:UPDATESPECIESINFO RESP:',respData,masterSpecies);
+            if (respData.success) {
+              const oldEditingState = editingState;
+              const newEditingState = {...editingState, data:{...editingState.data,...newInfo}};
+              let curSpecies = masterSpecies.filter((item) => item.scientificName === newEditingState.data.scientificName);
+              
+              if (curSpecies && curSpecies.length > 0) {
+                curSpecies[0]['name'] = newInfo.name;
+                curSpecies[0]['keyBinding'] = newInfo.keyBinding;
+                curSpecies[0]['speciesIconURL'] = newInfo.speciesIconURL;
+
+                setSpeciesModified(true);
+                if (typeof(onSuccess) === 'function') {
+                  onSuccess();
+                }
+              } else if (!oldEditingState.data) {
+                let newMasterSpecies = masterSpecies;
+                newMasterSpecies.push({name:newInfo.name,
+                                       scientificName:newInfo.scientificName,
+                                       keyBinding:newInfo.keyBinding ? newInfo.keyBinding : null,
+                                       speciesIconUrl:newInfo.speciesIconURL});
+                setMasterSpecies(newMasterSpecies);
+                setSpeciesModified(true);
+                if (typeof(onSuccess) === 'function') {
+                  onSuccess();
+                }
+              } else {
+                console.log('Error: unable to find species locally to update');
+                if (typeof(onError) === 'function') {
+                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                }
+              }
+            } else if (typeof(onError) === 'function') {
+              onError(respData.message);
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Update Species Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update species information');
+      });
+    } catch (error) {
+      console.log('Admin Update Species Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update species information');
+    }
   }
 
   /**
@@ -315,12 +446,12 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function generateUsers(dblClickFunc) {
     let curUserInfo = selectedUsers || [];
-    if (userInfo == null) {
+    if (userInfo === null) {
       getUserInfo();
       setUserInfo([]);
       setSelectedUsers([]);
     }
-    if (curUserInfo.length <= 0) {
+    if (userInfo === null && curUserInfo.length <= 0) {
       return (
         <Grid container justifyContent="center" alignItems="center" sx={{position:'absolute',top:'0px', right:'0px', bottom:'0px', left:'0px'}} >
           <CircularProgress />
@@ -621,17 +752,21 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
       >
-      {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser} /> }
-/*      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection} /> }
-      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} /> }
-      {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation} /> }
+      {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser}
+                                                             onClose={() => setEditingState({type:EditingStates.None, data:null})} /> }
+/*      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
+                                                                          onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
+*/      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} 
+                                                                      onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
+/*      {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation}
+                                                                      onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
 */      </Grid>
     );
   }
 
   // Setup the tab and page generation
   const adminTabs = [
-    {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:'Add User', newFunc:handleUserEdit, searchFunc:searchUsers},
+    {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:null, newFunc:null, searchFunc:searchUsers},
     {name:'Collections', uiFunc:() => generateCollections(handleCollectionEdit), newName:'Add Collection', newFunc:handleCollectionEdit, searchFunc:searchCollections},
     {name:'Species', uiFunc:() => generateSpecies(handleSpeciesEdit), newName:'Add Species', newFunc:handleSpeciesEdit, searchFunc:searchSpecies},
     {name:'Locations', uiFunc:() => generateLocations(handleLocationEdit), newName:'Add Location', newFunc:handleLocationEdit, searchFunc:searchLocations},
@@ -654,7 +789,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const activeTabInfo = adminTabs[activeTab];
   return (
       <Grid id="settings-admin-wrapper" container direction="row" alignItems="center" justifyContent="center"
-            sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:55555}}
+            sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:10000}}
       >
         <Grid container size="grow" alignItems="start" justifyContent="start" sx={{padding:'15px 15px', borderRadius:'20px', overflow:'scroll'}}>
           <Grid size={1}  sx={{backgroundColor:"#EAEAEA", borderRadius:'10px 0px 0px 10px'}}>
@@ -708,7 +843,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                     sx={{position:'sticky',bottom:'0px',backgroundColor:'#F0F0F0', borderTop:'1px solid black', boxShadow:'lightgrey 0px -3px 3px',
                          padding:'5px 20px 5px 20px', width:'100%'}}>
                 <Grid>
-                  <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>
+                  {activeTabInfo.newName && activeTabInfo.newFunc && <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>}
                 </Grid>
                 <Grid>
                   <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"

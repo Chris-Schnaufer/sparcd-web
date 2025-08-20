@@ -1031,13 +1031,6 @@ export default function Home() {
                 </Grid>
               </div>
             </Grid>
-            {
-              messages.length > 0 && 
-                <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
-                      sx={{position:'absolute', top:workspaceTop, right:'0px', bottom:'0px', left:'0px'}}>
-                  <Messages messages={messages} close_cb={handleCloseMessage}/>
-                </Grid>
-            }
             { displayAdminSettings &&
                   <TokenContext.Provider value={lastToken}>
                   <CollectionsInfoContext.Provider value={collectionInfo}>
@@ -1050,6 +1043,13 @@ export default function Home() {
                   </LocationsInfoContext.Provider>
                   </CollectionsInfoContext.Provider>
                   </TokenContext.Provider>
+            }
+            { // Make sure this is is last
+              messages.length > 0 && 
+                <Grid id="messages-wrapper" container direction="row" alignItems="start" justifyContent="center"
+                      sx={{position:'absolute', top:workspaceTop, right:'0px', bottom:'0px', left:'0px'}}>
+                  <Messages messages={messages} close_cb={handleCloseMessage}/>
+                </Grid>
             }
         </NarrowWindowContext.Provider>
         </UserSettingsContext.Provider>

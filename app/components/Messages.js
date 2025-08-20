@@ -116,7 +116,7 @@ export function Messages({messages, messagesMax, messagesTimeout, close_cb}) {
                 sx={{position:'absolute', marginTop:((15*idx)+5)+'px', marginLeft:((15*idx))+'px', 
                      color:LevelColors[item.level].color, backgroundColor:LevelColors[item.level].background, 
                      padding:'10px', minWidth:'50vw', maxWidth:'90vw',
-                     border:'1px solid black', borderRadius:'10px'
+                     border:'1px solid black', borderRadius:'10px', zIndex:999999
                     }}>
             <Grid id={"sparcd-message-titlebar-" + item.messageId} container direction="row" alignitem="start" justifyContent="space-between">
               {item.level === Level.Error && <ErrorOutlineOutlinedIcon size={2} />}

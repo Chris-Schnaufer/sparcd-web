@@ -108,7 +108,12 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'obs_count INTEGER DEFAULT 0)',
              'CREATE TABLE collection_edits(id INTEGER PRIMARY KEY ASC, bucket TEXT NOT NULL, ' \
                             's3_base_path TEXT NOT NULL, username TEXT NOT NULL, ' \
-                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL)'
+                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL)',
+             'CREATE TABLE admin_species_edits(id INTEGER PRIMARY KEY ASC, ' \
+                            'user_id INTEGER NOT NULL, timestamp INTEGER, '\
+                            'old_scientific_name TEXT, new_scientific_name TEXT NOT NULL, ' \
+                            'name TEXT NOT NULL, keybind NOT NULL, iconURL TEXT NOT NULL, ' \
+                            's3_updated INTEGER DEFAULT 0)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 
