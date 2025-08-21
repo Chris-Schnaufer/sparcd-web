@@ -425,6 +425,7 @@ export default function Home() {
           // Save response data
           setLoadingLocations(false);
           const curLocations = respData.sort((first, second) => first.nameProperty.localeCompare(second.nameProperty, undefined, { sensitivity: "base" }));
+          console.log('LOCATIONS RESP:',curLocations);
           setLocationInfo(curLocations);
         })
         .catch((err) => {

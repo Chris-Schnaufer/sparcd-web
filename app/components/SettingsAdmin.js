@@ -17,8 +17,9 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
-import EditSpecies from './EditSpecies';
 import EditUser from './EditUser';
+import EditLocation from './EditLocation';
+import EditSpecies from './EditSpecies';
 import { Level } from './Messages';
 import { AddMessageContext, CollectionsInfoContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -51,6 +52,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [editingState, setEditingState] = React.useState({type:EditingStates.None, data:null})
   const [masterSpecies, setMasterSpecies] = React.useState(null); // Contains information on species
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
+  const [locationsModified, setLocationsModified] = React.useState(false); // Indicates the location was modified and needs to be updated on S3
   const [speciesModified, setSpeciesModified] = React.useState(false); // Indicates the species was modified and needs to be updated on S3
   const [userInfo, setUserInfo] = React.useState(null); // Contains information on users
 
@@ -134,11 +136,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @function
    */
   function getUserInfo() {
-    const settingsCheckUrl = serverURL + '/adminUsers?t=' + encodeURIComponent(settingsToken);
-    console.log('HACK:ADMINUSERS');
+    const adminUsersUrl = serverURL + '/adminUsers?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(settingsCheckUrl, {
+      const resp = fetch(adminUsersUrl, {
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -149,7 +150,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           })
         .then((respData) => {
             // Set the user data
-            console.log('HACK:ADMINUSERS:',respData);
             setUserInfo(respData);
             setSelectedUsers(respData);
         })
@@ -168,11 +168,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @function
    */
   function getMasterSpecies() {
-    const settingsCheckUrl = serverURL + '/adminSpecies?t=' + encodeURIComponent(settingsToken);
-    console.log('HACK:ADMINSPECIES');
+    const adminSpeciesUrl = serverURL + '/adminSpecies?t=' + encodeURIComponent(settingsToken);
 
     try {
-      const resp = fetch(settingsCheckUrl, {
+      const resp = fetch(adminSpeciesUrl, {
         method: 'GET',
       }).then(async (resp) => {
             if (resp.ok) {
@@ -183,7 +182,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           })
         .then((respData) => {
             // Set the species data
-            console.log('HACK:ADMINSPECIES:',respData);
             setMasterSpecies(respData);
             setSelectedSpecies(respData);
         })
@@ -205,8 +203,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   function updateUser(userNewInfo, onSuccess, onError) {
-    console.log('HACK: UPDATEUSERINFO', userInfo, onSuccess, onError);
-    const settingsCheckUrl = serverURL + '/adminUserUpdate?t=' + encodeURIComponent(settingsToken);
+    const userUpdateUrl = serverURL + '/adminUserUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
 
@@ -215,7 +212,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('admin', userNewInfo.admin);
 
     try {
-      const resp = fetch(settingsCheckUrl, {
+      const resp = fetch(userUpdateUrl, {
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -227,15 +224,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           })
         .then((respData) => {
             // Set the species data
-            console.log('HACK:UPDATEUSERINFOR RESP:',respData);
             if (respData.success) {
-              console.log('HACK:    ',{...editingState, data:{...editingState.data,...{email: userNewInfo.email}}});
               setEditingState({...editingState, data:{...editingState.data,...{email: userNewInfo.email}}});
               let curUser = userInfo.filter((item) => item.name === editingState.data.name);
-              console.log('HACK:     ', curUser);
               if (curUser && curUser.length > 0) {
                 curUser[0]['email'] = userNewInfo.email;
-                console.log('HACK:     ', userInfo);
               }
               if (typeof(onSuccess) === 'function') {
                 onSuccess();
@@ -263,7 +256,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function updateSpecies(newInfo, onSuccess, onError) {
     console.log('HACK: UPDATESPECIESINFO',newInfo, onSuccess, onError);
-    const settingsCheckUrl = serverURL + '/adminSpeciesUpdate?t=' + encodeURIComponent(settingsToken);
+    const speciesUpdateUrl = serverURL + '/adminSpeciesUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
 
@@ -276,7 +269,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     formData.append('iconURL', newInfo.speciesIconURL);
 
     try {
-      const resp = fetch(settingsCheckUrl, {
+      const resp = fetch(speciesUpdateUrl, {
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -288,12 +281,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           })
         .then((respData) => {
             // Set the species data
-            console.log('HACK:UPDATESPECIESINFO RESP:',respData,masterSpecies);
             if (respData.success) {
               const oldEditingState = editingState;
               const newEditingState = {...editingState, data:{...editingState.data,...newInfo}};
               let curSpecies = masterSpecies.filter((item) => item.scientificName === newEditingState.data.scientificName);
-              
+
               if (curSpecies && curSpecies.length > 0) {
                 curSpecies[0]['name'] = newInfo.name;
                 curSpecies[0]['keyBinding'] = newInfo.keyBinding;
@@ -331,6 +323,98 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     } catch (error) {
       console.log('Admin Update Species Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update species information');
+    }
+  }
+
+  /**
+   * Handles updating the location information
+   * @function
+   * @param {object} newInfo The updated location information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
+   */
+  function updateLocation(newInfo, onSuccess, onError) {
+    console.log('HACK: UPDATELOCATIONINFO',newInfo, onSuccess, onError);
+    const locationsUpdateUrl = serverURL + '/adminLocationUpdate?t=' + encodeURIComponent(settingsToken);
+
+    const formData = new FormData();
+
+    formData.append('name', newInfo.nameProperty);
+    formData.append('id', editingState.data ? editingState.data.idProperty : newInfo.idProperty);
+    formData.append('active', newInfo.active);
+    formData.append('measure', newInfo.measure);
+    formData.append('elevation', newInfo.elevationProperty);
+    formData.append('coordinate', newInfo.coordinate);
+    formData.append('new_lat', newInfo.latProperty);
+    formData.append('new_lon', newInfo.lngProperty);
+    formData.append('old_lat', editingState.data !== null ? editingState.data.latProperty : null);
+    formData.append('old_lon', editingState.data !== null ? editingState.data.lngProperty : null)
+    formData.append('utm_zone', newInfo.utm_zone);
+    formData.append('utm_letter', newInfo.utm_letter);
+    formData.append('utm_x', newInfo.utm_x);
+    formData.append('utm_y', newInfo.utm_y);
+
+    try {
+      const resp = fetch(locationsUpdateUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update location information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Set the species data
+            if (respData.success) {
+              const oldEditingState = editingState;
+              const newEditingState = {...editingState, data:{...editingState.data,...respData.data}};
+              let curLocation = locationItems.filter((item) => item.idProperty === newEditingState.data.idProperty && 
+                                                                  (!oldEditingState.data || 
+                                                                      (item.latProperty === oldEditingState.data.latProperty && item.lngProperty === oldEditingState.data.lngProperty)
+                                                                  ));
+
+              if (curLocation && curLocation.length > 0) {
+                curLocation[0]['nameProperty'] = respData.data.nameProperty;
+                curLocation[0]['idProperty'] = respData.data.idProperty;
+                curLocation[0]['activeProperty'] = respData.data.activeProperty;
+                curLocation[0]['latProperty'] = respData.data.latProperty;
+                curLocation[0]['lngProperty'] = respData.data.lngProperty;
+                curLocation[0]['elevationProperty'] = respData.data.elevationProperty;
+                curLocation[0]['utm_code'] = respData.data.utm_code;
+                curLocation[0]['utm_x'] = respData.data.utm_x;
+                curLocation[0]['utm_y'] = respData.data.utm_y;
+
+                setLocationsModified(true);
+                if (typeof(onSuccess) === 'function') {
+                  onSuccess();
+                }
+              } else if (!oldEditingState.data) {
+                let newLocationItems = locationItems;
+                newLocationItems.push(respData.data);
+                setLocationIitems(newLocationItems);
+                setLocationsModified(true);
+                if (typeof(onSuccess) === 'function') {
+                  onSuccess();
+                }
+              } else {
+                console.log('Error: unable to find location locally to update');
+                if (typeof(onError) === 'function') {
+                  onError("A problem ocurred updating the UI with these changes. Please refresh to see the updates");
+                }
+              }
+            } else if (typeof(onError) === 'function') {
+              onError(respData.message);
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Update Location Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update location information');
+      });
+    } catch (error) {
+      console.log('Admin Update Location Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update location information');
     }
   }
 
@@ -758,9 +842,9 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                                                                           onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
 */      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} 
                                                                       onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
-/*      {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation}
+      {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation}
                                                                       onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
-*/      </Grid>
+      </Grid>
     );
   }
 

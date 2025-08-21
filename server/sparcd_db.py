@@ -1060,7 +1060,7 @@ class SPARCdDatabase:
 
     def update_species(self, username: str, old_scientific: str, new_scientific: str, \
                                         new_name: str, new_keybind: str, new_icon_url: str) -> bool:
-        """ Updates the scientific name in the database for later submission
+        """ Adds the species in the database for later submission
         Arguments:
             username: the name of the user making the change
             old_scientific: the old scientific name of the species
@@ -1068,9 +1068,12 @@ class SPARCdDatabase:
             new_name: the new name of the species
             new_keybind: the new keybinding of the species
             new_icon_url: the new icon url
+        Return:
+            Returns True if no issues were found and False otherwise
         """
         if self._conn is None:
-            raise RuntimeError('Attempting to update a species in the database before connecting')
+            raise RuntimeError('Attempting to add a species update into the database before ' \
+                                                                                    'connecting')
 
         cursor = self._conn.cursor()
         cursor.execute('SELECT id FROM users WHERE name=?', (username,))
@@ -1080,11 +1083,52 @@ class SPARCdDatabase:
             return False
         user_id = res[0][0]
 
-        cursor.execute('INSERT INTO admin_species_edits(user_id,timestamp, old_scientific_name, ' \
+        cursor.execute('INSERT INTO admin_species_edits(user_id, timestamp, old_scientific_name, ' \
                                                 'new_scientific_name, name, keybind, iconURL) ' \
                             'VALUES(?,strftime("%s", "now"),?,?,?,?,?)',
                                     (user_id, old_scientific, new_scientific, new_name, \
                                             new_keybind, new_icon_url))
+        self._conn.commit()
+        cursor.close()
+
+        return True
+
+    def update_location(self, username: str, loc_name: str, loc_id: str, loc_active: bool, \
+                        loc_ele: float, loc_old_lat: float, loc_old_lng: float, \
+                        loc_new_lat: float, loc_new_lng: float) -> bool:
+
+        """ Adds the location information to the database for later submission
+        Arguments:
+            username: the name of the user making the change
+            loc_name: the name of the location
+            loc_id: the ID of the location
+            loc_active: is this an active location
+            loc_ele: location elevation in meters
+            loc_old_lat: the old latitude
+            loc_old_lon: the old longitude
+            loc_new_lat: the new latitude
+            loc_new_lon: the new longitude
+        Return:
+            Returns True if no issues were found and False otherwise
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to add a location update into the database before ' \
+                                                                                    'connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT id FROM users WHERE name=?', (username,))
+
+        res = cursor.fetchall()
+        if not res or len(res) < 1:
+            return False
+        user_id = res[0][0]
+
+        cursor.execute('INSERT INTO admin_location_edits(user_id, timestamp, loc_name, loc_id, ' \
+                                        'loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
+                                        'loc_new_lat, loc_new_lng) ' \
+                            'VALUES(?,strftime("%s", "now"),?,?,?,?,?,?,?,?)',
+                                    (user_id, loc_name, loc_id, loc_active, loc_ele, loc_old_lat, \
+                                            loc_old_lng, loc_new_lat,loc_new_lng))
         self._conn.commit()
         cursor.close()
 

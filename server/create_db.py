@@ -114,6 +114,13 @@ def build_database(path: str, admin_info: tuple=None) -> None:
                             'old_scientific_name TEXT, new_scientific_name TEXT NOT NULL, ' \
                             'name TEXT NOT NULL, keybind NOT NULL, iconURL TEXT NOT NULL, ' \
                             's3_updated INTEGER DEFAULT 0)',
+             'CREATE TABLE admin_location_edits(id INTEGER PRIMARY KEY ASC, ' \
+                            'user_id INTEGER NOT NULL, timestamp INTEGER, '\
+                            'loc_name TEXT NOT NULL, loc_id TEXT NOT NULL, '\
+                            'loc_active INTEGER DEFAULT 0, loc_ele REAL NOT NULL, ' \
+                            'loc_old_lat REAL, loc_old_lng REAL, ' \
+                            'loc_new_lat REAL NOT NULL, loc_new_lng REAL NOT NULL, ' \
+                            'location_updated INTEGER DEFAULT 0)',
         )
     add_user_stmt = 'INSERT INTO users(name, email, administrator, auto_added) values(?, ?, 1, 0)'
 

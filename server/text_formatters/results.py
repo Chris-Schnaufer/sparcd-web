@@ -3,7 +3,7 @@
 from typing import Optional
 
 from text_formatters.analysis import Analysis
-from text_formatters.coordinate_utils import SOUTHERN_AZ_UTM_ZONE
+from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE
 
 # The default interval value
 DEFAULT_INTERVAL_MIN=0
@@ -174,7 +174,7 @@ class Results:
         if have_unknown:
             sorted_locations.append({'nameProperty':'Unknown', 'idProperty':'unknown', 
                                     'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0,
-                                    'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
+                                    'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
 
         # Get all the species and check for unknown
         cur_species = {}

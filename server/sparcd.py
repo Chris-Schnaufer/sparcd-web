@@ -34,7 +34,7 @@ from flask_cors import cross_origin
 
 import image_utils
 from text_formatters.results import Results
-from text_formatters.coordinate_utils import deg2utm, SOUTHERN_AZ_UTM_ZONE
+from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE,deg2utm, deg2utm_code, utm2deg
 import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode
@@ -473,7 +473,10 @@ def load_locations(s3_url: str, user_name: str, user_token: str) -> tuple:
         if 'utm_code' not in one_loc or 'utm_x' not in one_loc or 'utm_y' not in one_loc:
             if 'latProperty' in one_loc and 'lngProperty' in one_loc:
                 utm_x, utm_y = deg2utm(float(one_loc['latProperty']), float(one_loc['lngProperty']))
-                one_loc['utm_code'] = SOUTHERN_AZ_UTM_ZONE
+                one_loc['utm_code'] = ''.join([str(one_res) for one_res in \
+                                                    deg2utm_code(float(one_loc['latProperty']), \
+                                                                 float(one_loc['lngProperty']))
+                                              ])
                 one_loc['utm_x'] = round(utm_x, 2)
                 one_loc['utm_y'] = round(utm_y, 2)
 
@@ -881,7 +884,7 @@ def create_deployment_data(collection_id: str, location_id: str, all_locations: 
     else:
         our_location = {'nameProperty':'Unknown', 'idProperty':'unknown',
                                     'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0,
-                                    'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0}
+                                    'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0}
 
     return [    collection_id + ':' + location_id,      # Deployment id
                 our_location['idProperty'],             # Location ID
@@ -2187,7 +2190,7 @@ def location_info():
 
     return json.dumps({'idProperty': loc_id, 'nameProeprty': 'Unknown', 'latProperty':0.0, \
                             'lngProperty':0.0, 'elevationProperty':0.0,
-                            'utm_code':SOUTHERN_AZ_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
+                            'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
 
 
 @app.route('/sandboxPrev', methods = ['POST'])
@@ -2982,11 +2985,11 @@ def admin_user_update():
 @app.route('/adminSpeciesUpdate', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_species_update():
-    """ Confirms the password is correct for admin editing
+    """ Adds/updates a species entry
     Arguments: (GET)
         t - the session token
     Return:
-        Returns True if the user is possibly an admin
+        Returns True if the the species was put in the database to be updated
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -3025,8 +3028,11 @@ def admin_species_update():
     find_scientific = old_scientific if old_scientific else new_scientific
     found_match = [one_species for one_species in cur_species if \
                                                 one_species['scientificName'] == find_scientific]
+
+    # If we're replacing, we should have found the entry
     if old_scientific is not None and (not found_match or len(found_match) <= 0):
         return {'success': False, 'message': f'Species "{old_scientific}" not found'}
+    # If we're not replaceing, we should NOT find the entry
     if old_scientific is None and (found_match and len(found_match) > 0):
         return {'success': False, 'message': f'Species "{new_scientific}" already exists'}
 
@@ -3037,3 +3043,119 @@ def admin_species_update():
 
     return {'success': False, \
                 'message': f'A problem ocurred while updating species "{find_scientific}"'}
+
+
+@app.route('/adminLocationUpdate', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_location_update():
+    """ Adds/updates a location information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the location as added to the database
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN LOCATION UDPATE', flush=True)
+
+    loc_name = request.form.get('name', None)
+    loc_id = request.form.get('id', None)
+    loc_active = request.form.get('active', None)
+    measure = request.form.get('measure', None)
+    loc_ele = request.form.get('elevation', None)
+    coordinate = request.form.get('coordinate', None)
+    loc_new_lat = request.form.get('new_lat', None)
+    loc_new_lng = request.form.get('new_lon', None)
+    loc_old_lat = request.form.get('old_lat', None)
+    loc_old_lng = request.form.get('old_lon', None)
+    utm_zone = request.form.get('utm_zone', None)
+    utm_letter = request.form.get('utm_letter', None)
+    utm_x = request.form.get('utm_x', None)
+    utm_y = request.form.get('utm_y', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [token, loc_name, loc_id, loc_active, measure, coordinate]):
+        return "Not Found", 406
+    if measure not in ['feet', 'meters'] or coordinate not in ['UTM', 'LATLON']:
+        return "Not Found", 406
+    if coordinate == 'UTM' and not all(item for item in [utm_zone, utm_letter, utm_x, utm_y]):
+        return "Not Found", 406
+    if not all(item for item in [loc_new_lat, loc_new_lng]):
+        return "Not Found", 406
+
+    if loc_new_lat:
+        loc_new_lat = float(loc_new_lat)
+    if loc_new_lng:
+        loc_new_lng = float(loc_new_lng)
+    if loc_old_lat:
+        loc_old_lat = float(loc_old_lat)
+    if loc_old_lng:
+        loc_old_lng = float(loc_old_lng)
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the location
+    s3_url = web_to_s3_url(user_info["url"])
+    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+
+    # Make sure this is OK to do
+    if loc_old_lat and loc_old_lng:
+        found_match = [one_location for one_location in cur_locations if \
+                                                one_location['idProperty'] == loc_id and
+                                                one_location['latProperty'] == loc_old_lat and
+                                                one_location['lngProperty'] == loc_old_lng]
+
+        # If we're replacing, we should have found the entry
+        if not found_match or len(found_match) <= 0:
+            return {'success': False, 'message': f'Location {loc_id} not found with Lat/Lon ' \
+                        f'{loc_old_lat}, {loc_old_lng}'}
+    else:
+        found_match = [one_location for one_location in cur_locations if \
+                                                one_location['idProperty'] == loc_id and
+                                                one_location['latProperty'] == loc_new_lat and
+                                                one_location['lngProperty'] == loc_new_lng]
+
+        # If we're not replacing, we should NOT find the entry
+        if found_match and len(found_match) > 0:
+            return {'success': False, 'message': f'Location {loc_id} already exists with ' \
+                        f'Lat/Lon {loc_new_lat}, {loc_new_lng}'}
+
+    # Convert elevation to meters if needed
+    if measure.lower() == 'feet':
+        loc_ele = round((loc_ele * 0.3048000097536) * 100) / 100
+
+    # Convert UTM to Lat/Lon if needed
+    if coordinate == 'UTM':
+        loc_new_lat, loc_new_lng = utm2deg(float(utm_x), float(utm_y), utm_zone, utm_letter)
+        utm_code = utm_zone+utm_letter,
+    else:
+        utm_x, utm_y = deg2utm(float(loc_new_lat), float(loc_new_lng))
+        utm_code = ''.join([str(one_item) for one_item in deg2utm_code(float(loc_new_lat),
+                                                                       float(loc_new_lng))
+                            ])
+
+    # Put the change in the DB
+    if db.update_location(user_info['name'], loc_name, loc_id, loc_active, loc_ele, loc_old_lat,
+                                                            loc_old_lng, loc_new_lat, loc_new_lng):
+        return {'success': True, 'message': f'Successfully updated location {loc_name}',
+                'data':{'nameProperty': loc_name, 'idProperty': loc_id, \
+                        'elevationProperty': loc_ele, 'activeProperty': loc_active, \
+                        'latProperty': loc_new_lat, 'lngProperty': loc_new_lng, \
+                        'utm_code': utm_code, 'utm_x': utm_x, 'utm_y': utm_y
+                        }
+                }
+
+    return {'success': False, \
+                'message': f'A problem ocurred while updating location {loc_name}'}

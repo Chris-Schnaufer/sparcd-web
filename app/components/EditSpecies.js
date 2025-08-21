@@ -25,7 +25,7 @@ import { Level } from './Messages';
  * @param {object} {data} The species data. If falsy a new species is assumed
  * @param {function} onUpdate Called to update the species information when changes made
  * @param {function} onClose Called when the editing is completed
- * @return {object} The UI for editing users
+ * @return {object} The UI for editing species
  */
 export default function EditSpecies({data, onUpdate, onClose}) {
   const theme = useTheme();
@@ -48,11 +48,21 @@ export default function EditSpecies({data, onUpdate, onClose}) {
     let el = document.getElementById('edit-species-name');
     if (el) {
       updatedData.name = el.value;
+      if (updatedData.name.length < 3) {
+        addMessage(Level.Warning, "Please enter a longer name")
+        el.focus();
+        return;
+      }
     }
 
     el = document.getElementById('edit-species-scientific');
     if (el) {
       updatedData.scientificName = el.value;
+      if (updatedData.scientificName.length <= 0) {
+        addMessage(Level.Warning, "Please enter a scientific name")
+        el.focus();
+        return;
+      }
     }
 
     el = document.getElementById('edit-species-keybind');
@@ -137,7 +147,7 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 />
           <TextField 
                 id='edit-species-keybind'
-                label="Species Keynbinding"
+                label="Species Keybinding"
                 defaultValue={data ? data.keyBinding : null}
                 size='small'
                 sx={{margin:'10px'}}
