@@ -532,6 +532,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
       return;
     }
     disableUploadDetails = true;
+    setUploadingFileCounts({total:newUploadFiles.length, uploaded:0});
 
     // Add the upload to the server
     const sandboxNewUrl = serverURL + '/sandboxNew?t=' + encodeURIComponent(uploadToken);
@@ -581,6 +582,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
       return;
     }
     disableUploadPrev = true;
+    setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     setUploadingFiles(true);
     uploadFolder(continueUploadInfo.files, continueUploadInfo.id);
@@ -611,6 +613,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
       return;
     }
     disableUploadCheck = true;
+    setUploadingFileCounts({total:continueUploadInfo.files.length, uploaded:0});
 
     // Reset the upload on the server and then restart the upload
     const sandboxResetUrl = serverURL + '/sandboxReset?t=' + encodeURIComponent(uploadToken);
@@ -690,12 +693,14 @@ export default function FolderUpload({onCompleted, onCancel}) {
     serverUploadCompleted(continueUploadInfo.id,
       () => { // Success
           const uploadFiles = continueUploadInfo.allFiles;
+          setUploadingFileCounts({total:uploadFiles.length, uploaded:0});
           setContinueUploadInfo(null);
           setCollectionSelection(null);
           setLocationSelection(null);
           setComment(null);
           setNewUpload(true);
           setNewUploadFiles(uploadFiles);
+
       }
     )
   }
@@ -814,7 +819,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
     if (uploadingFiles) {
       // TODO: adjust upload percent to include already uploaded images
       let uploadCount = uploadingFileCounts.uploaded;
-      let percentComplete = uploadingFileCounts.total ? Math.round((uploadCount / uploadingFileCounts.total) * 100) : 100;
+      let percentComplete = uploadingFileCounts.total ? Math.floor((uploadCount / uploadingFileCounts.total) * 100) : 100;
 
       return (
         <Grid id="grid" container direction="column" alignItems="center" justifyContent="center" sx={{minWidth: curWidth+'px', minHeight: curHeight+'px'}}>
