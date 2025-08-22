@@ -200,6 +200,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
   const getUploadCounts = React.useCallback((uploadId) => {
     const sandboxCountsUrl = serverURL + '/sandboxCounts?t=' + encodeURIComponent(uploadToken) + 
                                                               '&i=' + encodeURIComponent(uploadId);
+    let numRetries = 0;
 
     try {
       const resp = fetch(sandboxCountsUrl, {
@@ -220,12 +221,18 @@ export default function FolderUpload({onCompleted, onCancel}) {
             } if (respData.uploaded === respData.total) {
               setUploadCompleted(true);
             } else {
+              numRetries = 0;
               window.setTimeout(() => getUploadCounts(uploadId), 2000);
             }
         })
         .catch(function(err) {
-          console.log('Upload Images Counts Error: ', err);
-          addMessage(Level.Error, 'A problem ocurred while checking upload image counts');
+          if (numRetries >= 3) {
+            console.log('Upload Images Counts Error: ', err);
+            addMessage(Level.Error, 'A problem ocurred while checking upload image counts');
+          } else {
+            numRetries++;
+            window.setTimeout(() => getUploadCounts(uploadId), 7000 * numRetries);
+          }
       });
     } catch (error) {
       console.log('Upload Images Counts Unknown Error: ',err);
@@ -289,7 +296,8 @@ export default function FolderUpload({onCompleted, onCancel}) {
   function uploadChunk(fileChunk, uploadId, attempts = 3) {
     const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
-    const NUM_FILES_UPLOAD = 1;
+    const maxAttempts = attempts;
+    const NUM_FILES_UPLOAD = 5;
 
     formData.append('id', uploadId);
     for (let idx = 0; idx < NUM_FILES_UPLOAD && idx < fileChunk.length; idx++) {
@@ -320,7 +328,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
           }
           attempts--;
           if (attempts > 0) {
-            uploadChunk(fileChunk, uploadId, attempts);
+            window.setTimeout(uploadChunk(fileChunk, uploadId, attempts), 5000 * (maxAttempts - attempts));
           } else {
             // TODO: Make this a single instance
             addMessage(Level.Error, 'A problem ocurred while uploading images');
@@ -809,7 +817,10 @@ export default function FolderUpload({onCompleted, onCancel}) {
       let percentComplete = uploadingFileCounts.total ? Math.round((uploadCount / uploadingFileCounts.total) * 100) : 100;
 
       return (
-        <Grid id="grid" container justifyContent="center" sx={{minWidth: curWidth+'px', minHeight: curHeight+'px'}}>
+        <Grid id="grid" container direction="column" alignItems="center" justifyContent="center" sx={{minWidth: curWidth+'px', minHeight: curHeight+'px'}}>
+          <Typography gutterBottom variant="body3" noWrap="true">
+          {uploadingFileCounts.uploaded} of {uploadingFileCounts.total} uploaded
+          </Typography>
           <ProgressWithLabel value={percentComplete}/>
         </Grid>
       );
