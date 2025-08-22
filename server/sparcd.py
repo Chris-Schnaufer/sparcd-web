@@ -1511,7 +1511,11 @@ def collections():
     # and return that
     return_colls = load_timed_temp_colls(user_info['name'])
     if return_colls:
-        return json.dumps([{**one_coll, **{'allPermissions':None}} for one_coll in return_colls])
+        # Clear all permissions unless we're an owner
+        for one_coll in return_colls:
+            if not one_coll['permissions'] or not one_coll['permissions']['ownerProperty'] is True:
+                del one_coll['allPermissions']
+        return json.dumps(return_colls)
 
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])

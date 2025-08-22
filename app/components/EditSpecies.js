@@ -42,7 +42,7 @@ export default function EditSpecies({data, onUpdate, onClose}) {
       return;
     }
 
-    // Save the edited user data
+    // Save the edited species data
     let updatedData = data ? JSON.parse(JSON.stringify(data)) : {};
 
     let el = document.getElementById('edit-species-name');
@@ -119,7 +119,7 @@ export default function EditSpecies({data, onUpdate, onClose}) {
               sx={{minWidth:'400px', border:'1px solid black', borderRadius:'5px', backgroundColor:'rgb(255,255,255,0.3)' }}>
           <TextField required
                 id='edit-species-name'
-                label="Species Name"
+                label="Name"
                 defaultValue={data ? data.name : null}
                 size='small'
                 sx={{margin:'10px'}}
@@ -147,7 +147,7 @@ export default function EditSpecies({data, onUpdate, onClose}) {
                 />
           <TextField 
                 id='edit-species-keybind'
-                label="Species Keybinding"
+                label="Keybinding"
                 defaultValue={data ? data.keyBinding : null}
                 size='small'
                 sx={{margin:'10px'}}

@@ -17,9 +17,10 @@ import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
 
-import EditUser from './EditUser';
+import EditCollection from './EditCollection';
 import EditLocation from './EditLocation';
 import EditSpecies from './EditSpecies';
+import EditUser from './EditUser';
 import { Level } from './Messages';
 import { AddMessageContext, CollectionsInfoContext, LocationsInfoContext, SizeContext, SpeciesInfoContext, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
@@ -194,6 +195,59 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       addMessage(Level.Warning, 'An unknwn error ocurred when attempting to load species information');
     }
   }
+
+  /**
+   * Handles updating the collection information
+   * @function
+   * @param {object} collectionNewInfo The updated collection information to save
+   * @param {function} onSuccess The callable upon success
+   * @param {function} onError The callable upon an issue ocurring
+   */
+  function updateCollection(collectionNewInfo, onSuccess, onError) {
+    const userUpdateUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
+    console.log('HACK:UPDATECOLLECTION:',collectionNewInfo);
+
+/*    const formData = new FormData();
+
+    formData.append('oldName', editingState.data.name);
+    formData.append('newEmail', collectionNewInfo.email);
+    formData.append('admin', collectionNewInfo.admin);
+
+    try {
+      const resp = fetch(userUpdateUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Set the species data
+            if (respData.success) {
+              setEditingState({...editingState, data:{...editingState.data,...{email: collectionNewInfo.email}}});
+              let curUser = userInfo.filter((item) => item.name === editingState.data.name);
+              if (curUser && curUser.length > 0) {
+                curUser[0]['email'] = collectionNewInfo.email;
+              }
+              if (typeof(onSuccess) === 'function') {
+                onSuccess();
+              }
+            } else if (typeof(onError) === 'function') {
+              onError(respData.message);
+            }
+        })
+        .catch(function(err) {
+          console.log('Admin Update User Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update user information');
+      });
+    } catch (error) {
+      console.log('Admin Update User Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update user information');
+    }
+*/  }
 
   /**
    * Handles updating the user information
@@ -838,9 +892,9 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       >
       {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser}
                                                              onClose={() => setEditingState({type:EditingStates.None, data:null})} /> }
-/*      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
+      {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
                                                                           onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
-*/      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} 
+      {editingState.type === EditingStates.Species && <EditSpecies data={editingState.data} onUpdate={updateSpecies} 
                                                                       onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }
       {editingState.type === EditingStates.Location && <EditLocation data={editingState.data} onUpdate={updateLocation}
                                                                       onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }

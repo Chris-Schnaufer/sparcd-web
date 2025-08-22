@@ -66,7 +66,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
       return;
     }
 
-    // Save the edited user data
+    // Save the edited location data
     let updatedData = data ? JSON.parse(JSON.stringify(data)) : {};
 
     let el = document.getElementById('edit-location-name');
