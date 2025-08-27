@@ -1571,6 +1571,7 @@ def sandbox():
     s3_url = web_to_s3_url(user_info["url"])
 
     # Get the collections to fill in the return data
+    # TODO: combine this with a load from S3?
     all_collections = load_timed_temp_colls(user_info['name'])
 
     return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
@@ -2879,6 +2880,7 @@ def admin_users():
         return json.dumps(all_users)
 
     # Organize the collection permissions by user
+    # TODO: Handle when collections have timed out
     all_collections = load_timed_temp_colls(user_info['name'])
     user_collections = {}
     if all_collections:
@@ -3143,7 +3145,7 @@ def admin_location_update():
     # Convert UTM to Lat/Lon if needed
     if coordinate == 'UTM':
         loc_new_lat, loc_new_lng = utm2deg(float(utm_x), float(utm_y), utm_zone, utm_letter)
-        utm_code = utm_zone+utm_letter,
+        utm_code = utm_zone+utm_letter
     else:
         utm_x, utm_y = deg2utm(float(loc_new_lat), float(loc_new_lng))
         utm_code = ''.join([str(one_item) for one_item in deg2utm_code(float(loc_new_lat),
@@ -3163,3 +3165,145 @@ def admin_location_update():
 
     return {'success': False, \
                 'message': f'A problem ocurred while updating location {loc_name}'}
+
+
+@app.route('/adminCollectionUpdate', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_collection_update():
+    """ Adds/updates a collection information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the collection was updated
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN COLLECTION UDPATE', flush=True)
+
+    col_id = request.form.get('id', None)
+    col_name = request.form.get('name', None)
+    col_desc = request.form.get('description', None)
+    col_email = request.form.get('email', None)
+    col_org = request.form.get('organization', None)
+    col_all_perms = request.form.get('allPermissions', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [token, col_id, col_name, col_all_perms]):
+        return "Not Found", 406
+
+    if col_desc is None:
+        col_desc = ''
+    if col_email is None:
+        col_email = ''
+    if col_org is None:
+        col_org = ''
+
+    col_all_perms = json.loads(col_all_perms)
+
+    # Check the rest of what we got
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get existing collection information and permissions
+    s3_url = web_to_s3_url(user_info["url"])
+    s3_bucket = SPARCD_PREFIX + col_id
+
+    # TODO: Handle when collections have timed out
+    all_collections = load_timed_temp_colls(user_info['name'])
+
+    # Update the entry to what we need
+    found_coll = None
+    for one_coll in all_collections:
+        if one_coll['id'] == col_id:
+            one_coll['name'] = col_name
+            one_coll['description'] = col_desc
+            one_coll['email'] = col_email
+            one_coll['organization'] = col_org
+            found_coll = one_coll
+            break
+
+    if found_coll is None:
+        return {'success': False, 'message': "Unable to find collection in list to update"}
+
+    # Upload the changes
+    S3Connection.save_collection_info(s3_url, user_info["name"],
+                                do_decrypt(db.get_password(token)), found_coll['bucket'],
+                                found_coll)
+    print('HACK', col_all_perms,flush=True)
+    S3Connection.save_collection_permissions(s3_url, user_info["name"],
+                                do_decrypt(db.get_password(token)), found_coll['bucket'],
+                                col_all_perms)
+
+    # Update the collection to reflect the changes
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+                                                    do_decrypt(db.get_password(token)), s3_bucket)
+    if updated_collection:
+        updated_collection = normalize_collection(updated_collection)
+
+        # Check if we have a stored temporary file containing the collections information
+        return_colls = load_timed_temp_colls(user_info['name'])
+        if return_colls:
+            return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
+                                                                    for one_coll in return_colls ]
+            # Save the collections temporarily
+            save_timed_temp_colls(return_colls)
+
+    return {'success':True, 'data': updated_collection, \
+            'message': "Successfully updated the collection"}
+
+
+@app.route('/aadminCompleteChanges', methods = ['PUT'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_complete_changes():
+    """ Adds/updates a saved location and species information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the collection was updated
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN COMPLETE THE CHANGES', flush=True)
+
+    # Check what we have from the requestor
+    if token is None:
+        return "Not Found", 406
+
+    # Check the rest of what we got
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the locations and species changes logged in the database
+    s3_url = web_to_s3_url(user_info["url"])
+
+    changes = db.get_admin_changes(user_info['name'])
+    if not changes:
+        return {'success': True, 'message': "There were no changes found to apply"}
+
+    # Update the species
+
+    # Update the location
+
+    return {'success': True, 'message': "All changes were successully applied"}

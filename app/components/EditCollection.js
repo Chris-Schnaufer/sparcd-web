@@ -11,6 +11,8 @@ import Checkbox from '@mui/material/Checkbox';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from '@mui/material/Grid';
+import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -30,15 +32,20 @@ import { Level } from './Messages';
 export default function EditCollection({data, onUpdate, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const [addUserPermissions, setAddUserPermissions] = React.useState(false);
   const [isModified, setIsModified] = React.useState(false);
+  const [newPermissions, setNewPermissions] = React.useState(JSON.parse(JSON.stringify(data.allPermissions)));
+  const [removeUsers, setRemoveUsers] = React.useState(false);
+  const [forceRedraw, setForceRedraw] = React.useState(0);
 
   /**
    * Handles saving the changes to the user
    * @function
    */
-  function onSaveChanges() {
+  const onSaveChanges= React.useCallback(() => {
     console.log('HACK:IS MODIFIED:',isModified, data);
     if (!isModified) {
+      onClose();
       return;
     }
 
@@ -55,30 +62,287 @@ export default function EditCollection({data, onUpdate, onClose}) {
       }
     }
 
-    el = document.getElementById('edit-collection-scientific');
+    el = document.getElementById('edit-collection-organization');
     if (el) {
-      updatedData.scientificName = el.value;
-      if (updatedData.scientificName.length <= 0) {
-        addMessage(Level.Warning, "Please enter a scientific name")
-        el.focus();
-        return;
-      }
+      updatedData.organization = el.value;
     }
 
-    el = document.getElementById('edit-collection-keybind');
+    el = document.getElementById('edit-collection-description');
     if (el) {
-      updatedData.keyBinding = el.value;
+      updatedData.description = el.value;
     }
 
-    el = document.getElementById('edit-collection-url');
+    el = document.getElementById('edit-collection-email');
     if (el) {
-      updatedData.collectionIconURL = el.value;
-      if (!updatedData.collectionIconURL) {
-        updatedData.collectionIconURL = DefaultImageIconURL;
-      }
+      updatedData.email = el.value;
+    }
+
+    if (newPermissions) {
+      updatedData.allPermissions = newPermissions;
     }
 
     onUpdate(updatedData, onClose, (message) => addMessage(Level.Warning, message));
+  }, [addMessage, data, isModified, Level, newPermissions, onClose, onUpdate]);
+
+  /**
+   * Handles adding a new user with permissions
+   * @function
+   */
+  const handleAddNewUser = React.useCallback(() =>  {
+    let el = document.getElementById('edit-collection-add-user-name');
+    if (!el) {
+      addMessage(Level.Error, 'An internal problem was found with the user\'s name. Please contact the site administrator');
+      return;
+    }
+    const userName = el.value;
+    if (!userName || userName.length < 2) {
+      addMessage(Level.Warning, "Please enter a valid user name");
+      return;
+    }
+    let found = newPermissions.filter((item) => item.usernameProperty === userName);
+    if (!found || found.length > 0) {
+      addMessage(Level.Warning, "User already exists. Please cancel this edit to change their permissions");
+      return;
+    }
+
+    el = document.getElementById('edit-collection-add-user-read');
+    if (!el) {
+      addMessage(Level.Error, 'An internal problem was found with the read permissions. Please contact the site administrator');
+      return;
+    }
+    const readPermissions = el.checked;
+
+    el = document.getElementById('edit-collection-add-user-upload');
+    if (!el) {
+      addMessage(Level.Error, 'An internal problem was found with the upload permissions. Please contact the site administrator');
+      return;
+    }
+    const uploadPermissions = el.checked;
+
+    console.log('HACK:', [...newPermissions, {'usernameProperty':userName, 'readProperty': readPermissions, 'uploadProperty': uploadPermissions, 'ownerProperty': false}]);
+    setNewPermissions([...newPermissions, {'usernameProperty':userName, 'readProperty': readPermissions,
+                      'uploadProperty': uploadPermissions, 'ownerProperty': false}]);
+
+    setIsModified(true);
+    setAddUserPermissions(false);
+
+  }, [addMessage, Level, newPermissions, setIsModified, setNewPermissions]);
+
+  /**
+   * Handles the user's permissions checkbox changing
+   * @function
+   * @param {object} event The triggering event
+   * @param {string} username The username affected by the checkbox change
+   * @param {string} changeTag The tag identifying the change
+   */
+  const handleCheckboxUpdate = React.useCallback((event, username, changeTag) => {
+    let foundUser = newPermissions.filter((item) => item.usernameProperty === username);
+    if (!foundUser || foundUser.length <= 0) {
+      addMessage(Level.Information, "User was not found for updating");
+      console.log('Error: Unable to find user for updating checkbox permission:', username);
+      return;
+    }
+
+    switch(changeTag) {
+      case 'read': 
+        foundUser[0].readProperty = event.target.checked;
+        setIsModified(true);
+        setForceRedraw(forceRedraw + 1);
+        break;
+
+      case 'update':
+        foundUser[0].uploadProperty = event.target.checked;
+        setIsModified(true);
+        setForceRedraw(forceRedraw + 1);
+        break;
+
+      default:
+        console.log('Error: unknown checkbox tag found:', changeTag);
+    }
+
+  }, [addMessage, forceRedraw, Level, newPermissions, setForceRedraw, setIsModified, setNewPermissions]);
+
+
+  /**
+   * Checks if the removal of users is permitted
+   * @function
+   */
+  const canRemoveUsers = React.useCallback(() => {
+    let notOwners = newPermissions.filter((item) => {console.log('HACK1:',item.ownerProperty,item.ownerProperty !== true);return item.ownerProperty !== true;});
+    if (!notOwners || notOwners.length <= 0) {
+      addMessage(Level.Information, "You are not allowed to delete the last remaining owner user this account");
+      return;
+    }
+
+    setRemoveUsers(true);
+  }, [addMessage, newPermissions, setNewPermissions, setRemoveUsers]);
+
+  /**
+   * Removes users from the list of permitted users
+   * @function
+   */
+  const handleRemoveUsers = React.useCallback(() => {
+
+    // Try removing from the existing list of users
+    const keepUsers = newPermissions.filter((item) => {
+      if (item.ownerProperty === true) {
+        return true;
+      }
+      const el = document.getElementById("remove-user-" + item.usernameProperty);
+      if (!el) {
+        return true;
+      }
+      return !el.checked;
+    });
+
+    setNewPermissions(keepUsers);
+
+    setRemoveUsers(false);
+  }, [data, newPermissions, setNewPermissions, setRemoveUsers]);
+
+  /**
+   * Generates the UI for adding a new user with permissions
+   * @function
+   * @return {object} The UI for editing permissions
+   */
+  function generateAddUserPermissions() {
+    return (
+      <Grid container id="settings-admin-add-user-wrapper" alignItems="center" justifyContent="center"
+            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
+      >
+        <Card id="edit-collection-add-user" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
+          <CardHeader id='edit-collection-add-user-header' title={
+                        <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
+                          <Grid>
+                            <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                              Add User
+                            </Typography>
+                          </Grid>
+                          <Grid sx={{marginLeft:'auto'}} >
+                            <div onClick={() => setAddUserPermissions(false)}>
+                              <Tooltip title="Close without saving">
+                                <Typography gutterBottom variant="body2" noWrap="true"
+                                            sx={{textTransform:'uppercase',
+                                            color:'grey',
+                                            cursor:'pointer',
+                                            fontWeight:'500',
+                                            backgroundColor:'rgba(0,0,0,0.03)',
+                                            padding:'3px 3px 3px 3px',
+                                            borderRadius:'3px',
+                                            '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
+                                         }}
+                                >
+                                    <CloseOutlinedIcon size="small" />
+                                </Typography>
+                              </Tooltip>
+                            </div>
+                          </Grid>
+                        </Grid>
+                        }
+                    style={{paddingTop:'0px', paddingBottom:'0px'}}
+          />
+          <CardContent id='edit-collection-add-user-details' sx={{paddingRight:'0px', paddingLeft:'0px'}}>
+            <Grid container direction="column" justifyContent="start" alignItems="stretch"
+                  sx={{minWidth:'300px', backgroundColor:'rgb(255,255,255,0.3)' }}>
+              <TextField required
+                    id='edit-collection-add-user-name'
+                    label="Name"
+                    size='small'
+                    sx={{margin:'10px'}}
+                    onChange={() => setIsModified(true)}
+                    inputProps={{style: {fontSize: 12}}}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                    }}
+                    />
+              <FormControlLabel sx={{paddingLeft:'10px'}}
+                  control={
+                      <Checkbox id="edit-collection-add-user-read"/>
+                  }
+                  label="Read Permissions"
+              />
+              <FormControlLabel sx={{paddingLeft:'10px'}}
+                  control={
+                      <Checkbox id="edit-collection-add-user-upload"/>
+                  }
+                  label="Upload Permissions"
+              />
+            </Grid>
+          </CardContent>
+          <CardActions id='edit-collection-actions'>
+            <Button sx={{flex:'1', disabled:isModified === false }} onClick={handleAddNewUser}>Save</Button>
+            <Button sx={{flex:'1'}} onClick={() => setAddUserPermissions(false)} >Cancel</Button>
+          </CardActions>
+        </Card>
+      </Grid>
+    );
+  }
+
+  /**
+   * Generates the UI for removing user
+   * @function
+   * @return {object} The UI for removing users
+   */
+  function generateRemoveUsers() {
+    return (
+      <Grid container id="settings-admin-remove-users-wrapper" alignItems="center" justifyContent="center"
+            sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
+      >
+        <Card id="edit-collection-remove-users" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >
+          <CardHeader id='edit-collection-remove-users-header' title={
+                        <Grid container direction="row" alignItems="start" justifyContent="start" wrap="nowrap">
+                          <Grid>
+                            <Typography gutterBottom variant="h6" component="h4" noWrap="true">
+                              Remove Users
+                            </Typography>
+                          </Grid>
+                          <Grid sx={{marginLeft:'auto'}} >
+                            <div onClick={() => setRemoveUsers(false)}>
+                              <Tooltip title="Close without saving">
+                                <Typography gutterBottom variant="body2" noWrap="true"
+                                            sx={{textTransform:'uppercase',
+                                            color:'grey',
+                                            cursor:'pointer',
+                                            fontWeight:'500',
+                                            backgroundColor:'rgba(0,0,0,0.03)',
+                                            padding:'3px 3px 3px 3px',
+                                            borderRadius:'3px',
+                                            '&:hover':{backgroundColor:'rgba(255,255,255,0.7)', color:'black'}
+                                         }}
+                                >
+                                    <CloseOutlinedIcon size="small" />
+                                </Typography>
+                              </Tooltip>
+                            </div>
+                          </Grid>
+                        </Grid>
+                        }
+                    style={{paddingTop:'0px', paddingBottom:'0px'}}
+          />
+          <CardContent id='edit-collection-add-user-details' sx={{paddingRight:'0px', paddingLeft:'0px'}}>
+            <Grid container direction="column" justifyContent="start" alignItems="stretch"
+                  sx={{minWidth:'300px', backgroundColor:'rgb(255,255,255,0.3)' }}>
+              { newPermissions.map((item) => item.ownerProperty !== true &&
+                <Grid key={"edit-collection-remove-wrapper-" + item.usernameProperty} container direction="row" justifyContent="start" alignItems="center" >
+                  <Typography variant="body2" align="center" sx={{paddingRight:'5px'}} >
+                    <Checkbox size="small" id={"remove-user-" + item.usernameProperty} />
+                  </Typography>
+                  <Typography variant="body2" nowrap="true" align="center" component="div">
+                    {item.usernameProperty}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          </CardContent>
+          <CardActions id='edit-collection-actions'>
+            <Button sx={{flex:'1', disabled:isModified === false }} onClick={handleRemoveUsers}>Remove Users</Button>
+            <Button sx={{flex:'1'}} onClick={() => setRemoveUsers(false)} >Cancel</Button>
+          </CardActions>
+        </Card>
+      </Grid>
+    );
   }
 
   /**
@@ -87,11 +351,10 @@ export default function EditCollection({data, onUpdate, onClose}) {
    * @return {object} The UI for editing permissions
    */
   function generatePermissions() {
-    let allPermissions = data.allPermissions ? data.allPermissions : [data.permissions];
+    let allPermissions = newPermissions ? newPermissions : [data.permissions];
     const isOwner = data.permissions ? data.permissions.ownerProperty : false;
 
-    if (!allPermissions || (allPermissions.length == 1 && allPermissions[0] === null)) {
-      console.log('HACK:     CAUGHT');
+    if (!allPermissions || (allPermissions.length === 1 && allPermissions[0] === null)) {
       return (
         <Typography gutterBottom variant="body3" noWrap="true" sx={{paddingLeft:'10px'}} >
           No permissions available to edit
@@ -132,8 +395,8 @@ export default function EditCollection({data, onUpdate, onClose}) {
             </Typography>
           </Grid>
         </Grid>
-        { allPermissions.map((item, idx) =>
-          <Grid id={"edit-collection-permission-" + item.name} key={"collection-"+item.name} container direction="row">
+        { newPermissions.map((item, idx) =>
+          <Grid id={"edit-collection-permission-" + item.usernameProperty} key={"collection-"+item.usernameProperty} container direction="row">
             <Grid size={{sm:9}} sx={{paddingLeft:'10px'}} >
               <Typography variant="body2">
               {item.usernameProperty}
@@ -141,17 +404,17 @@ export default function EditCollection({data, onUpdate, onClose}) {
             </Grid>
             <Grid size={{sm:1}}  >
               <Typography variant="body2" align="center">
-              <Checkbox disabled={!isOwner} size="small" checked={!!item.readProperty} onChange={() => setIsModified(true)}/>
+              <Checkbox disabled={!isOwner} size="small" checked={!!item.readProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'read')}/>
               </Typography>
             </Grid>
             <Grid size={{sm:1}}  >
               <Typography variant="body2" align="center">
-              <Checkbox disabled={!isOwner} size="small" checked={!!item.uploadProperty} onChange={() => setIsModified(true)}/>
+              <Checkbox disabled={!isOwner} size="small" checked={!!item.uploadProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'update')}/>
               </Typography>
             </Grid>
             <Grid size={{sm:1}}  >
               <Typography variant="body2" align="center" sx={{paddingRight:'5px'}}>
-              <Checkbox disabled={!isOwner} size="small" checked={!!item.ownerProperty} onChange={() => setIsModified(true)}/>
+              <Checkbox disabled={true} size="small" checked={!!item.ownerProperty}/>
               </Typography>
             </Grid>
           </Grid>
@@ -271,17 +534,26 @@ export default function EditCollection({data, onUpdate, onClose}) {
                   },
                 }}
                 />
-          <Typography gutterBottom variant="body" noWrap="true" sx={{fontWeigth:'bold', paddingLeft:'10px'}} >
-            Permissions
-          </Typography>
+          <Grid id="edit-collections-permissions-wrapper" container direction="row" alignItems="start" justifyContent="start"
+                sx={{marginTop:'5px', borderTop:'1px solid grey', borderRadius:'3px', paddingTop:'5px'}}>
+            <Typography gutterBottom variant="body" noWrap="true" sx={{fontWeight:'bold', paddingLeft:'10px'}} >
+              Permissions
+            </Typography>
+            <Grid container direction="row" alignItems="start" justifyContent="start" sx={{marginLeft:'auto'}} >
+              <PersonAddAltIcon onClick={() => setAddUserPermissions(true)} sx={{margin:'0px 5px 0px 0px', cursor:"pointer"}} />
+              <RemoveCircleOutlineIcon onClick={canRemoveUsers} sx={{margin:'0px 10px 0px 5px', cursor:"pointer"}} />
+            </Grid>
+          </Grid>
           { generatePermissions() }
-       </Grid>          
-        </CardContent>
-        <CardActions id='filter-content-actions'>
-          <Button sx={{flex:'1', disabled:isModified === false }} onClick={onSaveChanges}>Save</Button>
-          <Button sx={{flex:'1'}} onClick={onClose} >Cancel</Button>
-        </CardActions>
+        </Grid>          
+      </CardContent>
+      <CardActions id='edit-collection-actions'>
+        <Button sx={{flex:'1', disabled:isModified === false }} onClick={onSaveChanges}>Save</Button>
+        <Button sx={{flex:'1'}} onClick={onClose} >Cancel</Button>
+      </CardActions>
     </Card>
+    { addUserPermissions && generateAddUserPermissions()}
+    { removeUsers && generateRemoveUsers()}
   </Grid>
   );
 }

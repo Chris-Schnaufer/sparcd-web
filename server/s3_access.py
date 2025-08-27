@@ -21,6 +21,9 @@ SETTINGS_BUCKET_PREFIX = BUCKET_PREFIX + 'settings'
 SETTINGS_BUCKET_LEGACY = 'sparcd'
 SETTINGS_FOLDER = 'Settings'
 
+COLLECTION_JSON_FILE_NAME = 'collection.json'
+PERMISSIONS_JSON_FILE_NAME = 'permissions.json'
+
 DEPLOYMENT_CSV_FILE_NAME = 'deployments.csv'
 MEDIA_CSV_FILE_NAME = 'media.csv'
 OBSERVATIONS_CSV_FILE_NAME = 'observations.csv'
@@ -66,13 +69,13 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
         collections_path = 'Collections'
         base_path = os.path.join(collections_path, one_bucket[len(SPARCD_PREFIX):])
 
-        coll_info_path = os.path.join(base_path, 'collection.json')
+        coll_info_path = os.path.join(base_path, COLLECTION_JSON_FILE_NAME)
         coll_data = get_s3_file(minio, one_bucket, coll_info_path, temp_file[1])
         if coll_data is None or not coll_data:
             continue
         coll_data = json.loads(coll_data)
 
-        permissions_path = os.path.join(base_path, 'permissions.json')
+        permissions_path = os.path.join(base_path, PERMISSIONS_JSON_FILE_NAME)
         perm_data = get_s3_file(minio, one_bucket, permissions_path, temp_file[1])
 
         if perm_data is not None:
@@ -808,3 +811,59 @@ class S3Connection:
         S3Connection.upload_file(url, user, password, bucket, path, temp_file[1])
 
         os.unlink(temp_file[1])
+
+    @staticmethod
+    def save_collection_info(url: str, user: str, password: str, bucket: str, \
+                                                                        coll_info: object) -> None:
+        """ Saves the collection information on the S3 server
+        Arguments:
+                url: the URL to the s3 instance
+                user: the name of the user to use when connecting
+                password: the user's password
+                bucket: the bucket to upload to
+                coll_info: the collection information to save
+        """
+        collections_path = 'Collections'
+        base_path = os.path.join(collections_path, bucket[len(SPARCD_PREFIX):])
+
+        coll_info_path = os.path.join(base_path, COLLECTION_JSON_FILE_NAME)
+
+        # Upload the data making sure to only update what's expected
+        S3Connection.upload_file_data(url, user, password, bucket, coll_info_path,
+                                    json.dumps(
+                                        {'nameProperty': coll_info['name'],
+                                         'organizationProperty':  coll_info['organization'],
+                                         'contactInfoProperty': coll_info['email'],
+                                         'descriptionProperty': coll_info['description'],
+                                         'idProperty': bucket[len(SPARCD_PREFIX):],
+                                         'bucketProperty': bucket,
+                                        }),
+                                    content_type='application/json')
+
+
+    @staticmethod
+    def save_collection_permissions(url: str, user: str, password: str, bucket: str, \
+                                                                        perm_info: tuple) -> None:
+        """ Saves the permissions information on the S3 server
+        Arguments:
+                url: the URL to the s3 instance
+                user: the name of the user to use when connecting
+                password: the user's password
+                bucket: the bucket to upload to
+                perm_info: the tuple of permissions information
+        """
+        collections_path = 'Collections'
+        base_path = os.path.join(collections_path, bucket[len(SPARCD_PREFIX):])
+
+        perms_info_path = os.path.join(base_path, PERMISSIONS_JSON_FILE_NAME)
+
+        # Upload the data making sure to only update what's expected
+        S3Connection.upload_file_data(url, user, password, bucket, perms_info_path,
+                                            json.dumps(
+                                                [{'usernameProperty': one_perm['usernameProperty'],
+                                                  'readProperty': one_perm['readProperty'],
+                                                  'uploadProperty': one_perm['uploadProperty'],
+                                                  'ownerProperty': one_perm['ownerProperty'],
+                                                 } for one_perm in perm_info]
+                                                ),
+                                            content_type='application/json')

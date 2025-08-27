@@ -13,6 +13,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useTheme } from '@mui/material/styles';
 
 import PropTypes from 'prop-types';
@@ -160,7 +161,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       });
     } catch (error) {
       console.log('Admin Users Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to load user information');
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load user information');
     }    
   }
 
@@ -192,7 +193,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       });
     } catch (error) {
       console.log('Admin Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to load species information');
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to load species information');
     }
   }
 
@@ -204,33 +205,36 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   function updateCollection(collectionNewInfo, onSuccess, onError) {
-    const userUpdateUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
+    const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
     console.log('HACK:UPDATECOLLECTION:',collectionNewInfo);
 
-/*    const formData = new FormData();
+    const formData = new FormData();
 
-    formData.append('oldName', editingState.data.name);
-    formData.append('newEmail', collectionNewInfo.email);
-    formData.append('admin', collectionNewInfo.admin);
+    formData.append('id', editingState.data.id);
+    formData.append('name', collectionNewInfo.name);
+    formData.append('description', collectionNewInfo.description);
+    formData.append('email', collectionNewInfo.email);
+    formData.append('organization', collectionNewInfo.organization);
+    formData.append('allPermissions', JSON.stringify(collectionNewInfo.allPermissions));
 
     try {
-      const resp = fetch(userUpdateUrl, {
+      const resp = fetch(userUpdateCollUrl, {
         method: 'POST',
         body: formData
       }).then(async (resp) => {
             if (resp.ok) {
               return resp.json();
             } else {
-              throw new Error(`Failed to update user information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update collection information: ${resp.status}`, {cause:resp});
             }
           })
         .then((respData) => {
             // Set the species data
             if (respData.success) {
-              setEditingState({...editingState, data:{...editingState.data,...{email: collectionNewInfo.email}}});
-              let curUser = userInfo.filter((item) => item.name === editingState.data.name);
-              if (curUser && curUser.length > 0) {
-                curUser[0]['email'] = collectionNewInfo.email;
+              setEditingState({...editingState, data:{...editingState.data,...respData.data}});
+              let curColl = collectionInfo.filter((item) => item.id === editingState.data.id);
+              if (curColl && curColl.length > 0) {
+                curColl[0] = respData.data;
               }
               if (typeof(onSuccess) === 'function') {
                 onSuccess();
@@ -240,14 +244,14 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             }
         })
         .catch(function(err) {
-          console.log('Admin Update User Error: ',err);
-          addMessage(Level.Warning, 'An error ocurred when attempting to update user information');
+          console.log('Admin Update Collection Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to update collection information');
       });
     } catch (error) {
-      console.log('Admin Update User Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update user information');
+      console.log('Admin Update Collection Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
     }
-*/  }
+  }
 
   /**
    * Handles updating the user information
@@ -297,7 +301,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       });
     } catch (error) {
       console.log('Admin Update User Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update user information');
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update user information');
     }
   }
 
@@ -376,7 +380,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       });
     } catch (error) {
       console.log('Admin Update Species Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update species information');
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update species information');
     }
   }
 
@@ -468,9 +472,40 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       });
     } catch (error) {
       console.log('Admin Update Location Unknown Error: ',err);
-      addMessage(Level.Warning, 'An unknwn error ocurred when attempting to update location information');
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to update location information');
     }
   }
+
+  /**
+   * Handles the commit of any species or location changes
+   * @function
+   */
+  const handleSaveChanges = React.useCallback(() => {
+    console.log('HACK: HANDLESAVECHANGES');
+    const adminCompleteUrl = serverURL + '/adminCompleteChanges?t=' + encodeURIComponent(settingsToken);
+
+    try {
+      const resp = fetch(adminCompleteUrl, {
+        method: 'PUT',
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Handle the result
+        })
+        .catch(function(err) {
+          console.log('Admin Save Location/Species Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to complete saving the changed settings information');
+      });
+    } catch (error) {
+      console.log('Admin Save Location/Species Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
+    }
+  }, [serverURL, settingsToken])
 
   /**
    * Handles the new user button press
@@ -581,6 +616,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * Returns the UI for editing users. Starts the user information fetch if we don't have it already
    * @function
    * @param {function} dblClickFunc Function to handle the user double clicking on a row
+   * @return {object} The generated UI
    */
   function generateUsers(dblClickFunc) {
     let curUserInfo = selectedUsers || [];
@@ -681,6 +717,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * Returns the UI for editing Collections
    * @function
    * @param {function} dblClickFunc Function to handle the user double clicking on a row
+   * @return {object} The generated UI
    */
   function generateCollections(dblClickFunc) {
     if (loadingCollections) {
@@ -743,6 +780,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * Returns the UI for editing the main species list. Starts the main species fetch if we don't have it already
    * @function
    * @param {function} dblClickFunc Function to handle the user double clicking on a row
+   * @return {object} The generated UI
    */
   function generateSpecies(dblClickFunc) {
     let curSpecies = selectedSpecies || [];
@@ -811,6 +849,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * Returns the UI for editing Locations
    * @function
    * @param {function} dblClickFunc Function to handle the user double clicking on a row
+   * @return {object} The generated UI
    */
   function generateLocations(dblClickFunc) {
     if (loadingLocations) {
@@ -884,6 +923,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   /**
    * Generates the UI for the editing of settings entries
    * @function
+   * @return {object} The generated UI
    */
   function generateEditingUI() {
     return (
@@ -902,10 +942,44 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     );
   }
 
+  /**
+   * Generates the Done panel
+   * @function
+   * @return {object} The generated UI
+   */
+  function generateDonePanel() {
+    if (locationsModified || speciesModified) {
+      return ( 
+        <Grid id="admin-settings-panel-done-save" container direction="column" justifyContent="center" alignItems="center"
+              sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}} >
+          <Typography>
+            <WarningAmberOutlinedIcon size="small" style={{color:"CornflowerBlue", transform:'scale(1.5)'}} />
+            &nbsp;&nbsp;&nbsp;&nbsp;There are some unsaved location or species changes to save
+          </Typography>
+          <Button onClick={handleSaveChanges} >
+            Save
+          </Button>
+        </Grid>
+      );
+    }
+
+    return (
+      <Grid id="admin-settings-panel-done-close" container direction="column" justifyContent="center" alignItems="center"
+             sx={{width:'100%', position:'absolute', top:'0px', bottom:'0px'}} >
+        <Typography>
+          All changes have been saved
+        </Typography>
+        <Button onClick={onClose} >
+          Close
+        </Button>
+      </Grid>
+    );
+  }
+
   // Setup the tab and page generation
   const adminTabs = [
     {name:'Users', uiFunc:() => generateUsers(handleUserEdit), newName:null, newFunc:null, searchFunc:searchUsers},
-    {name:'Collections', uiFunc:() => generateCollections(handleCollectionEdit), newName:'Add Collection', newFunc:handleCollectionEdit, searchFunc:searchCollections},
+    {name:'Collections', uiFunc:() => generateCollections(handleCollectionEdit), newName:null, newFunc:null, searchFunc:searchCollections},
     {name:'Species', uiFunc:() => generateSpecies(handleSpeciesEdit), newName:'Add Species', newFunc:handleSpeciesEdit, searchFunc:searchSpecies},
     {name:'Locations', uiFunc:() => generateLocations(handleLocationEdit), newName:'Add Location', newFunc:handleLocationEdit, searchFunc:searchLocations},
   ];
@@ -920,7 +994,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
     if (newValue < adminTabs.length) {
       setActiveTab(newValue);
     } else {
-      onClose();
+      setActiveTab(adminTabs.length);
+      //onClose();
+      /*  locationsModified
+          speciesModified
+      */
     }
   }
 
@@ -972,9 +1050,9 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                 </TabPanel>
               )
             }
-            <TabPanel id={'admin-settings-panel-done'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
+            <TabPanel id={'admin-settings-panel-done-wrapper'} value={activeTab} index={adminTabs.length} key={'done-'+adminTabs.length} 
                       style={{width:'100%', position:'relative',margin:'0 16px auto 8px', height:uiSizes.workspace.height+'px'}}>
-              COMPLETED
+              {generateDonePanel()}
             </TabPanel>
             { activeTabInfo && 
               <Grid id='admin-settings-footer' container direction="row" justifyContent="space-between" alignItems="center" 
