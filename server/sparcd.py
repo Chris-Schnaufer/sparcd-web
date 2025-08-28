@@ -2791,7 +2791,7 @@ def image_location():
     bucket = SPARCD_PREFIX + coll_id
     upload_path = f'Collections/{coll_id}/Uploads/{upload_id}'
 
-    db.add_collection_edit(bucket, upload_path, user_info['name'], timestamp, loc_id)
+    db.add_upload_edit(bucket, upload_path, user_info['name'], timestamp, loc_id)
 
     return json.dumps({'success': True})
 

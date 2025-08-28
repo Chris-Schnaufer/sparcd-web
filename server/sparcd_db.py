@@ -903,7 +903,7 @@ class SPARCdDatabase:
                  'count': one_row[5]
                  } for one_row in res)
 
-    def add_collection_edit(self, bucket: str, upload_path: str, username: str, timestamp: str, \
+    def add_upload_edit(self, bucket: str, upload_path: str, username: str, timestamp: str, \
                                                                             loc_id: str) -> None:
         """ Stores the edit for a collection
         Arguments:
