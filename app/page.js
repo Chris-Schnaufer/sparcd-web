@@ -137,10 +137,7 @@ export default function Home() {
   const [locationInfo, setLocationInfo] = React.useState(null);
   const [loginValid, setLoginValid] = React.useState(DefaultLoginValid);
   const [loggedIn, setLoggedIn] = React.useState(null);
-  const [messages, setMessages] = React.useState([/*makeMessage(Level.Information, 'HACK: This is a test of messaging'),
-                                                  makeMessage(Level.Warning, 'HACK: Warning messaging'),
-                                                  makeMessage(Level.Error, 'HACK: Error messaging'),
-                                                  makeMessage(Level.Information, 'HACK: Last Message')*/]);
+  const [messages, setMessages] = React.useState([]);
   const [mobileDeviceChecked, setMobileDeviceChecked] = React.useState(false);
   const [mobileDevice, setMobileDevice] = React.useState(null);
   const [dbRemember, setDbRemember] = React.useState(false);

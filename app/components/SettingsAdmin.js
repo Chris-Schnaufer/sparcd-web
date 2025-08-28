@@ -55,6 +55,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [masterSpecies, setMasterSpecies] = React.useState(null); // Contains information on species
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [locationsModified, setLocationsModified] = React.useState(false); // Indicates the location was modified and needs to be updated on S3
+  const [serverModificationsChecked, setServerModificationsChecked] = React.useState(false); // Did we check the server for stored changes?
   const [speciesModified, setSpeciesModified] = React.useState(false); // Indicates the species was modified and needs to be updated on S3
   const [userInfo, setUserInfo] = React.useState(null); // Contains information on users
 
@@ -62,6 +63,45 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
   const [selectedLocations, setSelectedLocations] = React.useState(loadingLocations ? [] : locationItems); // Used for searches
   const [selectedSpecies, setSelectedSpecies] = React.useState(masterSpecies || []); // Used for searches
   const [selectedUsers, setSelectedUsers] = React.useState(userInfo || []); // Used for searches
+
+  // Check if we have stored changes on the server
+  React.useEffect(() => {
+    if (!serverModificationsChecked) {
+      const adminCheckUrl = serverURL + '/adminCheckChanges?t=' + encodeURIComponent(settingsToken);
+
+      try {
+        const resp = fetch(adminCheckUrl, {
+          method: 'GET',
+        }).then(async (resp) => {
+              if (resp.ok) {
+                return resp.json();
+              } else {
+                throw new Error(`Failed to update changed settings information: ${resp.status}`, {cause:resp});
+              }
+            })
+          .then((respData) => {
+              // Handle the result
+              if (respData.success) {
+                setServerModificationsChecked(true);
+                if (respData.locationsChanged) {
+                  setLocationsModified(true);
+                }
+                if (respData.speciesChanged) {
+                  setSpeciesModified(true);
+                }
+                if (respData.locationsChanged || respData.speciesChanged) {
+                  addMessage(Level.Information, "Previous unsaved edits were found. These can be applied when you're done");
+                }
+              }
+          })
+          .catch(function(err) {
+            console.log('Admin Location/Species Check Error: ',err);
+        });
+      } catch (error) {
+        console.log('Admin Location/Species Check Unknown Error: ',err);
+      }
+    }
+  }, [addMessage, locationsModified, serverModificationsChecked, serverURL, setServerModificationsChecked, settingsToken, speciesModified])
 
   // Recalcuate available space in the window
   React.useLayoutEffect(() => {
@@ -206,7 +246,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   function updateCollection(collectionNewInfo, onSuccess, onError) {
     const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
-    console.log('HACK:UPDATECOLLECTION:',collectionNewInfo);
 
     const formData = new FormData();
 
@@ -313,7 +352,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   function updateSpecies(newInfo, onSuccess, onError) {
-    console.log('HACK: UPDATESPECIESINFO',newInfo, onSuccess, onError);
     const speciesUpdateUrl = serverURL + '/adminSpeciesUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
@@ -392,7 +430,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onError The callable upon an issue ocurring
    */
   function updateLocation(newInfo, onSuccess, onError) {
-    console.log('HACK: UPDATELOCATIONINFO',newInfo, onSuccess, onError);
     const locationsUpdateUrl = serverURL + '/adminLocationUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
@@ -481,7 +518,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @function
    */
   const handleSaveChanges = React.useCallback(() => {
-    console.log('HACK: HANDLESAVECHANGES');
     const adminCompleteUrl = serverURL + '/adminCompleteChanges?t=' + encodeURIComponent(settingsToken);
 
     try {
@@ -496,6 +532,8 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           })
         .then((respData) => {
             // Handle the result
+            addMessage(Level.Information, 'Changes were successfully saved');
+            onClose();
         })
         .catch(function(err) {
           console.log('Admin Save Location/Species Error: ',err);
@@ -505,7 +543,40 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       console.log('Admin Save Location/Species Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to complete saving the changed settings information');
     }
-  }, [serverURL, settingsToken])
+  }, [addMessage, serverURL, settingsToken])
+
+  /**
+   * Handles the abandonment of any species or location changes
+   * @function
+   */
+  const handleAbandonChanges = React.useCallback(() => {
+    const adminCompleteUrl = serverURL + '/adminAbandonChanges?t=' + encodeURIComponent(settingsToken);
+
+    try {
+      const resp = fetch(adminCompleteUrl, {
+        method: 'PUT',
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Handle the result
+            addMessage(Level.Information, 'The outstanding changes were successfully abandoned');
+            onClose();
+        })
+        .catch(function(err) {
+          console.log('Admin Abandon Location/Species Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to abandon the changed settings information');
+      });
+    } catch (error) {
+      console.log('Admin Abandon Location/Species Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to abandon the changed settings information');
+    }
+  }, [addMessage, serverURL, settingsToken])
+
 
   /**
    * Handles the new user button press
@@ -514,7 +585,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} {location} The user object to edit or falsy if a new user is wanted
    */
   function handleUserEdit(event, user) {
-    console.log('HACK:HANDLEUSER',user);
     event.stopPropagation();
     setEditingState({type:EditingStates.User, data:user});
   }
@@ -526,7 +596,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} {location} The collection object to edit or falsy if a new collection is wanted
    */
   function handleCollectionEdit(event, collection) {
-    console.log('HACK:HANDLECOLLECTION',collection);
     event.stopPropagation();
     setEditingState({type:EditingStates.Collection, data:collection});
   }
@@ -538,7 +607,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} {location} The species object to edit or falsy if a new species is wanted
    */
   function handleSpeciesEdit(event, species) {
-    console.log('HACK:HANDLESPECIES',species);
     event.stopPropagation();
     setEditingState({type:EditingStates.Species, data:species});
   }
@@ -550,7 +618,6 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} {location} The location object to edit or falsy if a new location is wanted
    */
   function handleLocationEdit(event, location) {
-    console.log('HACK:HANDLELOCATION',location);
     event.stopPropagation();
     setEditingState({type:EditingStates.Location, data:location});
   }
@@ -959,6 +1026,18 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
           <Button onClick={handleSaveChanges} >
             Save
           </Button>
+          <Button onClick={onClose} >
+            Done For Now
+          </Button>
+          <Button onClick={handleAbandonChanges} >
+            Abandon
+          </Button>
+          <Typography>
+            If you are Done For Now, your changes will be cached and you can apply them later
+          </Typography>
+          <Typography>
+            If you Want to Abandon your changes they will be removed from the list of outstanding changes
+          </Typography>
         </Grid>
       );
     }

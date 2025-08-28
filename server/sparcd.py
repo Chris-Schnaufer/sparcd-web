@@ -86,6 +86,11 @@ QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
 # UI definitions for serving
 DEFAULT_TEMPLATE_PAGE = 'index.html'
 
+# Configuration file name for locations
+CONF_LOCATIONS_FILE_NAME = 'locations.json'
+# Configuration file name for species
+CONF_SPECIES_FILE_NAME = 'species.json'
+
 # Some CAMTRAP definitions
 # TODO: Move camtrap definitions to their own file (from here and s3_access)
 CAMTRAP_MEDIA_ID_IDX = 0
@@ -164,6 +169,23 @@ def do_decrypt(cipher: str) -> Optional[str]:
         return None
     engine = Fernet(WORKING_PASSCODE)
     return engine.decrypt(cipher.encode('utf-8')).decode('utf-8')
+
+
+def generate_hash(values: tuple) -> str:
+    """ Generates a value-order-dependent hash from the tuple values and returns it
+    Arguments:
+        values: the values to get the hash value for
+    Return:
+        The hash value
+    Note:
+        All the values are converted into strings and joined for the hash making the
+        hash value dependent upon the order of the values in the tuple
+    """
+    halg = hashlib.sha3_256()
+    for one_val in values:
+        halg.update(str(one_val).encode('utf-8'))
+
+    return halg.hexdigest()
 
 
 def web_to_s3_url(url: str) -> str:
@@ -464,7 +486,7 @@ def load_locations(s3_url: str, user_name: str, user_token: str) -> tuple:
     Return:
         Returns the locations along with the converted coordinates
     """
-    cur_locations = load_sparcd_config('locations.json', TEMP_LOCATIONS_FILE_NAME, s3_url, \
+    cur_locations = load_sparcd_config(CONF_LOCATIONS_FILE_NAME, TEMP_LOCATIONS_FILE_NAME, s3_url, \
                                             user_name, user_token)
     if not cur_locations:
         return cur_locations
@@ -1242,6 +1264,130 @@ def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
     return return_info
 
 
+def update_admin_locations(url: str, user: str, password: str, changes: dict) -> bool:
+    """ Updates the master list of locations with the changes under the
+        'locations' key
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        changes: the list of changes for locations
+    Return:
+        Returns True unless a problem is found
+    """
+    # Easy case where there's no changes
+    if 'locations' not in changes or not changes['locations']:
+        return True
+
+    # Try to get the configuration information from S3
+    all_locs = S3Connection.get_configuration(CONF_LOCATIONS_FILE_NAME, url, user, password)
+    if all_locs is None:
+        return False
+    all_locs = json.loads(all_locs)
+
+    all_locs = {generate_hash((one_loc['idProperty'], one_loc['latProperty'],
+                                one_loc['lngProperty']))
+                    : one_loc
+                for one_loc in all_locs}
+
+    for one_change in changes['locations']:
+        loc_id = one_change[changes['loc_id']]
+        loc_old_lat = one_change[changes['loc_old_lat']]
+        loc_old_lon = one_change[changes['loc_old_lng']]
+
+        # Update the entry if we have it, otherwise add it
+        cur_key = generate_hash((loc_id, loc_old_lat, loc_old_lon))
+        if cur_key in all_locs:
+            cur_loc = all_locs[cur_key]
+            cur_loc['nameProperty'] = one_change[changes['loc_name']]
+            cur_loc['latProperty'] = one_change[changes['loc_new_lat']]
+            cur_loc['lngProperty'] = one_change[changes['loc_new_lng']]
+            cur_loc['elevationProperty'] = one_change[changes['loc_elevation']]
+            if 'activeProperty' in cur_loc:
+                cur_loc['activeProperty'] = one_change[changes['loc_active']]
+            elif one_change[changes['loc_active']] == 1:
+                cur_loc['activeProperty'] = True
+        else:
+            all_locs[cur_key] = {
+                                    'nameProperty': one_change[changes['loc_name']],
+                                    'latProperty': one_change[changes['loc_new_lat']],
+                                    'lngProperty': one_change[changes['loc_new_lng']],
+                                    'elevationProperty': one_change[changes['loc_elevation']],
+                                    'activeProperty': one_change[changes['loc_active']] == 1
+                                }
+
+    all_locs = tuple(all_locs.values())
+
+#    with open('x.json','w', encoding='utf-8') as ofile:
+#        json.dump(all_locs, ofile, indent=4)
+
+    # Save to S3 and the local file system
+    S3Connection.put_configuration(CONF_LOCATIONS_FILE_NAME, json.dumps(all_locs),
+                                    url, user, password)
+
+
+    config_file_path = os.path.join(tempfile.gettempdir(), TEMP_LOCATIONS_FILE_NAME)
+    save_timed_info(config_file_path, all_locs)
+
+    return True
+
+
+def update_admin_species(url: str, user: str, password: str, changes: dict) -> bool:
+    """ Updates the master list of species with the changes under the
+        'species' key
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        changes: the list of changes for species
+    Return:
+        Returns True unless a problem is found
+    """
+    # Easy case where there's no changes
+    if 'species' not in changes or not changes['species']:
+        return True
+
+    # Try to get the configuration information from S3
+    all_species = S3Connection.get_configuration(CONF_SPECIES_FILE_NAME, url, user, password)
+    if all_species is None:
+        return False
+    all_species = json.loads(all_species)
+
+    all_species = {one_species['scientificName']: one_species for one_species in all_species}
+
+    for one_change in changes['species']:
+
+        # Update the entry if we have it, otherwise add it
+        cur_key = one_change[changes['sp_old_scientific']]
+        if cur_key in all_species:
+            cur_species = all_species[cur_key]
+            cur_species['name'] = one_change[changes['sp_name']]
+            cur_species['scientificName'] = one_change[changes['sp_new_scientific']]
+            cur_species['speciesIconURL'] = one_change[changes['sp_icon_url']]
+            cur_species['keyBinding'] = one_change[changes['sp_keybind']]
+        else:
+            all_species[cur_key] = {
+                                    'name': one_change[changes['sp_name']],
+                                    'scientificName': one_change[changes['sp_new_scientific']],
+                                    'speciesIconURL': one_change[changes['sp_icon_url']],
+                                    'keyBinding': one_change[changes['sp_keybind']],
+                                }
+
+    all_species = tuple(all_species.values())
+
+#    with open('y.json','w', encoding='utf-8') as ofile:
+#        json.dump(all_species, ofile, indent=4)
+
+    # Save to S3 and the local file system
+    S3Connection.put_configuration(CONF_SPECIES_FILE_NAME, json.dumps(all_species),
+                                    url, user, password)
+
+    config_file_path = os.path.join(tempfile.gettempdir(), TEMP_SPECIES_FILE_NAME)
+    save_timed_info(config_file_path, all_species)
+
+    return True
+
+
 @app.route('/', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def index():
@@ -1460,7 +1606,7 @@ def login_token():
     user_info = db.get_user(user)
     if not user_info:
         # Get the species
-        cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+        cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
                                                                                     user, password)
         user_info = db.auto_add_user(user, species=cur_species)
 
@@ -1653,7 +1799,7 @@ def species():
     user_species = user_info['species']
 
     # Get the current species to see if we need to update the user's species
-    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     # TODO: Timestamp the downloaded species and the user-specific species and only update as needed
@@ -1944,7 +2090,7 @@ def query():
     all_results = filter_collections(db, cur_coll, s3_url, user_info["name"], token, filters)
 
     # Get the species and locations
-    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
     cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
 
@@ -2740,7 +2886,7 @@ def species_keybind():
         cur_species = user_info['species']
     else:
         s3_url = web_to_s3_url(user_info["url"])
-        cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url, \
+        cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     # Update the species
@@ -2793,6 +2939,43 @@ def admin_check():
         return "Unauthorized", 401
 
     return {'value': user_info['admin'] == 1}
+
+@app.route('/adminCheckChanges', methods = ['GET'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_check_changes():
+    """ Checks if the user might be an admin
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN CHECK', flush=True)
+
+    # Check what we have from the requestor
+    if not token:
+        return "Not Found", 406
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check for changes in the db
+    changed = db.have_admin_changes(user_info['name'])
+
+    return {'success': True, 'locationsChanged': changed['locationsCount'] > 0, \
+            'speciesChanged': changed['speciesCount'] > 0}
 
 
 @app.route('/settingsAdmin', methods = ['POST'])
@@ -2943,7 +3126,7 @@ def admin_species():
 
     # Get the species
     s3_url = web_to_s3_url(user_info["url"])
-    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     return json.dumps(cur_species)
@@ -3027,7 +3210,7 @@ def admin_species_update():
 
     # Get the species
     s3_url = web_to_s3_url(user_info["url"])
-    cur_species = load_sparcd_config('species.json', TEMP_SPECIES_FILE_NAME, s3_url,
+    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
     # Make sure this is OK to do
@@ -3240,7 +3423,7 @@ def admin_collection_update():
     S3Connection.save_collection_info(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)), found_coll['bucket'],
                                 found_coll)
-    print('HACK', col_all_perms,flush=True)
+
     S3Connection.save_collection_permissions(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)), found_coll['bucket'],
                                 col_all_perms)
@@ -3263,14 +3446,14 @@ def admin_collection_update():
             'message': "Successfully updated the collection"}
 
 
-@app.route('/aadminCompleteChanges', methods = ['PUT'])
-@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+@app.route('/adminCompleteChanges', methods = ['PUT'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
 def admin_complete_changes():
     """ Adds/updates a saved location and species information
     Arguments: (GET)
         t - the session token
     Return:
-        Returns True if the collection was updated
+        Returns True if the collection changes were made
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -3302,8 +3485,60 @@ def admin_complete_changes():
     if not changes:
         return {'success': True, 'message': "There were no changes found to apply"}
 
-    # Update the species
-
     # Update the location
+    if 'locations' in changes and changes['locations']:
+        if not update_admin_locations(s3_url, user_info['name'],do_decrypt(db.get_password(token)),
+                                      changes):
+            return 'Unable to update the locations', 422
+    # Mark the locations as done in the DB
+    db.clear_admin_location_changes(user_info['name'])
+
+    # Update the species
+    if 'species' in changes and changes['species']:
+        if not update_admin_species(s3_url, user_info['name'],do_decrypt(db.get_password(token)),
+                                    changes):
+            return 'Unable to update the species. Any changed locations were updated', 422
+    # Mark the species as done in the DB
+    db.clear_admin_species_changes(user_info['name'])
 
     return {'success': True, 'message': "All changes were successully applied"}
+
+@app.route('/adminAbandonChanges', methods = ['PUT'])
+@cross_origin(origins="http://localhost:3000")#, supports_credentials=True)
+def admin_abandon_changes():
+    """ Adds/updates a saved location and species information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the collection changes were abandoned
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN ABANDON THE CHANGES', flush=True)
+
+    # Check what we have from the requestor
+    if token is None:
+        return "Not Found", 406
+
+    # Check the rest of what we got
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return "Not Found", 404
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    token_valid, user_info = token_is_valid(token, client_ip, user_agent_hash, db)
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Mark the locations as done in the DB
+    db.clear_admin_location_changes(user_info['name'])
+
+    # Mark the species as done in the DB
+    db.clear_admin_species_changes(user_info['name'])
+
+    return {'success': True, 'message': "All changes were successully abandoned"}

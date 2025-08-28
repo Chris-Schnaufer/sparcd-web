@@ -37,7 +37,6 @@ export default function EditSpecies({data, onUpdate, onClose}) {
    * @function
    */
   function onSaveChanges() {
-    console.log('HACK:IS MODIFIED:',isModified, data);
     if (!isModified) {
       return;
     }

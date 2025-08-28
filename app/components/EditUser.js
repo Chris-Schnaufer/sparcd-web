@@ -39,7 +39,6 @@ export default function EditUser({data, onUpdate, onClose}) {
    * @function
    */
   function onSaveChanges() {
-    console.log('HACK:IS MODIFIED:',isModified, data);
     if (!isModified) {
       return;
     }
@@ -57,7 +56,6 @@ export default function EditUser({data, onUpdate, onClose}) {
       updatedData.email = el.value;
     }
 
-    console.log('HACK:         ',updatedData);
     onUpdate(updatedData, onClose, (message) => addMessage(Level.Warning, message));
   }
 

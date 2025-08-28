@@ -1133,3 +1133,113 @@ class SPARCdDatabase:
         cursor.close()
 
         return True
+
+    def get_admin_changes(self, username: str) -> dict:
+        """ Returns any saved administrative location and species changes
+        Arguments:
+            username: the name of the user to fetch for
+        Return:
+            Returns a dict of 'locations' and 'species' changes as tuples off the keys. Also returns
+            keys for the index of the columns in the returned data - 'loc_*' for locations, 
+            and 'sp_*' for species
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get administrative changes from the database before '\
+                                                                                    'connecting')
+
+        cursor = self._conn.cursor()
+
+        location_idxs = {'loc_name':0, 'loc_id':1, 'loc_active':2, 'loc_elevation':3, \
+                         'loc_old_lat':4, 'loc_old_lng':5, 'loc_new_lat':6, 'loc_new_lng':7 }
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+                        'SELECT loc_name, loc_id, loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
+                            'loc_new_lat, loc_new_lng FROM admin_location_edits lae, u '\
+                        'WHERE lae.user_id = u.id and lae.location_updated = 0 ' \
+                        'ORDER BY timestamp ASC', (username,))
+        res = cursor.fetchall()
+        if not res:
+            locations = []
+        else:
+            locations = res
+
+        species_idxs = {'sp_old_scientific':0, 'sp_new_scientific':1, 'sp_name':2, 'sp_keybind': 3,\
+                        'sp_icon_url':4}
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+                        'SELECT old_scientific_name, new_scientific_name, name, keybind, iconURL '\
+                        'FROM admin_species_edits ase, u ' \
+                        'WHERE ase.user_id = u.id and ase.s3_updated = 0 ' \
+                        'ORDER BY timestamp ASC', (username, ))
+        res = cursor.fetchall()
+        if not res:
+            species = []
+        else:
+            species = res
+
+        return {'locations': locations, 'species': species} | location_idxs | species_idxs
+
+    def have_admin_changes(self, username: str) -> dict:
+        """ Returns any saved administrative location and species changes
+        Arguments:
+            username: the name of the user to fetch for
+        Return:
+            Returns a dict of 'locationsCount' and 'speciesCount'
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get administrative change counts from the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+                        'SELECT count(1) FROM admin_location_edits lae, u ' \
+                        'WHERE lae.user_id = u.id and lae.location_updated = 0', (username,))
+        res = cursor.fetchall()
+        if not res or len(res) <= 0:
+            locations_count = 0
+        else:
+            locations_count = res[0][0]
+
+        cursor = self._conn.cursor()
+        cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
+                        'SELECT count(1) FROM admin_species_edits ase, u ' \
+                        'WHERE ase.user_id = u.id and ase.s3_updated = 0', (username,))
+        res = cursor.fetchall()
+        if not res or len(res) <= 0:
+            species_count = 0
+        else:
+            species_count = res[0][0]
+
+        return {'locationsCount': locations_count, 'speciesCount': species_count}
+
+    def clear_admin_location_changes(self, username: str) -> None:
+        """ Cleans up the administration location changes for this use
+        Arguments:
+            username: the name of the user to mark the locations for
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to clear administrative locations in the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        query = 'UPDATE admin_location_edits SET location_updated = 1 WHERE user_id in ' \
+                    '(SELECT id FROM users where name=?)'
+        cursor.execute(query, (username,))
+
+        self._conn.commit()
+        cursor.close()
+
+    def clear_admin_species_changes(self, username: str) -> None:
+        """ Cleans up the administration species changes for this use
+        Arguments:
+            username: the name of the user to mark the species for
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to clear administrative species in the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        query = 'UPDATE admin_species_edits SET s3_updated = 1 WHERE user_id in ' \
+                    '(SELECT id FROM users where name=?)'
+        cursor.execute(query, (username,))
+
+        self._conn.commit()
+        cursor.close()

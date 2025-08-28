@@ -27,50 +27,6 @@ export default function LandingUpload({loadingSandbox, onChange}) {
   const theme = useTheme();
   const mobileDevice = React.useContext(MobileDeviceContext);
   const curSandboxInfo = React.useContext(SandboxInfoContext);
-//  const [selectedUpload, setSelectedUpload] = React.useState(null);
-//
-//  /**
-//   * Handles a change in selected sandbox and calls the parent's change function
-//   * @function
-//   * @param {object} event The event object
-//   */ 
-//  function handleChange(event) {
-//    const uploadInfo = JSON.parse(event.target.value);
-//    setSelectedUpload(event.target.value);
-//    console.log('HACK:SANDCHANGE:', uploadInfo);
-//    onChange(uploadInfo);
-//  }
-
-  /* Fragment kept here in case we want to put radio buttons (for example) back in
-            <FormControl sx={{width:'100%'}} >
-              <RadioGroup
-                name='sandbox-items'
-                value={selectedUpload}
-                onChange={handleChange}              
-              >
-                <React.Fragment>
-                  {
-                    sandboxItems && sandboxItems.map((obj, idx) => {
-                      return (obj.uploads.map((up_obj) => 
-                        up_obj.uploadCompleted === true || up_obj.uploadCompleted === null || up_obj.uploadCompleted === undefined ?
-                           <FormControlLabel key={obj.bucket+up_obj.name} value={JSON.stringify({bucket:obj.bucket, upload:up_obj})}
-                                  control={<Radio />} label={up_obj.name+' ('+up_obj.location+')'} key={up_obj.name} 
-                                  sx={{padding:'0px 5px', marginRight:'0px'}} />
-                         : <Grid key={obj.bucket+up_obj.name} container direction="row" alignItems="center" justifyContent="start" >
-                            <FormControlLabel value={JSON.stringify({bucket:obj.bucket, upload:up_obj})} control={<Radio />} 
-                                  label={up_obj.name+' ('+up_obj.location+')'} key={up_obj.name} 
-                                  sx={{padding:'0px 5px', marginRight:'0px'}} />
-                            <Tooltip title="Incomplete upload" placement="left">
-                              <PriorityHighOutlinedIcon size="small" sx={{color:"sandybrown", marginLeft:'auto'}} />
-                            </Tooltip>
-                          </Grid>
-                      ))
-                    })
-                  }
-                </React.Fragment>
-              </RadioGroup>
-            </FormControl>
-  */
 
   const sandboxItems = curSandboxInfo;
   const firstItem = sandboxItems && sandboxItems.length > 0 ? sandboxItems[0] : null;

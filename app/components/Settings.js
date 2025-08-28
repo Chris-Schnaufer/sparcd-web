@@ -254,7 +254,6 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * @function
    */
   function handleAdmin() {
-    console.log('HACK:SETTING PASSWORD NEEDED');
     setGetPassword(true);
   }
 
@@ -263,7 +262,6 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * @function
    */
   function handleLogin() {
-    console.log('HACK:HANDLE LOGIN');
     const el = document.getElementById('password-entry');
     if (el && typeof(onAdminSettings) === 'function') {
       const newPw = el.value;

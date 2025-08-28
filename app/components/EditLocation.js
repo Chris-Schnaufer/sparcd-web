@@ -61,7 +61,6 @@ export default function EditLocation({data, onUpdate, onClose}) {
    * @function
    */
   function onSaveChanges() {
-    console.log('HACK:LOCATION MODIFIED:',isModified, data);
     if (!isModified) {
       return;
     }
@@ -97,7 +96,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
 
     el = document.getElementById('edit-location-active');
     if (el) {
-      updatedData.activeProperty = el.value;
+      updatedData.activeProperty = el.checked;
     }
 
     updatedData.measure = selectedMeasure;
@@ -211,7 +210,6 @@ export default function EditLocation({data, onUpdate, onClose}) {
     data.utm_letter = data.utm_code[data.utm_code.length - 1];
   }
 
-  console.log('HACK:',selectedMeasure,selectedCoordinate);
   return (
    <Grid sx={{minWidth:'50vw'}} > 
     <Card id="edit-species" sx={{backgroundColor:'#EFEFEF', border:"none", boxShadow:"none"}} >

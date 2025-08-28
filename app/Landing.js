@@ -75,11 +75,8 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
    * @function
    */
   function handleSandboxEdit() {
-    console.log('HACK:UPLOADCLICK:',selUploadInfo);
     const curCollection = curCollectionInfo.find((item) => item.bucket === selUploadInfo.bucket);
-    console.log('HACK:    COL:',curCollection);
     const curUpload = selUploadInfo.upload;
-    console.log('HACK:    UPL:', curUpload);
     onEditUpload(curCollection.id, curUpload.key, "Home");
   }
 

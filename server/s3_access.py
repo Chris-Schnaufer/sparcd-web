@@ -51,6 +51,25 @@ def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
     return None
 
 
+def put_s3_file(minio: Minio, bucket: str, file: str, src_file: str, \
+                content_type: str='text/plain'):
+    """ Upload files to the S3 server
+    Arguments:
+        minio: the s3 client instance
+        bucket: the bucket to download from
+        file: the S3 file to update
+        src_file: the location file to upload to the server
+        content_type: the content type of the upload
+    Returns:
+        Returns the content of the file or None if there was an error
+    """
+    try:
+        minio.fput_object(bucket, file, src_file, content_type=content_type)
+    except S3Error as ex:
+        if ex.code != "NoSuchKey":
+            raise ex
+    return None
+
 def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     """ Gets the collections that the user can access
     Arguments:
@@ -613,6 +632,46 @@ class S3Connection:
         config_data = None
         try:
             config_data = get_s3_file(minio, settings_bucket, file_path, temp_file[1])
+        except S3Error as ex:
+            print(f'Unable to get configuration file {filename} from {settings_bucket}')
+            print(ex)
+        finally:
+            os.unlink(temp_file[1])
+
+        return config_data
+
+    @staticmethod
+    def put_configuration(filename: str, config: str, url: str, user: str, password: str):
+        """ Updates the server with the configuration string in the file
+        Arguments:
+            filename: the name of the configuration to update
+            config: the configuration to write to the file
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        # Find the name of our settings bucket
+        settings_bucket = None
+        for one_bucket in minio.list_buckets():
+            if one_bucket.name == SETTINGS_BUCKET_LEGACY:
+                settings_bucket = one_bucket.name
+                break
+            if one_bucket.name.startswith(SETTINGS_BUCKET_PREFIX):
+                settings_bucket = one_bucket.name
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+
+        file_path = os.path.join(SETTINGS_FOLDER, filename)
+        try:
+            with open(temp_file[1], 'w', encoding="utf-8") as ofile:
+                ofile.write(config)
+
+            put_s3_file(minio, settings_bucket, file_path, temp_file[1], 
+                        content_type='application/json')
         except S3Error as ex:
             print(f'Unable to get configuration file {filename} from {settings_bucket}')
             print(ex)

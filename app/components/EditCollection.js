@@ -43,7 +43,6 @@ export default function EditCollection({data, onUpdate, onClose}) {
    * @function
    */
   const onSaveChanges= React.useCallback(() => {
-    console.log('HACK:IS MODIFIED:',isModified, data);
     if (!isModified) {
       onClose();
       return;
@@ -119,7 +118,6 @@ export default function EditCollection({data, onUpdate, onClose}) {
     }
     const uploadPermissions = el.checked;
 
-    console.log('HACK:', [...newPermissions, {'usernameProperty':userName, 'readProperty': readPermissions, 'uploadProperty': uploadPermissions, 'ownerProperty': false}]);
     setNewPermissions([...newPermissions, {'usernameProperty':userName, 'readProperty': readPermissions,
                       'uploadProperty': uploadPermissions, 'ownerProperty': false}]);
 
@@ -168,7 +166,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
    * @function
    */
   const canRemoveUsers = React.useCallback(() => {
-    let notOwners = newPermissions.filter((item) => {console.log('HACK1:',item.ownerProperty,item.ownerProperty !== true);return item.ownerProperty !== true;});
+    let notOwners = newPermissions.filter((item) => item.ownerProperty !== true);
     if (!notOwners || notOwners.length <= 0) {
       addMessage(Level.Information, "You are not allowed to delete the last remaining owner user this account");
       return;
