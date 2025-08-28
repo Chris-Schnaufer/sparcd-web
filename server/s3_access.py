@@ -678,8 +678,6 @@ class S3Connection:
         finally:
             os.unlink(temp_file[1])
 
-        return config_data
-
     @staticmethod
     def get_object_urls(url: str, user: str, password: str, object_info: tuple) -> tuple:
         """ Returns the URLs of the objects listed in object_info
