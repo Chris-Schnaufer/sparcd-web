@@ -1309,6 +1309,7 @@ def update_admin_locations(url: str, user: str, password: str, changes: dict) ->
                 cur_loc['activeProperty'] = True
         else:
             all_locs[cur_key] = {
+                                    'idProperty': one_change[changes['loc_id']],
                                     'nameProperty': one_change[changes['loc_name']],
                                     'latProperty': one_change[changes['loc_new_lat']],
                                     'lngProperty': one_change[changes['loc_new_lng']],
@@ -1879,6 +1880,9 @@ def upload():
     save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + collection_id + '_' + \
                                                                 collection_upload + '.json')
 
+    # The URL to the S3 instance
+    s3_url = web_to_s3_url(user_info["url"])
+
     # Reload the saved information
     all_images = None
     if os.path.exists(save_path):
@@ -1888,7 +1892,6 @@ def upload():
 
     if all_images is None:
         # Get the collection information from the server
-        s3_url = web_to_s3_url(user_info["url"])
         all_images = S3Connection.get_images(s3_url, user_info["name"], \
                                                 do_decrypt(db.get_password(token)), \
                                                 collection_id, collection_upload)
@@ -1917,7 +1920,16 @@ def upload():
                     found = True
             # Add it in if not found
             if found is False:
-                found_species = [one_item for one_item in user_info['species'] if \
+                check_species = user_info['species']
+                if not check_species:
+                    check_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, 
+                                                        TEMP_SPECIES_FILE_NAME,
+                                                        s3_url,
+                                                        user_info["name"],
+                                                        do_decrypt(db.get_password(token)))
+
+
+                found_species = [one_item for one_item in check_species if \
                                         one_item['scientificName'] == one_species[0]]
                 if found_species and len(found_species) > 0:
                     found_species = found_species[0]

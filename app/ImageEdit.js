@@ -130,11 +130,13 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       window.setTimeout(() => {
         setSpeciesRedraw(name+curSpecies[haveSpeciesIdx].name+curSpecies[haveSpeciesIdx].count);
       }, 100);
+      onSpeciesChange(speciesAdd.name, curSpecies[haveSpeciesIdx].count);
     } else {
       curSpecies.push({name:speciesAdd.name,scientificName:speciesAdd.scientificName,count:1});
       window.setTimeout(() => {
         setSpeciesRedraw(name+speciesAdd.name+'1');
       }, 100);
+      onSpeciesChange(speciesAdd.name, 1);
     }
   }
 
