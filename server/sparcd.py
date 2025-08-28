@@ -1323,7 +1323,7 @@ def update_admin_locations(url: str, user: str, password: str, changes: dict) ->
 #        json.dump(all_locs, ofile, indent=4)
 
     # Save to S3 and the local file system
-    S3Connection.put_configuration(CONF_LOCATIONS_FILE_NAME, json.dumps(all_locs),
+    S3Connection.put_configuration(CONF_LOCATIONS_FILE_NAME, json.dumps(all_locs, indent=4),
                                     url, user, password)
 
 
@@ -1365,7 +1365,8 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> b
             cur_species['name'] = one_change[changes['sp_name']]
             cur_species['scientificName'] = one_change[changes['sp_new_scientific']]
             cur_species['speciesIconURL'] = one_change[changes['sp_icon_url']]
-            cur_species['keyBinding'] = one_change[changes['sp_keybind']]
+            cur_species['keyBinding'] = one_change[changes['sp_keybind']] if \
+                                                        one_change[changes['sp_keybind']] else None
         else:
             all_species[cur_key] = {
                                     'name': one_change[changes['sp_name']],
@@ -1380,7 +1381,7 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> b
 #        json.dump(all_species, ofile, indent=4)
 
     # Save to S3 and the local file system
-    S3Connection.put_configuration(CONF_SPECIES_FILE_NAME, json.dumps(all_species),
+    S3Connection.put_configuration(CONF_SPECIES_FILE_NAME, json.dumps(all_species, indent=4),
                                     url, user, password)
 
     config_file_path = os.path.join(tempfile.gettempdir(), TEMP_SPECIES_FILE_NAME)
