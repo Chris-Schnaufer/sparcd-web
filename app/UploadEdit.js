@@ -224,7 +224,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     // Check for a change so we don't make unneeded edits
     if (locEl.value !== curUpload.location) {
 
-      const updateLocationUrl = serverURL + '/collectionLocation?t=' + encodeURIComponent(editToken);
+      const updateLocationUrl = serverURL + '/uploadLocation?t=' + encodeURIComponent(editToken);
       const formData = new FormData();
 
       formData.append('timestamp', new Date().toISOString());

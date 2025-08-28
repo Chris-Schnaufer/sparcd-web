@@ -2752,7 +2752,7 @@ def sandbox_completed():
     return json.dumps({'success': True})
 
 
-@app.route('/collectionLocation', methods = ['POST'])
+@app.route('/uploadLocation', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def image_location():
     """ Handles the location for images changing
