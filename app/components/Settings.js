@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
+import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -69,8 +70,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const theme = useTheme();
   const settingsToken = React.useContext(TokenContext);  // Login token
   const passwordRef = React.useRef();
+  const email1Ref = React.useRef();
+  const email2Ref = React.useRef();
+  const [changeEmail, setChangeEmail] = React.useState(false); // Used to signal changing the user's email
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
-  const [email, setEmail] = React.useState(curSettings.email); // The working email
+  const [emailMessage, setEmailMessage] = React.useState(null); // The working email message
   const [isAdmin, setIsAdmin] = React.useState(false); // Used in case the user is an admin
   const [getPassword, setGetPassword] = React.useState(false); // Used to signal that we need the user's password
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
@@ -137,7 +141,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       }
   });
 
-  // Adds a mouse click handler to the document, and automatically removes it
+  // Automatically select the password edit field
   React.useEffect(() => {
     if (getPassword && passwordRef.current) {
       passwordRef.current.focus();
@@ -228,28 +232,6 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   }
 
   /**
-   * Handles the user changing the email field
-   * @function
-   * @param {object} event The event object
-   */
-  function handleEmailChange(event) {
-    setEmail(event.target.value);
-  }
-
-  /**
-   * Handles the blur of the email field
-   * @function
-   * @param {object} event The event object
-   */
-  function handleEmailBlur(event) {
-    const curSettings = userSettings;
-    curSettings.email = event.target.value;
-    setUserSettings(curSettings);
-    setChangedValue(event.target.value);
-    onChange(curSettings);
-  }
-
-  /**
    * Handler for Admin editing request
    * @function
    */
@@ -269,6 +251,61 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
       setGetPassword(false);
     }
   }
+
+  /**
+   * Handles the user wanting to change their email
+   * @function
+   */
+  const handleChangeEmail = React.useCallback(() => {
+    setChangeEmail(true);
+  }, [setChangeEmail]);
+
+  /**
+   * Handles when the user wants to save update email
+   * @function
+   */
+  const handleSaveEmail = React.useCallback(() => {
+    let email1 = null;
+    let email2 = null;
+
+    if (email1Ref && email1Ref.current) {
+      email1 = email1Ref.current.value;
+    }
+    if (email2Ref && email2Ref.current) {
+      email2 = email2Ref.current.value;
+    }
+
+    // Make sure we have something to work with
+    if (email1 === null && email2 === null){
+      return;
+    }
+
+    // Make the comparisons and help the user 
+    if (email1 === email2) {
+      const curSettings = userSettings;
+      curSettings.email = email1;
+      setUserSettings(curSettings);
+      setChangedValue(email1);
+      onChange(curSettings);
+      setChangeEmail(false);
+    } else {
+      setEmailMessage("Your emails don't match. Please correct and try again")
+      email1Ref.current.focus();
+      email1Ref.current.select();
+    }
+
+  }, [email1Ref, email2Ref, setChangeEmail, setEmailMessage, userSettings]);
+
+  /**
+   * Handles clearing an error message once the user starts changing email addresses
+   * @function
+   */
+  const handleEmailChange = React.useCallback(() => {
+    if (emailMessage != null) {
+      setEmailMessage(null);
+    }
+  }, [emailMessage, setEmailMessage]);
+
 
   // Default the titlebar dimensions if it's not rendered yet
   let workingRect = titlebarRect;
@@ -370,9 +407,27 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               </FormGroup>
             </Grid>
             <Grid id="setting-email-wrapper" sx={{width:'100%'}} >
-              <TextField id='setting-email' hiddenLabel value={email} variant='outlined' type='email' placeholder='email address'
-                          onChange={handleEmailChange} onBlur={handleEmailBlur} pattern=".+@beststartupever\.com"
-                          sx={{width:'100%', '&:invalid':{backgroundColor:'rgba(255,0,0.1)'}}} />
+              <TextField id='setting-email' disabled hiddenLabel value={curSettings.email} variant='outlined' type='email' placeholder='email address'
+                          sx={{width:'100%', '&:invalid':{backgroundColor:'rgba(255,0,0.1)'}}}
+                          slotProps={{
+                            input: {
+                              endAdornment: (
+                                <IconButton onClick={handleChangeEmail} 
+                                            onMouseDown={(event) => event.preventDefault()}
+                                            onMouseUp={(event) => event.preventDefault()}>
+                                <InputAdornment
+                                    position="end"
+                                    sx={{
+                                      alignSelf: 'flex-end',
+                                    }}
+                                  >
+                                    <BorderColorOutlinedIcon />
+                                  </InputAdornment>
+                                </IconButton>
+                              ),
+                            },
+                          }}
+              />
             </Grid>
           </Grid>
         </CardContent>
@@ -442,6 +497,73 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               >
                 Login
               </Button>
+          </Grid>
+        </Grid>
+      }
+      { changeEmail &&
+         <Grid id="settings-change-email-wrapper" justifyContent="center" alignItems="center" 
+              sx={{position:'absolute', top:0, right:0, bottom:'50px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
+          <Grid container direction="column" justifyContent="center" alignItems="center"
+                sx={{backgroundColor:'silver', padding:'15px 0', marginTop:'30%'}} spacing={2}>
+            <div id="admin-settings-change-password-close" sx={{height:'20px', flex:'1'}} onClick={() => setChangeEmail(false)}
+                  style={{marginLeft:'auto', marginRight:'10px', cursor:'pointer'}} >
+                <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
+                                                 padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)',fontWeight:'bold'}
+                                               }}>
+                  X
+                </Typography>
+
+            </div>
+            <div>
+              <Typography gutterBottom variant="h6" component="h6">
+                Change your email
+              </Typography>
+            </div>
+            <TextField required 
+                  id='email1-entry'
+                  label="Email"
+                  type='email'
+                  sx={{width:'95%', margin:'0px'}}
+                  inputProps={{style: {fontSize: 12}}}
+                  onChange={handleEmailChange}
+                  inputRef={email1Ref}
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                  />
+            <TextField required 
+                  id='emai2-entry'
+                  label="Confirm Email"
+                  type='email'
+                  sx={{width:'95%', margin:'0px'}}
+                  inputProps={{style: {fontSize: 12}}}
+                  onChange={handleEmailChange}
+                  inputRef={email2Ref}
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                  />
+            { emailMessage !== null &&
+              <Typography gutterBottom color="#C23232" variant="body2">
+                {emailMessage}
+              </Typography>
+            }
+            <Grid container direction="row" justifyContent="space-between" alignItems="center">
+              <Button size='small'
+                    onClick={handleSaveEmail}
+              >
+                Save
+              </Button>
+              <Button size='small'
+                    onClick={() => setChangeEmail(false)}
+              >
+              Cancel
+              </Button>
+            </Grid>
           </Grid>
         </Grid>
       }

@@ -242,6 +242,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       return;
     }
     const removedSpecies = workingSpecies[speciesIdx];
+    onSpeciesChange(speciesName, 0);
     workingSpecies.splice(speciesIdx, 1);
     curSpecies = workingSpecies;
     setSpeciesRedraw(removedSpecies.name+'-deleted');

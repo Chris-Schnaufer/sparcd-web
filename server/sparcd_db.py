@@ -75,6 +75,7 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('save_token: attempting to access database before connecting')
 
+        print('HACK:ADDTOKEN:',s3_url,flush=True)
         cursor = self._conn.cursor()
         query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
                 'user_agent) VALUES(?,?,?,?,strftime("%s", "now"),?,?)'
@@ -332,8 +333,10 @@ class SPARCdDatabase:
 
         return True
 
-    def get_sandbox(self) -> Optional[tuple]:
+    def get_sandbox(self, s3_url: str) -> Optional[tuple]:
         """ Returns the sandbox items
+        Arguments:
+            s3_url: the url of the s3 instance to fetch for
         Returns:
             A tuple containing the known sandbox items
         """
@@ -342,7 +345,8 @@ class SPARCdDatabase:
                                                                                     'connecting')
         # Get the Sandbox information
         cursor = self._conn.cursor()
-        cursor.execute('SELECT path, bucket, s3_base_path, location_id FROM sandbox')
+        cursor.execute('SELECT path, bucket, s3_base_path, location_id FROM sandbox WHERE s3_url=?',
+                                                                                        (s3_url,))
         res = cursor.fetchall()
 
         if not res or len(res) < 1:
@@ -354,12 +358,13 @@ class SPARCdDatabase:
                  'location_id': row[3]
                } for row in res]
 
-    def get_uploads(self, bucket: str, timeout_sec: int) -> Optional[tuple]:
+    def get_uploads(self, s3_url: str, bucket: str, timeout_sec: int) -> Optional[tuple]:
         """ Returns the uploads for this collection from the database
         Arguments:
+            s3_url: the URL associated with this request
+            bucket: The bucket to get uploads for
             timeout_sec: the amount of time before the table entries can be
                          considered expired
-            The bucket to get uploads for
         Return:
             Returns the loaded tuple of upload names and data
         """
@@ -376,7 +381,8 @@ class SPARCdDatabase:
         if not res or len(res) < 1 or int(res[0]) >= timeout_sec:
             return None
 
-        cursor.execute('SELECT name,json FROM uploads WHERE collection=(?)', (bucket,))
+        cursor.execute('SELECT name,json FROM uploads WHERE s3_url=? AND bucket=?',
+                                                                                (s3_url, bucket))
         res = cursor.fetchall()
 
         if not res or len(res) < 1:
@@ -384,9 +390,10 @@ class SPARCdDatabase:
 
         return [{'name':row[0], 'json':row[1]} for row in res]
 
-    def save_uploads(self, bucket: str, uploads: tuple) -> bool:
+    def save_uploads(self, s3_url: str, bucket: str, uploads: tuple) -> bool:
         """ Save the upload information into the table
         Arguments:
+            s3_url: the URL associated with this request
             bucket: the bucket name to save the uploads under
             uploads: the uploads to save containing the collection name,
                 upload name, and associated JSON
@@ -402,11 +409,13 @@ class SPARCdDatabase:
         tries = 0
         while tries < 10:
             try:
-                cursor.execute('DELETE FROM uploads where collection=(?)', (bucket,))
+                cursor.execute('DELETE FROM uploads where s3_url=? AND bucket=?',
+                                                                                (s3_url, bucket))
                 break
             except sqlite3.Error as ex:
                 if ex.sqlite_errorcode == sqlite3.SQLITE_BUSY:
                     tries += 1
+                    print('HACK:WAITING',flush=True)
                     sleep(1)
                 else:
                     print(f'Save uploads delete sqlite error detected: {ex.sqlite_errorcode}')
@@ -414,15 +423,18 @@ class SPARCdDatabase:
                     print('   ',ex)
                     tries = 10
         if tries >= 10:
-            cursor.execute('ROLLBACK TRANSACTION')
+            try:
+                cursor.execute('ROLLBACK TRANSACTION')
+            except sqlite3.Error:
+                pass
             cursor.close()
             return False
 
         tries = 0
         for one_upload in uploads:
             try:
-                cursor.execute('INSERT INTO uploads(collection,name,json) values(?,?,?)', \
-                                        (bucket, one_upload['name'], one_upload['json']))
+                cursor.execute('INSERT INTO uploads(s3_url, bucket,name, json) values(?,?,?,?)', \
+                                        (s3_url, bucket, one_upload['name'], one_upload['json']))
                 tries += 1
             except sqlite3.Error as ex:
                 print(f'Unable to update collections: {ex.sqlite_errorcode} {one_upload}')
@@ -540,10 +552,11 @@ class SPARCdDatabase:
 
         return res[0], res[1]
 
-    def sandbox_get_upload(self, username: str, path: str, new_upload_id: bool=False) -> \
-                                                                                    Optional[tuple]:
+    def sandbox_get_upload(self, s3_url: str, username: str, path: str, \
+                                                    new_upload_id: bool=False) -> Optional[tuple]:
         """ Checks if an upload for the user exists and returns the files that were loaded
         Arguments:
+            s3_url: the URL to the s3 instance to look for
             username: the user associated with the upload
             path: the source path of the uploads
             new_upload_id: creates a new upload ID for an existing upload
@@ -559,8 +572,8 @@ class SPARCdDatabase:
         # Find the upload
         cursor = self._conn.cursor()
         cursor.execute('SELECT id, (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
-                        'FROM sandbox WHERE name=(?) and path=(?) LIMIT 1',
-                                                                                (username, path))
+                        'FROM sandbox WHERE s3_url=? AND name=? AND path=? LIMIT 1',
+                                                                        (s3_url, username, path))
 
         res = cursor.fetchone()
         if not res or len(res) < 2:
@@ -577,14 +590,14 @@ class SPARCdDatabase:
         if new_upload_id is not False:
             upload_id = uuid.uuid4().hex
             cursor = self._conn.cursor()
-            cursor.execute('UPDATE sandbox SET upload_id=(?) WHERE name=(?) AND path=(?)',
-                                    (upload_id,username,path))
+            cursor.execute('UPDATE sandbox SET upload_id=? WHERE s3_url=? AND name=? AND path=?',
+                                                                (s3_url, upload_id, username, path))
             self._conn.commit()
             cursor.close()
 
-        # Get all the uploaded files
+        # Get all the uploaded files (used to filter down the remaining files that need uploading)
         cursor = self._conn.cursor()
-        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=(?) AND ' \
+        cursor.execute('SELECT source_path FROM sandbox_files WHERE sandbox_id=? AND ' \
                                                                     'uploaded=TRUE', (sandbox_id,))
         res = cursor.fetchall()
 
@@ -598,10 +611,11 @@ class SPARCdDatabase:
 
         return elapsed_sec, loaded_files, upload_id
 
-    def sandbox_new_upload(self, username: str, path: str, files: tuple, s3_bucket: str, \
-                                                            s3_path: str, location_id: str) -> str:
+    def sandbox_new_upload(self, s3_url: str, username: str, path: str, files: tuple, \
+                                            s3_bucket: str, s3_path: str, location_id: str) -> str:
         """ Adds new sandbox upload entries
         Arguments:
+            s3_url: the URL to the s3 instance the upload is for
             username: the name of the person starting the upload
             path: the source path of the images
             files: the list of filenames (or partial paths) that's to be uploaded
@@ -618,10 +632,10 @@ class SPARCdDatabase:
         # Create the upload
         upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO sandbox(name, path, bucket, s3_base_path, ' \
+        cursor.execute('INSERT INTO sandbox(s3_url, name, path, bucket, s3_base_path, ' \
                                                             'location_id, timestamp, upload_id) ' \
-                                    'VALUES(?,?,?,?,?,strftime("%s", "now"),?)', 
-                            (username, path, s3_bucket, s3_path, location_id, upload_id))
+                                    'VALUES(?,?,?,?,?,?,strftime("%s", "now"),?)', 
+                            (s3_url, username, path, s3_bucket, s3_path, location_id, upload_id))
 
         sandbox_id = cursor.lastrowid
 
@@ -651,8 +665,8 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=(?) AND upload_id=(?)',
-                                                                            (username, upload_id))
+        cursor.execute('SELECT bucket, s3_base_path FROM sandbox WHERE name=? AND upload_id=?',
+                                                                    (username, upload_id))
 
         res = cursor.fetchone()
         if not res or len(res) < 2:
@@ -679,7 +693,8 @@ class SPARCdDatabase:
         cursor = self._conn.cursor()
         cursor.execute('WITH '\
                 'upid AS ' \
-                    '(SELECT id FROM sandbox WHERE name=(?) AND upload_id=(?) AND path <> ""),' \
+                    '(SELECT id FROM sandbox ' \
+                                    'WHERE name=? AND upload_id=? AND path <> ""),' \
                 'uptot AS ' \
                     '(SELECT sandbox_id,count(1) AS tot FROM sandbox_files,upid WHERE ' \
                                                                     'sandbox_id=upid.id),' \
@@ -713,7 +728,7 @@ class SPARCdDatabase:
 
         # Get the sandbox ID
         cursor = self._conn.cursor()
-        cursor.execute('SELECT id FROM sandbox WHERE name=(?) AND upload_id=(?)',
+        cursor.execute('SELECT id FROM sandbox WHERE name=? AND upload_id=?',
                                                                             (username, upload_id))
         res = cursor.fetchone()
         if not res or len(res) < 1:
@@ -728,7 +743,7 @@ class SPARCdDatabase:
         # Clear the old files and add the new ones
         cursor = self._conn.cursor()
 
-        cursor.execute('DELETE FROM sandbox_files WHERE sandbox_id=(?)', (sandbox_id, ))
+        cursor.execute('DELETE FROM sandbox_files WHERE sandbox_id=?', (sandbox_id, ))
 
         for one_file in files:
             cursor.execute('INSERT INTO sandbox_files(sandbox_id, filename, source_path, ' \
@@ -753,7 +768,7 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('UPDATE sandbox SET path="" WHERE name=(?) AND upload_id=(?)',
+        cursor.execute('UPDATE sandbox SET path="" WHERE name=? AND upload_id=?',
                                                                             (username, upload_id))
 
         self._conn.commit()
@@ -778,7 +793,7 @@ class SPARCdDatabase:
         cursor = self._conn.cursor()
         cursor.execute('SELECT id FROM sandbox_files WHERE '\
                             'sandbox_files.filename=(?) AND sandbox_id in ' \
-                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?)) LIMIT 1',
+                       '(SELECT id FROM sandbox WHERE name=? AND upload_id=?) LIMIT 1',
                                                         (filename, username, upload_id))
 
         res = cursor.fetchall()
@@ -788,9 +803,9 @@ class SPARCdDatabase:
         sandbox_file_id = res[0][0]
 
         # Update the file's mimetype
-        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=(?) WHERE '\
-                            'sandbox_files.filename=(?) AND id=(?)',
-                                                        (mimetype,filename, sandbox_file_id))
+        cursor.execute('UPDATE sandbox_files SET uploaded=TRUE, mimetype=? WHERE '\
+                            'sandbox_files.filename=? AND id=?',
+                                                        (mimetype, filename, sandbox_file_id))
 
         self._conn.commit()
         cursor.close()
@@ -851,7 +866,7 @@ class SPARCdDatabase:
         # Get the date
         cursor = self._conn.cursor()
         cursor.execute('SELECT source_path, mimetype FROM sandbox_files WHERE sandbox_id IN '\
-                        '(SELECT id FROM SANDBOX WHERE name=(?) AND upload_id=(?))',
+                        '(SELECT id FROM sandbox WHERE name=? AND upload_id=?)',
                                                                             (username, upload_id))
 
         res = cursor.fetchall()
@@ -880,7 +895,7 @@ class SPARCdDatabase:
         cursor = self._conn.cursor()
         query = \
             'WITH loc AS (SELECT id, location_id as loc_id ' \
-                                                'FROM sandbox WHERE name=(?) AND upload_id=(?)),' \
+                                                'FROM sandbox WHERE name=? AND upload_id=?),' \
                     'files AS (SELECT loc.loc_id AS loc_id,sf.id AS id, sf.filename ' \
                                         'FROM sandbox_files sf,loc WHERE sf.sandbox_id=loc.id) ' \
                 'SELECT files.loc_id, files.filename, ssp.obs_date, ssp.obs_common, ' \
@@ -903,10 +918,11 @@ class SPARCdDatabase:
                  'count': one_row[5]
                  } for one_row in res)
 
-    def add_upload_edit(self, bucket: str, upload_path: str, username: str, timestamp: str, \
-                                                                            loc_id: str) -> None:
+    def add_upload_edit(self, s3_url: str, bucket: str, upload_path: str, username: str, \
+                                                            timestamp: str, loc_id: str) -> None:
         """ Stores the edit for a collection
         Arguments:
+            s3_url: the URL of the S3 instance
             bucket: the S3 bucket the collection is in
             upload_path: the path to the uploads folder under the bucket
             username: the name of the user making the change
@@ -919,18 +935,19 @@ class SPARCdDatabase:
 
         # Add the entry to the database
         cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO collection_edits(bucket, s3_base_path, username, ' \
+        cursor.execute('INSERT INTO collection_edits(s3_url, bucket, s3_base_path, username, ' \
                                                                         'edit_timestamp, loc_id) '\
-                                    'VALUES(?,?,?,?,?)', 
-                            (bucket, upload_path, username, timestamp, loc_id))
+                                    'VALUES(?,?,?,?,?,?)', 
+                            (s3_url, bucket, upload_path, username, timestamp, loc_id))
 
         self._conn.commit()
         cursor.close()
 
-    def add_image_species_edit(self, bucket: str, file_path: str, username: str, timestamp: str, \
-                                                                species: str, count: str) -> None:
+    def add_image_species_edit(self, s3_url: str, bucket: str, file_path: str, username: str, \
+                                                timestamp: str, species: str, count: str) -> None:
         """ Adds a species entry for a file to the database
         Arguments:
+            s3_url: the URL to the S3 instance
             bucket: the S3 bucket the file is in
             file_path: the path to the file the change applies to
             username: the name of the user making the change
@@ -944,10 +961,10 @@ class SPARCdDatabase:
 
         # Add the entry to the database
         cursor = self._conn.cursor()
-        cursor.execute('INSERT INTO image_edits(bucket, s3_file_path, username, edit_timestamp, ' \
-                                                                    'obs_scientific, obs_count) '\
-                                    'VALUES(?,?,?,?,?,?)', 
-                            (bucket, file_path, username, timestamp, species, count))
+        cursor.execute('INSERT INTO image_edits(s3_url, bucket, s3_file_path, username, ' \
+                                                    'edit_timestamp, obs_scientific, obs_count) '\
+                                    'VALUES(?,?,?,?,?,?,?)', 
+                                (s3_url, bucket, file_path, username, timestamp, species, count))
 
         self._conn.commit()
         cursor.close()
@@ -969,9 +986,10 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
-    def get_image_species_edits(self, bucket: str, upload_path: str) -> dict:
+    def get_image_species_edits(self, s3_url: str, bucket: str, upload_path: str) -> dict:
         """ Returns all the saved edits for this bucket and upload path
         Arguments:
+            s3_url: the URL to the S3 instance
             bucket: the S3 bucket the collection is in
             upload_path: the upload path to get the edit for
         Return:
@@ -985,9 +1003,10 @@ class SPARCdDatabase:
 
         # Get the edits
         cursor = self._conn.cursor()
-        cursor.execute('SELECT s3_file_path,obs_scientific,obs_count FROM image_edits WHERE ' \
-                                    'bucket=? AND s3_file_path like ? ORDER BY edit_timestamp ASC',
-                            (bucket, upload_path+'%'))
+        cursor.execute('SELECT s3_file_path, obs_scientific, obs_count FROM image_edits WHERE ' \
+                                    's3_url=? AND bucket=? AND s3_file_path like ? ' \
+                                'ORDER BY edit_timestamp ASC',
+                            (s3_url, bucket, upload_path+'%'))
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
@@ -1058,10 +1077,11 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
-    def update_species(self, username: str, old_scientific: str, new_scientific: str, \
+    def update_species(self, s3_url: str, username: str, old_scientific: str, new_scientific: str, \
                                         new_name: str, new_keybind: str, new_icon_url: str) -> bool:
         """ Adds the species in the database for later submission
         Arguments:
+            s3_url: the URL to the S3 instance
             username: the name of the user making the change
             old_scientific: the old scientific name of the species
             new_scientific: the new scientific name of the species
@@ -1083,22 +1103,23 @@ class SPARCdDatabase:
             return False
         user_id = res[0][0]
 
-        cursor.execute('INSERT INTO admin_species_edits(user_id, timestamp, old_scientific_name, ' \
-                                                'new_scientific_name, name, keybind, iconURL) ' \
-                            'VALUES(?,strftime("%s", "now"),?,?,?,?,?)',
-                                    (user_id, old_scientific, new_scientific, new_name, \
+        cursor.execute('INSERT INTO admin_species_edits(s3_url, user_id, timestamp, ' \
+                            'old_scientific_name, new_scientific_name, name, keybind, iconURL) ' \
+                            'VALUES(?,?,strftime("%s", "now"),?,?,?,?,?)',
+                                    (s3_url, user_id, old_scientific, new_scientific, new_name, \
                                             new_keybind, new_icon_url))
         self._conn.commit()
         cursor.close()
 
         return True
 
-    def update_location(self, username: str, loc_name: str, loc_id: str, loc_active: bool, \
-                        loc_ele: float, loc_old_lat: float, loc_old_lng: float, \
+    def update_location(self, s3_url: str, username: str, loc_name: str, loc_id: str, \
+                        loc_active: bool, loc_ele: float, loc_old_lat: float, loc_old_lng: float, \
                         loc_new_lat: float, loc_new_lng: float) -> bool:
 
         """ Adds the location information to the database for later submission
         Arguments:
+            s3_url: the URL to the S3 isntance
             username: the name of the user making the change
             loc_name: the name of the location
             loc_id: the ID of the location
@@ -1123,20 +1144,21 @@ class SPARCdDatabase:
             return False
         user_id = res[0][0]
 
-        cursor.execute('INSERT INTO admin_location_edits(user_id, timestamp, loc_name, loc_id, ' \
-                                        'loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
+        cursor.execute('INSERT INTO admin_location_edits(s3_url, user_id, timestamp, loc_name, ' \
+                                        'loc_id, loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
                                         'loc_new_lat, loc_new_lng) ' \
-                            'VALUES(?,strftime("%s", "now"),?,?,?,?,?,?,?,?)',
-                                    (user_id, loc_name, loc_id, loc_active, loc_ele, loc_old_lat, \
-                                            loc_old_lng, loc_new_lat,loc_new_lng))
+                            'VALUES(?,?,strftime("%s", "now"),?,?,?,?,?,?,?,?)',
+                                    (s3_url, user_id, loc_name, loc_id, loc_active, loc_ele, \
+                                            loc_old_lat, loc_old_lng, loc_new_lat,loc_new_lng))
         self._conn.commit()
         cursor.close()
 
         return True
 
-    def get_admin_changes(self, username: str) -> dict:
+    def get_admin_changes(self, s3_url: str, username: str) -> dict:
         """ Returns any saved administrative location and species changes
         Arguments:
+            s3_url: the URL to the S3 instance
             username: the name of the user to fetch for
         Return:
             Returns a dict of 'locations' and 'species' changes as tuples off the keys. Also returns
@@ -1153,9 +1175,9 @@ class SPARCdDatabase:
                          'loc_old_lat':4, 'loc_old_lng':5, 'loc_new_lat':6, 'loc_new_lng':7 }
         cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
                         'SELECT loc_name, loc_id, loc_active, loc_ele, loc_old_lat, loc_old_lng, ' \
-                            'loc_new_lat, loc_new_lng FROM admin_location_edits lae, u '\
-                        'WHERE lae.user_id = u.id and lae.location_updated = 0 ' \
-                        'ORDER BY timestamp ASC', (username,))
+                            'loc_new_lat, loc_new_lng FROM admin_location_edits ale, u '\
+                        'WHERE ale.s3_url=? AND ale.user_id = u.id AND ale.location_updated = 0 ' \
+                        'ORDER BY timestamp ASC', (username, s3_url))
         res = cursor.fetchall()
         if not res:
             locations = []
@@ -1167,8 +1189,8 @@ class SPARCdDatabase:
         cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
                         'SELECT old_scientific_name, new_scientific_name, name, keybind, iconURL '\
                         'FROM admin_species_edits ase, u ' \
-                        'WHERE ase.user_id = u.id and ase.s3_updated = 0 ' \
-                        'ORDER BY timestamp ASC', (username, ))
+                        'WHERE ase.s3_url=? AND ase.user_id = u.id AND ase.s3_updated = 0 ' \
+                        'ORDER BY timestamp ASC', (username, s3_url))
         res = cursor.fetchall()
         if not res:
             species = []
@@ -1177,9 +1199,10 @@ class SPARCdDatabase:
 
         return {'locations': locations, 'species': species} | location_idxs | species_idxs
 
-    def have_admin_changes(self, username: str) -> dict:
+    def have_admin_changes(self, s3_url: str, username: str) -> dict:
         """ Returns any saved administrative location and species changes
         Arguments:
+            s3_url: the URL to the S3 instance
             username: the name of the user to fetch for
         Return:
             Returns a dict of 'locationsCount' and 'speciesCount'
@@ -1190,8 +1213,9 @@ class SPARCdDatabase:
 
         cursor = self._conn.cursor()
         cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
-                        'SELECT count(1) FROM admin_location_edits lae, u ' \
-                        'WHERE lae.user_id = u.id and lae.location_updated = 0', (username,))
+                        'SELECT count(1) FROM admin_location_edits ale, u ' \
+                        'WHERE ale.s3_url=? AND ale.user_id = u.id AND ale.location_updated = 0',
+                                                                                (username, s3_url))
         res = cursor.fetchall()
         if not res or len(res) <= 0:
             locations_count = 0
@@ -1201,7 +1225,8 @@ class SPARCdDatabase:
         cursor = self._conn.cursor()
         cursor.execute('WITH u AS (SELECT id FROM users WHERE name=?) ' \
                         'SELECT count(1) FROM admin_species_edits ase, u ' \
-                        'WHERE ase.user_id = u.id and ase.s3_updated = 0', (username,))
+                        'WHERE ase.s3_url=? AND ase.user_id = u.id AND ase.s3_updated = 0',
+                            (username, s3_url))
         res = cursor.fetchall()
         if not res or len(res) <= 0:
             species_count = 0
@@ -1210,9 +1235,10 @@ class SPARCdDatabase:
 
         return {'locationsCount': locations_count, 'speciesCount': species_count}
 
-    def clear_admin_location_changes(self, username: str) -> None:
+    def clear_admin_location_changes(self, s3_url: str, username: str) -> None:
         """ Cleans up the administration location changes for this use
         Arguments:
+            s3_url: the URL to the S3 instance
             username: the name of the user to mark the locations for
         """
         if self._conn is None:
@@ -1220,16 +1246,17 @@ class SPARCdDatabase:
                                                                                 'before connecting')
 
         cursor = self._conn.cursor()
-        query = 'UPDATE admin_location_edits SET location_updated = 1 WHERE user_id in ' \
-                    '(SELECT id FROM users where name=?)'
-        cursor.execute(query, (username,))
+        query = 'UPDATE admin_location_edits SET location_updated = 1 WHERE s3_url=? ' \
+                    'AND user_id IN (SELECT id FROM users WHERE name=?)'
+        cursor.execute(query, (s3_url, username))
 
         self._conn.commit()
         cursor.close()
 
-    def clear_admin_species_changes(self, username: str) -> None:
+    def clear_admin_species_changes(self, s3_url: str, username: str) -> None:
         """ Cleans up the administration species changes for this use
         Arguments:
+            s3_url: the URL to the S3 instance
             username: the name of the user to mark the species for
         """
         if self._conn is None:
@@ -1237,9 +1264,9 @@ class SPARCdDatabase:
                                                                                 'before connecting')
 
         cursor = self._conn.cursor()
-        query = 'UPDATE admin_species_edits SET s3_updated = 1 WHERE user_id in ' \
+        query = 'UPDATE admin_species_edits SET s3_updated = 1 WHERE s3_url=? AND user_id in ' \
                     '(SELECT id FROM users where name=?)'
-        cursor.execute(query, (username,))
+        cursor.execute(query, (s3_url, username))
 
         self._conn.commit()
         cursor.close()

@@ -25,7 +25,7 @@ import dateutil.tz
 from PIL import Image
 
 import requests
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from minio import Minio
 from minio.error import MinioException
 from flask import Flask, render_template, request, Response, send_file, send_from_directory,\
@@ -37,7 +37,7 @@ from text_formatters.results import Results
 from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE,deg2utm, deg2utm_code, utm2deg
 import query_helpers
 from sparcd_db import SPARCdDatabase
-from sparcd_utils import get_fernet_key_from_passcode
+from sparcd_utils import get_fernet_key_from_passcode, secure_user_settings
 from s3_access import S3Connection, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
                       OBSERVATIONS_CSV_FILE_NAME, CAMTRAP_FILE_NAMES, SPARCD_PREFIX
 
@@ -121,7 +121,7 @@ app = Flask(__name__)
 #CORS(app, resources={r"/api/*": {"origins":["http://localhost:3000"]}}, supports_credentials=True)
 # Secure cookie settings
 app.config.update(
-    SESSION_COOKIE_SECURE=True,         # TODO: Change to True when running over HTTPS
+    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=600,
@@ -200,6 +200,16 @@ def web_to_s3_url(url: str) -> str:
         Any params, queries, and fragments are not kept
         The return url may be the same one passed in if it doesn't need changing.
     """
+    # Check for encrypted URLs
+    if not url.lower().startswith('http'):
+        try:
+            cur_url = do_decrypt(url)
+            url = cur_url
+        except InvalidToken:
+            # Don't know what we have, just return it
+            return url
+
+    # It's encrypted but not an http(s) url
     if not url.lower().startswith('http'):
         return url
 
@@ -211,7 +221,7 @@ def web_to_s3_url(url: str) -> str:
     return parsed.hostname + ':' + port
 
 
-def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabase) -> bool:
+def token_is_valid(token: str, client_ip: str, user_agent: str, db: SPARCdDatabase) -> bool:
     """Checks the database for a token and then checks the validity
     Arguments:
         token: the token to check
@@ -224,13 +234,13 @@ def token_is_valid(token:str, client_ip: str, user_agent: str, db: SPARCdDatabas
     # Get the user information using the token
     db.reconnect()
     login_info = db.get_token_user_info(token)
-    #print('HACK:LOGININFO:',login_info,flush=True)
+    #print('HACK:LOGININFO:',login_info["url"] if login_info else '<null>',flush=True)
     if login_info is not None:
         if login_info and 'settings' in login_info:
             login_info['settings'] = json.loads(login_info['settings'])
         if login_info and 'species' in login_info:
             login_info['species'] = json.loads(login_info['species'])
-        print('USER INFO',login_info['name'],'Species:',len(login_info['species']), flush=True)
+
         # Is the session still good
         if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
            client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
@@ -524,7 +534,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_na
     # Load all the DB data first
     for one_coll in cur_coll:
         cur_bucket = one_coll['json']['bucketProperty']
-        uploads_info = db.get_uploads(cur_bucket, TIMEOUT_UPLOADS_SEC)
+        uploads_info = db.get_uploads(s3_url, cur_bucket, TIMEOUT_UPLOADS_SEC)
         if uploads_info is not None and uploads_info:
             uploads_info = [{'bucket':cur_bucket,       \
                              'name':one_upload['name'],                     \
@@ -545,7 +555,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_na
     if len(s3_uploads) > 0:
         user_secret = do_decrypt(db.get_password(user_token))
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
+            cur_futures = {executor.submit(list_uploads_thread, do_decrypt(s3_url), user_name, \
                                                                         user_secret, cur_bucket):
                             cur_bucket for cur_bucket in s3_uploads}
 
@@ -559,7 +569,7 @@ def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_na
                                          'info':one_upload,
                                          'json':json.dumps(one_upload)
                                         } for one_upload in uploads_results['uploads_info']]
-                        db.save_uploads(uploads_results['bucket'], uploads_info)
+                        db.save_uploads(s3_url, uploads_results['bucket'], uploads_info)
 
                         # Filter on current DB uploads
                         if len(uploads_info) > 0:
@@ -1540,7 +1550,6 @@ def login_token():
         for expiration first. If valid login information is specified, and the token
         is invalid/missing/expired, a new token is returned
     """
-    curtime = None
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     print('LOGIN',flush=True)
 
@@ -1568,7 +1577,6 @@ def login_token():
         # Checking the token for validity
         token_valid, login_info = token_is_valid(token, client_ip, user_agent_hash, db)
         if token_valid:
-            curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
             # Everything checks out
             return json.dumps({'value':token,
                                'name':login_info['name'],
@@ -1578,10 +1586,6 @@ def login_token():
         # Delete the old token from the database
         db.reconnect()
         db.remove_token(token)
-
-        # Token not valid and not all login components specified
-        if not url or not user or not password:
-            return "Not Found", 404
 
     # Make sure we have the components we need for logging in
     if not url or not user or not password:
@@ -1596,15 +1600,11 @@ def login_token():
         print('S3 exception caught:', ex)
         return "Not Found", 404
 
-    if not curtime:
-        curtime = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc).timestamp()
-
     # Save information into the database
     new_key = uuid.uuid4().hex
     db.reconnect()
-    # TODO Move the encryption to S3 instance & pass in the encryption key
     db.add_token(token=new_key, user=user, password=do_encrypt(password), client_ip=client_ip,
-                    user_agent=user_agent_hash, s3_url=s3_url)
+                    user_agent=user_agent_hash, s3_url=do_encrypt(s3_url))
     user_info = db.get_user(user)
     if not user_info:
         # Get the species
@@ -1616,10 +1616,12 @@ def login_token():
     if 'settings' in user_info and isinstance(user_info['settings'], str) and user_info['settings']:
         try:
             cur_settings = json.loads(user_info['settings'])
-            user_info['settings'] = json.dumps(cur_settings|{'email':user_info['email']})
+            user_info['settings'] = cur_settings|{'email':user_info['email']}
         except json.JSONDecodeError as ex:
             print('Unable to add email to user settings:', user_info, flush=True)
             print(ex)
+
+    user_info['settings'] = secure_user_settings(user_info['settings'])
 
     return json.dumps({'value':new_key, 'name':user_info['name'],
                        'settings':user_info['settings']})
@@ -1667,7 +1669,6 @@ def collections():
 
     # Get the collection information from the server
     s3_url = web_to_s3_url(user_info["url"])
-    # TODO: have s3 instance do the decryption & pass in decrypt key to S3 instance
     all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
                                                             do_decrypt(db.get_password(token)))
 
@@ -1713,7 +1714,7 @@ def sandbox():
         return "Unauthorized", 401
 
     # Get the sandbox information from the database
-    sandbox_items = db.get_sandbox()
+    sandbox_items = db.get_sandbox(user_info["url"])
 
     # The S3 endpoint in case we need it
     s3_url = web_to_s3_url(user_info["url"])
@@ -1907,10 +1908,13 @@ def upload():
         upload_path = os.path.dirname(one_image['s3_path'])
         edit_key = one_image['bucket'] + ':' + upload_path
         if not edit_key in edits:
-            edits = {**edits, **db.get_image_species_edits(one_image['bucket'], upload_path)}
+            edits = {**edits,
+                     **db.get_image_species_edits(user_info["url"], one_image['bucket'],upload_path)
+                    }
         if not one_image['s3_path'] in edits[edit_key]:
             continue
 
+        have_deletes = False        # Use to determine if we need to remove species
         species_edits = edits[edit_key][one_image['s3_path']]
         for one_species in species_edits:
             # Look for exiting species in image
@@ -1918,12 +1922,13 @@ def upload():
             for one_img_species in one_image['species']:
                 if one_species[0] == one_img_species['scientificName']:
                     one_img_species['count'] = one_species[1]
+                    have_deletes = one_species[1] <= 0
                     found = True
             # Add it in if not found
             if found is False:
                 check_species = user_info['species']
                 if not check_species:
-                    check_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, 
+                    check_species = load_sparcd_config(CONF_SPECIES_FILE_NAME,
                                                         TEMP_SPECIES_FILE_NAME,
                                                         s3_url,
                                                         user_info["name"],
@@ -1939,6 +1944,11 @@ def upload():
                 one_image['species'].append({'name':found_species['name'],
                                              'scientificName':one_species[0],
                                              'count':one_species[1]})
+
+        # Fix up the species if we have some removals
+        if have_deletes:
+            one_image['species'] = [one_species for one_species in one_image['species'] if \
+                                                                        one_species['count'] > 0]
 
     # Prepare the return data
     for one_img in all_images:
@@ -2100,7 +2110,8 @@ def query():
             cur_coll = [coll for coll in cur_coll if coll['name'] in one_filter[1]]
 
     # Get uploads information to further filter images
-    all_results = filter_collections(db, cur_coll, s3_url, user_info["name"], token, filters)
+    all_results = filter_collections(db, cur_coll, user_info["url"], user_info["name"], token,
+                                                                                            filters)
 
     # Get the species and locations
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
@@ -2294,7 +2305,9 @@ def set_settings():
         db.update_user_settings(user_info['name'], json.dumps(user_info['settings']),
                                                                                 user_info['email'])
 
-    return json.dumps(user_info['settings']|{'email':user_info['email']})
+    user_info['settings'] = secure_user_settings(user_info['settings']|{'email':user_info['email']})
+
+    return json.dumps(user_info['settings'])
 
 
 @app.route('/locationInfo', methods = ['POST'])
@@ -2392,8 +2405,10 @@ def sandbox_prev():
 
 
     # Check with the DB if the upload has been started before
-    elapsed_sec, uploaded_files, upload_id = db.sandbox_get_upload(user_info['name'],
-                                                                                    rel_path, True)
+    elapsed_sec, uploaded_files, upload_id = db.sandbox_get_upload(user_info["url"],
+                                                                    user_info['name'],
+                                                                    rel_path,
+                                                                    True)
 
     return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
                         'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec, \
@@ -2478,8 +2493,8 @@ def sandbox_new():
                                         s3_path + '/' + one_file, data, 'application/csv')
 
     # Add the entries to the database
-    upload_id = db.sandbox_new_upload(user_info['name'], rel_path, all_files, s3_bucket, s3_path,
-                                        location_id)
+    upload_id = db.sandbox_new_upload(user_info["url"], user_info['name'], rel_path, all_files,
+                                                                    s3_bucket, s3_path, location_id)
 
     # Update the collection to reflect the new upload
     updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
@@ -2533,8 +2548,8 @@ def sandbox_file():
         return "Unauthorized", 401
 
     # Get the location to upload to
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
     s3_url = web_to_s3_url(user_info["url"])
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
 
     # Upload all the received files and update the database
     temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
@@ -2682,8 +2697,8 @@ def sandbox_completed():
         return "Unauthorized", 401
 
     # Get the sandbox information
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
     s3_url = web_to_s3_url(user_info["url"])
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
 
     # Update the MEDIA csv file to include media types
     media_info = load_camtrap_media(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
@@ -2804,7 +2819,7 @@ def image_location():
     bucket = SPARCD_PREFIX + coll_id
     upload_path = f'Collections/{coll_id}/Uploads/{upload_id}'
 
-    db.add_upload_edit(bucket, upload_path, user_info['name'], timestamp, loc_id)
+    db.add_upload_edit(user_info["url"], bucket, upload_path, user_info['name'], timestamp, loc_id)
 
     return json.dumps({'success': True})
 
@@ -2854,7 +2869,8 @@ def image_species():
 
     bucket = SPARCD_PREFIX + coll_id
 
-    db.add_image_species_edit(bucket, path, user_info['name'], timestamp, scientific_name, count)
+    db.add_image_species_edit(user_info["url"], bucket, path, user_info['name'], timestamp,
+                                                                            scientific_name, count)
 
     return json.dumps({'success': True})
 
@@ -2985,7 +3001,7 @@ def admin_check_changes():
         return "Unauthorized", 401
 
     # Check for changes in the db
-    changed = db.have_admin_changes(user_info['name'])
+    changed = db.have_admin_changes(user_info["url"], user_info['name'])
 
     return {'success': True, 'locationsChanged': changed['locationsCount'] > 0, \
             'speciesChanged': changed['speciesCount'] > 0}
@@ -3239,8 +3255,8 @@ def admin_species_update():
         return {'success': False, 'message': f'Species "{new_scientific}" already exists'}
 
     # Put the change in the DB
-    if db.update_species(user_info['name'], old_scientific, new_scientific, new_name, \
-                                                                            key_binding, icon_url):
+    if db.update_species(user_info["url"], user_info['name'], old_scientific, new_scientific, \
+                                                                new_name, key_binding, icon_url):
         return {'success': True, 'message': f'Successfully updated species "{find_scientific}"'}
 
     return {'success': False, \
@@ -3349,8 +3365,8 @@ def admin_location_update():
                             ])
 
     # Put the change in the DB
-    if db.update_location(user_info['name'], loc_name, loc_id, loc_active, loc_ele, loc_old_lat,
-                                                            loc_old_lng, loc_new_lat, loc_new_lng):
+    if db.update_location(user_info["url"], user_info['name'], loc_name, loc_id, loc_active,
+                                        loc_ele,loc_old_lat,loc_old_lng, loc_new_lat, loc_new_lng):
         return {'success': True, 'message': f'Successfully updated location {loc_name}',
                 'data':{'nameProperty': loc_name, 'idProperty': loc_id, \
                         'elevationProperty': loc_ele, 'activeProperty': loc_active, \
@@ -3494,7 +3510,7 @@ def admin_complete_changes():
     # Get the locations and species changes logged in the database
     s3_url = web_to_s3_url(user_info["url"])
 
-    changes = db.get_admin_changes(user_info['name'])
+    changes = db.get_admin_changes(user_info["url"], user_info['name'])
     if not changes:
         return {'success': True, 'message': "There were no changes found to apply"}
 
@@ -3504,7 +3520,7 @@ def admin_complete_changes():
                                       changes):
             return 'Unable to update the locations', 422
     # Mark the locations as done in the DB
-    db.clear_admin_location_changes(user_info['name'])
+    db.clear_admin_location_changes(user_info["url"], user_info['name'])
 
     # Update the species
     if 'species' in changes and changes['species']:
@@ -3512,7 +3528,7 @@ def admin_complete_changes():
                                     changes):
             return 'Unable to update the species. Any changed locations were updated', 422
     # Mark the species as done in the DB
-    db.clear_admin_species_changes(user_info['name'])
+    db.clear_admin_species_changes(user_info["url"], user_info['name'])
 
     return {'success': True, 'message': "All changes were successully applied"}
 
@@ -3549,9 +3565,9 @@ def admin_abandon_changes():
         return "Unauthorized", 401
 
     # Mark the locations as done in the DB
-    db.clear_admin_location_changes(user_info['name'])
+    db.clear_admin_location_changes(user_info["url"], user_info['name'])
 
     # Mark the species as done in the DB
-    db.clear_admin_species_changes(user_info['name'])
+    db.clear_admin_species_changes(user_info["url"], user_info['name'])
 
     return {'success': True, 'message': "All changes were successully abandoned"}

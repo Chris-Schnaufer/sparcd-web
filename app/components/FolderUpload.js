@@ -19,6 +19,7 @@ import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
 import LocationItem from './LocationItem'
+import { meters2feet } from '../utils';
 import ProgressWithLabel from './ProgressWithLabel'
 import { AddMessageContext, AllowedImageMime, BaseURLContext, CollectionsInfoContext, LocationsInfoContext,
                 SizeContext, TokenContext, UserSettingsContext } from '../serverInfo'
