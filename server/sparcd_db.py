@@ -880,8 +880,9 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('SELECT location_id, location_name, location_lat, location_lon, location_ele ' \
-                        'FROM sandbox WHERE name=? AND upload_id=?', (username, upload_id))
+        cursor.execute('SELECT location_id, location_name, location_lat, location_lon, ' \
+                                        'location_ele FROM sandbox WHERE name=? AND upload_id=?',
+                            (username, upload_id))
 
         res = cursor.fetchone()
         if not res or len(res) < 3:
@@ -1399,12 +1400,13 @@ class SPARCdDatabase:
                                                                                 'before connecting')
 
         cursor = self._conn.cursor()
-        query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count FROM ' \
-                                                'image_edits WHERE s3_url=? AND username=? ' \
-                                                'AND updated=0 ' + \
-                                                ('AND bucket=? ' if bucket else '') + \
-                                                ('AND s3_file_path LIKE (?)% ' if s3_path else '') + \
-                                                'ORDER BY obs_scientific ASC, id ASC'
+        query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count, ' \
+                                            'obs_timestamp ' \
+                                            'FROM image_edits WHERE s3_url=? AND username=? ' \
+                                            'AND updated=0 ' + \
+                                            ('AND bucket=? ' if bucket else '') + \
+                                            ('AND s3_file_path LIKE (?)% ' if s3_path else '') + \
+                                            'ORDER BY obs_scientific ASC, id ASC'
         query_data = tuple(val for val in [s3_url, username, bucket, s3_path] if val is not None)
         print('HACK: NEXT FILES INFO:', query, query_data, flush=True)
         cursor.execute(query, query_data)
@@ -1424,17 +1426,19 @@ class SPARCdDatabase:
                     cur_species[0]['count'] = one_res[4]
                 else:
                     res_dict[one_res[1]]['species'].append({'common':one_res[2],
-                                                           'scientific':one_res[3], \
-                                                           'count':one_res[4]
+                                                           'scientific':one_res[3],
+                                                           'count':one_res[4],
+                                                           'timestamp': one_res[5],
                                                          })
             else:
                 res_dict[one_res[1]] = {'s3_url': s3_url,
-                                        'name': os.path.basename(one_res[1]),
-                                        'bucket': one_res[0], \
-                                        's3_path': one_res[1], \
+                                        'filename': os.path.basename(one_res[1]),
+                                        'bucket': one_res[0],
+                                        's3_path': one_res[1],
                                         'species':[{'common':one_res[2],
-                                                    'scientific':one_res[3], \
-                                                    'count':one_res[4]
+                                                    'scientific':one_res[3],
+                                                    'count':one_res[4],
+                                                    'timestamp': one_res[5],
                                                   }]
                                        }
 

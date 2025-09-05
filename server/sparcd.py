@@ -1472,7 +1472,7 @@ def update_image_file_exif(file_path: str, loc_id: str=None, loc_name: str=None,
 
     # Check if we have any changes
     if not exif_location_data and not exif_species_data:
-        print(f'HACK: EXIF CHANGE: NO DATA TO UPLOAD', flush=True)
+        print('HACK: EXIF CHANGE: NO DATA TO UPLOAD', flush=True)
         return True
 
     # Update the image file
@@ -1515,8 +1515,8 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
 
     # Make a dict of the files passed in for easier lookup
     if files_info:
-        file_info_dict = {one_file['name']+one_file['s3_path']+one_file['bucket']: one_file for \
-                                                                            one_file in files_info}
+        file_info_dict = {one_file['filename']+one_file['s3_path']+one_file['bucket']: one_file \
+                                                                        for one_file in files_info}
     else:
         file_info_dict = {}
 
@@ -1539,7 +1539,7 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
         print('HACK:   TEMPFILENAME:', temp_file_name, idx, one_file, flush=True)
         save_path = os.path.join(edit_folder, temp_file_name)
 
-        file_key = one_file['name']+one_file['s3_path']+one_file['bucket']
+        file_key = one_file['filename']+one_file['s3_path']+one_file['bucket']
         file_edits = file_info_dict[file_key] if file_key in file_info_dict else None
 
         # Only manipulate the image if there appears to be some reason for downloading it
@@ -2966,6 +2966,7 @@ def sandbox_completed():
     file_species = db.get_file_species(user_info['name'], upload_id)
     if file_species:
         obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
+        # obs_info = update_observations(s3_bucket, s3_path, obs_info, file_species)
         for one_species in file_species:
             added = False
             if one_species['filename'] in obs_info:
@@ -3111,6 +3112,8 @@ def image_location():
                                 'loc_lon': loc_lon,
                             })
 
+    # TODO: HERE Update the Deployments file
+
     return json.dumps({'success': True})
 
 
@@ -3229,7 +3232,20 @@ def image_edit_complete():
                                                             files_info=upload_files_info)
 
         if success_files:
-            # Update the Observations file
+            # TODO: HERE Update the Observations file
+#            obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
+#            for one_file in success_files:
+#                # Do the update
+#                # obs_info = update_observations(s3_bucket, s3_path, obs_info, one_file['species'])
+#
+#            # Upload the OBSERVATIONS csv file to the server
+#            # Tuple of row tuples for each file. (((,,),(,,)),((,,),(,,)), ...) Each row is also a tuple
+#            # We flatten further on the call so we're left with a single tuple containing all rows
+#            row_groups = (obs_info[one_key] for one_key in obs_info)
+#            S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+#                                        do_decrypt(db.get_password(token)),
+#                                         s3_bucket, '/'.join((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+#                                         [one_row for one_set in row_groups for one_row in one_set] )
 
             db.complete_image_edits(user_info["name"], success_files)
             if not errored_files and upload_location_info:
