@@ -2,10 +2,14 @@
 """
 
 import logging
+import os
 import sqlite3
 from time import sleep
 from typing import Optional
 import uuid
+
+# TODO: Move the Sqlite-specific code (queries, etc) to a sqlite-only file and keep the post-query
+#       logic here
 
 class SPARCdDatabase:
     """Class handling access connections to the database
@@ -571,17 +575,18 @@ class SPARCdDatabase:
 
         # Find the upload
         cursor = self._conn.cursor()
-        cursor.execute('SELECT id, (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
+        cursor.execute('SELECT id, upload_id, (strftime("%s", "now")-timestamp) AS elapsed_sec ' \
                         'FROM sandbox WHERE s3_url=? AND name=? AND path=? LIMIT 1',
                                                                         (s3_url, username, path))
 
         res = cursor.fetchone()
-        if not res or len(res) < 2:
+        if not res or len(res) < 3:
             cursor.close()
-            return None, None, None
+            return None, None, None, None
 
         sandbox_id = res[0]
-        elapsed_sec = res[1]
+        old_upload_id = res[1]
+        elapsed_sec = res[2]
 
         cursor.close()
 
@@ -591,9 +596,11 @@ class SPARCdDatabase:
             upload_id = uuid.uuid4().hex
             cursor = self._conn.cursor()
             cursor.execute('UPDATE sandbox SET upload_id=? WHERE s3_url=? AND name=? AND path=?',
-                                                                (s3_url, upload_id, username, path))
+                                                                (upload_id, s3_url, username, path))
             self._conn.commit()
             cursor.close()
+        else:
+            upload_id = old_upload_id
 
         # Get all the uploaded files (used to filter down the remaining files that need uploading)
         cursor = self._conn.cursor()
@@ -603,16 +610,17 @@ class SPARCdDatabase:
 
         if not res or len(res) < 1:
             cursor.close()
-            return elapsed_sec, [], upload_id
+            return elapsed_sec, [], upload_id, old_upload_id
 
         loaded_files = [row[0] for row in res]
 
         cursor.close()
 
-        return elapsed_sec, loaded_files, upload_id
+        return elapsed_sec, loaded_files, upload_id, old_upload_id
 
     def sandbox_new_upload(self, s3_url: str, username: str, path: str, files: tuple, \
-                                            s3_bucket: str, s3_path: str, location_id: str) -> str:
+                                            s3_bucket: str, s3_path: str, location_id: str, \
+                                            location_name: str, location_ele: float) -> str:
         """ Adds new sandbox upload entries
         Arguments:
             s3_url: the URL to the s3 instance the upload is for
@@ -622,6 +630,8 @@ class SPARCdDatabase:
             s3_bucket: the S3 bucket to load into
             s3_path: the base path of the S3 upload
             location_id: the ID of the location associated with the upload
+            location_name: the name of the location
+            location_ele: the elevation of the location
         Return:
             Returns the upload ID if entries are added to the database
         """
@@ -633,9 +643,11 @@ class SPARCdDatabase:
         upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
         cursor.execute('INSERT INTO sandbox(s3_url, name, path, bucket, s3_base_path, ' \
-                                                            'location_id, timestamp, upload_id) ' \
-                                    'VALUES(?,?,?,?,?,?,strftime("%s", "now"),?)', 
-                            (s3_url, username, path, s3_bucket, s3_path, location_id, upload_id))
+                                            'location_id, location_name, location_ele, '\
+                                            'timestamp, upload_id) ' \
+                                    'VALUES(?,?,?,?,?,?,?,?,strftime("%s", "now"),?)', 
+                            (s3_url, username, path, s3_bucket, s3_path, location_id, \
+                                                            location_name, location_ele, upload_id))
 
         sandbox_id = cursor.lastrowid
 
@@ -850,6 +862,30 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
+    def sandbox_get_location(self, username: str, upload_id: str) -> Optional[dict]:
+        """ Returns a dict of the upload location information
+        Arguments:
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns a dict containing the location information
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get sandbox location information from the database '\
+                                                                                'before connecting')
+
+        # Get the date
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT location_id, location_name, location_ele FROM sandbox ' \
+                        'WHERE name=? AND upload_id=?', (username, upload_id))
+
+        res = cursor.fetchone()
+        if not res or len(res) < 3:
+            return None
+
+        cursor.close()
+
+        return {'idProperty': res[0], 'nameProperty': res[1], 'elevationProperty': res[2]}
 
     def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and mimetypes for an upload
@@ -918,8 +954,8 @@ class SPARCdDatabase:
                  'count': one_row[5]
                  } for one_row in res)
 
-    def add_upload_edit(self, s3_url: str, bucket: str, upload_path: str, username: str, \
-                                                            timestamp: str, loc_id: str) -> None:
+    def add_collection_edit(self, s3_url: str, bucket: str, upload_path: str, username: str, \
+                                timestamp: str, loc_id: str, loc_name: str, loc_ele: float) -> None:
         """ Stores the edit for a collection
         Arguments:
             s3_url: the URL of the S3 instance
@@ -928,6 +964,8 @@ class SPARCdDatabase:
             username: the name of the user making the change
             timestamp: the timestamp of the change
             loc_id: the new location ID
+            loc_name: the name of the new location
+            loc_ele: the elevation of the new location
         """
         if self._conn is None:
             raise RuntimeError('Attempting to save collection changes to the database '\
@@ -936,15 +974,16 @@ class SPARCdDatabase:
         # Add the entry to the database
         cursor = self._conn.cursor()
         cursor.execute('INSERT INTO collection_edits(s3_url, bucket, s3_base_path, username, ' \
-                                                                        'edit_timestamp, loc_id) '\
-                                    'VALUES(?,?,?,?,?,?)', 
-                            (s3_url, bucket, upload_path, username, timestamp, loc_id))
+                                                    'edit_timestamp, loc_id, loc_name, loc_ele) '\
+                                    'VALUES(?,?,?,?,?,?,?,?)', 
+                            (s3_url, bucket, upload_path, username, timestamp, loc_id, \
+                                                                                loc_name, loc_ele))
 
         self._conn.commit()
         cursor.close()
 
     def add_image_species_edit(self, s3_url: str, bucket: str, file_path: str, username: str, \
-                                                timestamp: str, species: str, count: str) -> None:
+                                timestamp: str, common: str, species: str, count: str) -> None:
         """ Adds a species entry for a file to the database
         Arguments:
             s3_url: the URL to the S3 instance
@@ -952,6 +991,7 @@ class SPARCdDatabase:
             file_path: the path to the file the change applies to
             username: the name of the user making the change
             timestamp: the timestamp of the change
+            common: the common name of the species
             species: the scientific name of the species
             count: the number of individuals of the species
         """
@@ -962,9 +1002,10 @@ class SPARCdDatabase:
         # Add the entry to the database
         cursor = self._conn.cursor()
         cursor.execute('INSERT INTO image_edits(s3_url, bucket, s3_file_path, username, ' \
-                                                    'edit_timestamp, obs_scientific, obs_count) '\
-                                    'VALUES(?,?,?,?,?,?,?)', 
-                                (s3_url, bucket, file_path, username, timestamp, species, count))
+                                        'edit_timestamp, obs_common, obs_scientific, obs_count) '\
+                                    'VALUES(?,?,?,?,?,?,?,?)', 
+                                (s3_url, bucket, file_path, username, timestamp, common, \
+                                                                                    species, count))
 
         self._conn.commit()
         cursor.close()
@@ -1267,6 +1308,163 @@ class SPARCdDatabase:
         query = 'UPDATE admin_species_edits SET s3_updated = 1 WHERE s3_url=? AND user_id in ' \
                     '(SELECT id FROM users where name=?)'
         cursor.execute(query, (s3_url, username))
+
+        self._conn.commit()
+        cursor.close()
+
+    def get_next_upload_location(self, s3_url: str, username: str) -> Optional[dict]:
+        """ Returns the next edit location for this user at the specified endpoint
+        Arguments:
+            s3_url: the URL to the S3 instance
+            username: the name of the user to check for
+        Return:
+            Returns a tuple with the location edit's as a dict containing bucket, 
+            base_path (on S3), loc_id, loc_name, loc_ele (with loc_ele containing the elevation).
+            None is returned if there are no location changes to process
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get location edits from the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT bucket, s3_base_path, loc_id, loc_name, loc_ele FROM ' \
+                            'collection_edits WHERE s3_url=? AND username=? AND updated=0 LIMIT 1',
+                        (s3_url, username))
+
+        res = cursor.fetchall()
+        if not res or len(res) <= 0 or len(res[0]) < 5:
+            return None
+
+        return {'s3_url': s3_url, 'bucket':res[0][0], 'base_path':res[0][1], \
+                 'loc_id':res[0][2], 'loc_name':res[0][3], 'loc_ele':res[0][4]}
+
+    def complete_upload_location(self, s3_url: str, username: str, bucket: str, \
+                                                                            base_path: str) -> None:
+        """ Marks the location information as having completed updating
+        Arguments:
+            s3_url: the URL to the S3 instance
+            username: the name of the user to check for
+            bucket: the bucket associated with the location change
+            base_path: the upload path where the location was change
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get location edits from the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE collection_edits SET updated=1 WHERE s3_url=? AND username=? AND ' \
+                        'bucket=? AND s3_base_path=?', (s3_url, username, bucket, base_path))
+
+        self._conn.commit()
+        cursor.close()
+
+    def get_next_files_info(self, s3_url: str, username: str, bucket: str=None, \
+                                                            s3_path:str=None) -> Optional[tuple]:
+        """ Returns the file editing information for a user, possibly for only one location
+        Arguments:
+            s3_url: the URL to the S3 instance
+            username: the name of the user to check for
+            bucket: the bucket to check for changes
+            s3_path: the S3 upload path to get changes for
+        Return:
+            Returns a tuple of file information dict containing each image's name, bucket, s3_path,
+            and species. The species key contains a tuple of species common (name), 
+            scientific (name), and the count. None is returned if there are no records
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get file edits fron the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count FROM ' \
+                                                    'image_edits WHERE s3_url=? AND username=? ' \
+                                                    'AND updated=0 ' + 
+                                                    'bucket=? ' if bucket else '' +
+                                                    's3_file_path LIKE ?% ' if s3_path else '' +
+                                                    'ORDER BY obs_scientific ASC, id ASC',
+                            (val for val in [s3_url, username, bucket, s3_path] if val is not None)
+                        )
+
+        res = cursor.fetchall()
+        if not res or len(res) <= 0:
+            return None
+
+        res_dict = {}
+        for one_res in res:
+            # Check if we need to update a species or add a new one
+            if one_res[1] in res_dict:
+                cur_species = [one_species for one_species in res_dict[one_res[1]]['species'] if \
+                                                            one_species['scientific'] == one_res[3]]
+                if cur_species and len(cur_species) >= 1:
+                    cur_species[0]['count'] = one_res[4]
+                else:
+                    res_dict[one_res[1]]['species'].append({'common':one_res[2],
+                                                           'scientific':one_res[3], \
+                                                           'count':one_res[4]
+                                                         })
+            else:
+                res_dict[one_res[1]] = {'s3_url': s3_url,
+                                        'name': os.path.basename(one_res[1]),
+                                        'bucket': one_res[0], \
+                                        's3_path': one_res[1], \
+                                        'species':[{'common':one_res[2],
+                                                    'scientific':one_res[3], \
+                                                    'count':one_res[4]
+                                                  }]
+                                       }
+
+        return [one_item for _, one_item in res_dict.items()]
+
+    def omplete_upload_location(self, username: str, collection_info: dict) -> None:
+        """ Marks the collection edit as completed
+        Arguments:
+            collection_info: the dict containing the collection information
+        Notes:
+            See get_next_upload_location()
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark location edits as updated in the database '\
+                                                                                'before connecting')
+
+        cursor = self._conn.cursor()
+        cursor.execute('UPDATE collection_edits SET updated=1 ' \
+                                        'WHERE s3_url=? username=? AND bucket=? AND s3_base_path=?',
+                        (collection_info['s3_url'], username, collection_info['bucket'], \
+                                                                    collection_info['base_path']))
+
+        self._conn.commit()
+        cursor.close()
+
+    def complete_image_edits(self, username: str, files: tuple) -> None:
+        """ Marks the passed in files as having completed their edits
+        Arguments:
+            username: the username associated with these changes
+            files: a tuple of file dict containing the s3_url, bucket, and path to the file
+        Notes:
+            See get_next_files_info()
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark file edits as updated in the database '\
+                                                                                'before connecting')
+
+        # Prepare to process the data in batches
+        cur_idx = 0
+        count = 0
+        cursor = self._conn.cursor()
+        query = 'UPDATE image_edits SET updated=1 WHERE s3_url=? AND username=? AND bucket=? AND ' \
+                's3_file_path=?'
+        while True:
+            cur_file = files[cur_idx]
+            cursor.execute(query, (cur_file['s3_url'], username, cur_file['bucket'],
+                                                                            cur_file['s3_path']))
+
+            cur_idx = 0
+            count += 1
+            if count > 30:
+                self._conn.commit()
+                cursor.close()
+                cursor = self._conn.cursor()
+                count = 0
 
         self._conn.commit()
         cursor.close()

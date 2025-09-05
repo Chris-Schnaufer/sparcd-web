@@ -30,6 +30,7 @@ OBSERVATIONS_CSV_FILE_NAME = 'observations.csv'
 CAMTRAP_FILE_NAMES = [DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, OBSERVATIONS_CSV_FILE_NAME]
 S3_UPLOADS_PATH_PART = 'Uploads/'
 
+S3_UPLOAD_META_JSON_FILE_NAME = 'UploadMeta.json'
 
 def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
     """Downloads files from S3 server
@@ -68,7 +69,6 @@ def put_s3_file(minio: Minio, bucket: str, file: str, src_file: str, \
     except S3Error as ex:
         if ex.code != "NoSuchKey":
             raise ex
-    return None
 
 def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     """ Gets the collections that the user can access
@@ -114,6 +114,25 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     os.unlink(temp_file[1])
 
     return tuple(user_collections)
+
+
+def get_uploaded_folders(minio: Minio, bucket: str, upload_path: str) -> tuple:
+    """ Gets the folders that were uploaded under the path
+    Arguments:
+        minio - the S3 instance
+        bucket - the bucket to load from
+        upload_path: the top-level folder for the upload
+    Return:
+        A tuple of folder names under the upload folder
+    """
+    subfolders = []
+
+    # Get the list of folders under a single upload
+    for one_obj in minio.list_objects(bucket, upload_path):
+        if one_obj.is_dir and not one_obj.object_name == upload_path:
+            subfolders.append(one_obj.object_name[len(upload_path):].strip('/').strip('\\'))
+
+    return subfolders
 
 
 def update_user_collections(minio: Minio, collections: tuple) -> tuple:
@@ -183,7 +202,7 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
 
     for one_path in upload_paths:
         # Upload information
-        upload_info_path = os.path.join(one_path, 'UploadMeta.json')
+        upload_info_path = os.path.join(one_path, S3_UPLOAD_META_JSON_FILE_NAME)
         coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if coll_info_data is not None:
             try:
@@ -207,7 +226,8 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
                                  'info':coll_info,
                                  'location':csv_info[1],
                                  'elevation':csv_info[12],
-                                 'key':os.path.basename(one_path.rstrip('/\\'))
+                                 'key':os.path.basename(one_path.rstrip('/\\')),
+                                 'uploaded_folders': get_uploaded_folders(minio, bucket, one_path)
                                 })
                     break
         else:
@@ -238,21 +258,24 @@ def download_data_thread(minio: Minio, file_info: tuple, dest_root_path: str) ->
     return file_info[0], file_info[1], dest_file
 
 
-def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
+def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool=True) -> tuple:
     """ Finds the images by recursing the specified paths
     Arguments:
         minio: the S3 client instance
         bucket: the bucket to search
         upload_paths: a tuple of upload paths to search
+        need_url: set to False if a remote URL to the image isn't needed
     Return:
         Returns the tuple of found images
     """
     images = []
+    print('HACK:GETS3IMAGES:',type(upload_paths),upload_paths,flush=True)
     cur_paths = [upload_paths]
 
     # Get the image names and urls
     # pylint: disable=modified-iterating-list
     for cur_path in cur_paths:
+        print('HACK:          :',cur_path,flush=True)
         for one_obj in minio.list_objects(bucket, cur_path):
             if one_obj.is_dir:
                 if not one_obj.object_name == cur_path:
@@ -261,7 +284,8 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple) -> tuple:
                 _, file_name = os.path.split(one_obj.object_name)
                 name, ext = os.path.splitext(file_name)
                 if ext.lower().endswith('.jpg'):
-                    s3_url = minio.presigned_get_object(bucket, one_obj.object_name)
+                    s3_url = minio.presigned_get_object(bucket, one_obj.object_name) if need_url \
+                                                                                        else None
                     images.append({'name':name,
                                    'bucket':bucket, \
                                    's3_path':one_obj.object_name,
@@ -411,7 +435,7 @@ class S3Connection:
         os.close(temp_file[0])
 
         # Upload information
-        upload_info_path = os.path.join(upload_path, 'UploadMeta.json')
+        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
         upload_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if upload_info_data is not None:
             try:
@@ -438,7 +462,8 @@ class S3Connection:
                                  'info':coll_info,
                                  'location':csv_info[1],
                                  'elevation':csv_info[12],
-                                 'key':os.path.basename(upload_path.rstrip('/\\'))
+                                 'key':os.path.basename(upload_path.rstrip('/\\')),
+                                 'uploaded_folders':get_uploaded_folders(minio, bucket, upload_path)
                                 }
                     break
         else:
@@ -447,6 +472,29 @@ class S3Connection:
         os.unlink(temp_file[1])
 
         return upload_info
+
+    @staticmethod
+    def get_image_paths(url: str, user: str, password: str, collection_id: str, \
+                   upload_name: str) -> Optional[tuple]:
+        """ Returns the information on the images found for an upload to the collection
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            collection_id: the ID of the collection of the upload
+            upload_name: the name of the upload to get image data on
+        Returns:
+            Returns the information on the images, or None. Each returned image dict contains
+            the image file name, bucket s3_path, and unique key
+        """
+        bucket = SPARCD_PREFIX + collection_id
+        upload_path = os.path.join('Collections', collection_id, 'Uploads', upload_name)
+
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        images = get_s3_images(minio, bucket, [upload_path])
+
+        return images
 
     @staticmethod
     def get_images(url: str, user: str, password: str, collection_id: str, \
@@ -536,7 +584,7 @@ class S3Connection:
                 # Get the data on this upload
 
                 # Upload information
-                upload_info_path = os.path.join(one_obj.object_name, 'UploadMeta.json')
+                upload_info_path = os.path.join(one_obj.object_name, S3_UPLOAD_META_JSON_FILE_NAME)
                 meta_info_data = get_s3_file(minio, bucket, upload_info_path, \
                                              temp_file[1])
                 if meta_info_data is not None:
@@ -670,7 +718,7 @@ class S3Connection:
             with open(temp_file[1], 'w', encoding="utf-8") as ofile:
                 ofile.write(config)
 
-            put_s3_file(minio, settings_bucket, file_path, temp_file[1], 
+            put_s3_file(minio, settings_bucket, file_path, temp_file[1],
                         content_type='application/json')
         except S3Error as ex:
             print(f'Unable to get configuration file {filename} from {settings_bucket}')
@@ -731,6 +779,24 @@ class S3Connection:
         callback(callback_data, None, None, None)
 
     @staticmethod
+    def download_image(url: str, user: str, password: str, bucket: str, s3_path: str, \
+                                                                    dest_file_path: str) -> None:
+        """ Downloads the file to the destination path
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to download from
+            s3_path: the path to the file on S3
+            dest_file_path: the location to download the file to
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        # Download the files one at a time and call the callback
+        minio.fget_object(bucket, s3_path, dest_file_path)
+
+
+    @staticmethod
     def create_upload(url: str, user: str, password: str, collection_id: str, \
                             comment: str, timestamp: datetime.datetime, file_count: int) -> tuple:
         """ Creates an upload folder on the server and returns the path
@@ -772,7 +838,7 @@ class S3Connection:
                         }
                 , o_file, indent=2)
 
-        minio.fput_object(bucket, new_path + '/UploadMeta.json', temp_file[1], \
+        minio.fput_object(bucket, new_path + '/' + S3_UPLOAD_META_JSON_FILE_NAME, temp_file[1], \
                                                                     content_type='application/json')
 
         os.unlink(temp_file[1])
@@ -924,3 +990,45 @@ class S3Connection:
                                                  } for one_perm in perm_info]
                                                 ),
                                             content_type='application/json')
+
+
+    @staticmethod
+    def update_upload_metadata_image_species(url: str, user: str, password: str, bucket: str, \
+                                                        upload_path: str, new_count: int) -> bool:
+        """ Update the upload's metadata on the S3 instance with a new count
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            upload_path: path under the bucket to the metadata
+            new_count: the new count of images with species
+        Return:
+            Returns True if no problem was found and False otherwise
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        # Get the upload information
+        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if coll_info_data is not None:
+            try:
+                coll_info = json.loads(coll_info_data)
+            except json.JSONDecodeError:
+                print(f'Unable to load JSON information: {upload_info_path}')
+                return False
+        else:
+            print(f'Unable to get upload information: {upload_info_path}')
+            return False
+
+        # Update and save the upload information
+        coll_info['imagesWithSpecies'] = new_count
+        data = json.dumps(coll_info, indent=2)
+        minio.put_object(bucket, upload_info_path, BytesIO(data.encode()), len(data),
+                                                                    content_type='application/json')
+
+        os.unlink(temp_file[1])
+        return True

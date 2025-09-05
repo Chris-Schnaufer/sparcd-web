@@ -248,12 +248,17 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                   <Grid container id={'collection-upload-'+item.name} direction="column" alignItems="start" justifyContent="start">
                     <Grid sx={{padding:'5px 0'}}>
                       <Typography variant="body2">
-                        {item.imagesCount + '/' + item.imagesWithSpeciesCount + 'images tagged with species'}
+                        {item.imagesCount + '/' + item.imagesWithSpeciesCount + ' images tagged with species'}
                       </Typography>
                     </Grid>
                     <Grid sx={{padding:'5px 0'}}>
                       <Typography variant="body2">
                         {item.description}
+                      </Typography>
+                    </Grid>
+                    <Grid sx={{padding:'5px 0'}}>
+                      <Typography variant="body2">
+                        Uploaded folder{item.folders.length > 1 ? 's' : ''}: {item.folders.join(", ")}
                       </Typography>
                     </Grid>
                     <Grid>

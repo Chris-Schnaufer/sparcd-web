@@ -73,6 +73,7 @@ def build_database(path: str, admin_info: tuple=None) -> None:
         admin_info: contains the admin name and email address to add to the DB
     """
     # Loop through and create all the database objects
+    # TODO: add browser local timestamp information to any and all edits?
     stmts = ('CREATE TABLE users(id INTEGER PRIMARY KEY ASC, name TEXT UNIQUE NOT NULL, ' \
                             'email TEXT DEFAULT NULL, settings TEXT DEFAULT "{}", ' \
                             'species TEXT default "{}", administrator INT DEFAULT 0, ' \
@@ -92,6 +93,7 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE sandbox(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'path TEXT NOT NULL, s3_url TEXT NOT NULL, bucket TEXT NOT NULL, ' \
                             's3_base_path TEXT NOT NULL, location_id TEXT NOT NULL, ' \
+                            'location_name TEXT NOT NULL, location_ele REAL NOT NULL, '
                             'timestamp INTEGER, upload_id TEXT DEFAULT NULL)',
              'CREATE TABLE sandbox_files(id INTEGER PRIMARY KEY ASC, sandbox_id INTEGER NOT NULL, '\
                             'filename TEXT NOT NULL, source_path TEXT, ' \
@@ -103,20 +105,27 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE sandbox_locations(id INTEGER PRIMARY KEY ASC, '\
                             'sandbox_file_id INTEGER NOT NULL, loc_name TEXT, loc_id TEXT, ' \
                             'loc_elevation REAL)',
+             # TODO: Add db timestamp to help with cleanup
              'CREATE TABLE image_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
                             'bucket TEXT NOT NULL, ' \
                             's3_file_path TEXT NOT NULL, username TEXT NOT NULL, ' \
-                            'edit_timestamp TEXT NOT NULL, obs_scientific TEXT NOT NULL, ' \
-                            'obs_count INTEGER DEFAULT 0)',
+                            'edit_timestamp TEXT NOT NULL, obs_common TEXT NOT NULL, ' \
+                            'obs_scientific TEXT NOT NULL, obs_count INTEGER DEFAULT 0, '\
+                            'updated INTEGER DEFAULT 0)',
+             # TODO: Add db timestamp to help with cleanup
              'CREATE TABLE collection_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
                             'bucket TEXT NOT NULL, ' \
                             's3_base_path TEXT NOT NULL, username TEXT NOT NULL, ' \
-                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL)',
+                            'edit_timestamp TEXT NOT NULL, loc_id TEXT DEFAULT NULL, '\
+                            'loc_name TEXT NOT NULL, loc_ele REAL NOT NULL, ' \
+                            'updated INTEGER DEFAULT 0)',
+             # TODO: Add edit timestamp
              'CREATE TABLE admin_species_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, ' \
                             'user_id INTEGER NOT NULL, timestamp INTEGER, '\
                             'old_scientific_name TEXT, new_scientific_name TEXT NOT NULL, ' \
                             'name TEXT NOT NULL, keybind NOT NULL, iconURL TEXT NOT NULL, ' \
                             's3_updated INTEGER DEFAULT 0)',
+             # TODO: Add edit timestamp
              'CREATE TABLE admin_location_edits(id INTEGER PRIMARY KEY ASC, s3_url TEXT NOT NULL, '\
                             'user_id INTEGER NOT NULL, timestamp INTEGER, '\
                             'loc_name TEXT NOT NULL, loc_id TEXT NOT NULL, '\

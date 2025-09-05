@@ -5,6 +5,7 @@
 import * as React from 'react';
 import BorderColorOutlinedIcon from '@mui/icons-material/BorderColorOutlined';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
@@ -49,6 +50,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const [maxTilesDisplay, setMaxTilesDisplay] = React.useState(40);     // Set the maximum number of tiles to display
   const [navigationRedraw, setNavigationRedraw] = React.useState(null); // Forcing redraw on navigation
   const [observerActive, setObserverActive] = React.useState(false);    // Used to indicate that we've set the observer
+  const [pendingMessage, setPendingMessage] = React.useState(null);     // Used to display a pending message on the UI
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [sidebarWidthLeft, setSidebarWidthLeft] = React.useState(150);  // Width of left sidebar
   const [sidebarHeightTop, setSidebarHeightTop] = React.useState(50);   // Height of top sidebar
@@ -159,7 +161,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       const el = document.getElementById('upload-edit-observer');
       if (el) {
         const observerOptions = {
-          root: document.getElementById('image-edit-workspace'),
+          root: document.getElementById('image-edit-wrapper-box'),
           rootMargin: "5px",
           threshold: 0.0,
         };
@@ -212,25 +214,24 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   /**
    * Updates the server with a new location for the upload
    * @function
-   * @param {object} event The current event
+   * @param {object} newLoc The new location to update the collection to
    */
-  const onLocationContinue = React.useCallback((event) => {
-    const locEl = document.getElementById('upload-edit-location');
-    if (!locEl) {
-      console.log('ERROR: Unable to find edited location ID for updating');
-      return;
-    }
+  const onLocationContinue = React.useCallback((newLoc) => {
 
     // Check for a change so we don't make unneeded edits
-    if (locEl.value !== curUpload.location) {
+    if (newLoc.idProperty !== curUpload.location) {
 
       const updateLocationUrl = serverURL + '/uploadLocation?t=' + encodeURIComponent(editToken);
       const formData = new FormData();
 
+      setPendingMessage("Updating location, please wait ...");
+
       formData.append('timestamp', new Date().toISOString());
       formData.append('collection', curUpload.collectionId);
       formData.append('upload', curUpload.upload);
-      formData.append('locid', locEl.value);
+      formData.append('locId', newLoc.idProperty);
+      formData.append('locName', newLoc.nameProperty);
+      formData.append('locElevation', newLoc.elevationProperty);
 
       try {
         const resp = fetch(updateLocationUrl, {
@@ -244,23 +245,26 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               }
             })
           .then((respData) => {
-              // Nothing to do            
+              // Clean up the UI
+              setPendingMessage(null);
           })
           .catch(function(err) {
             console.log('Update Location Error: ',err);
             addMessage(Level.Error, 'A problem ocurred while updating the collection location');
+            setPendingMessage(null);
         });
       } catch (error) {
         console.log('Update Location Unknown Error: ',err);
         addMessage(Level.Error, 'An unkown problem ocurred while updating the collection location');
+        setPendingMessage(null);
       }
     }
 
-    curUpload.location = locEl.value;
+    curUpload.location = newLoc.idProperty;
     setCurEditState(editingStates.listImages);
     setEditingLocation(false);
     searchSetup('Image Name', handleImageSearch);
-  }, [curUpload, editingStates.listImages, handleImageSearch, searchSetup, serverURL])
+  }, [addMessage, curUpload, editingStates, handleImageSearch, setPendingMessage, searchSetup, serverURL, setCurEditState, setEditingLocation])
 
   // Adding drag-and-drop starting attributes to species elements
   React.useLayoutEffect(() => {
@@ -387,6 +391,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @function
    */
   function nextImage() {
+    finishImageEdits();
+
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
     if (curImageIdx === -1) {
       console.log("Error: unable to find current image before advancing to next image");
@@ -408,6 +414,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @function
    */
   function prevImage() {
+    finishImageEdits();
+
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
     if (curImageIdx === -1) {
       console.log("Error: unable to find current image before advancing to previous image");
@@ -457,6 +465,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     formData.append('collection', curUpload.collectionId);
     formData.append('upload', curUpload.upload);
     formData.append('path', curUpload.images[curImageIdx].s3_path);
+    formData.append('common', speciesItems[curKeySpeciesIdx].commonName);
     formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
     formData.append('count', speciesCount);
 
@@ -468,7 +477,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             if (resp.ok) {
               return resp.json();
             } else {
-              throw new Error(`Failed to set settings: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
             }
           })
         .then((respData) => {
@@ -481,6 +490,50 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     } catch (err) {
       console.log('Update Species Count Unknown Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
+    }
+  }
+
+  /**
+   * Updates the currently edited image with any changes made
+   * @function
+   * 
+   */
+  function finishImageEdits() {
+    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
+    if (curImageIdx === -1) {
+      console.log("Error: unable to find current image to commit changes made");
+      addMessage(Level.Error, "Unable to find working image in order to commit the changes made");
+      return;
+    }
+
+    const speciesUrl = serverURL + '/imageEditComplete?t=' + encodeURIComponent(editToken);
+    const formData = new FormData();
+
+    formData.append('collection', curUpload.collectionId);
+    formData.append('upload', curUpload.upload);
+    formData.append('path', curUpload.images[curImageIdx].s3_path);
+
+    try {
+      const resp = fetch(speciesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update image with editing changes: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Nothing to do
+        })
+        .catch(function(err) {
+          console.log('Update Image Edit Complete Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while updating the stored image with these changes');
+      });
+    } catch (err) {
+      console.log('Update Image Edit Commit Complete Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while updating the stored image with these changes');
     }
   }
 
@@ -599,6 +652,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     const workingImages = curUpload.images ? curUpload.images.slice(0, maxTiles) : null;
     return (
       <React.Fragment>
+        <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start" rowSpacing={{xs:1}} columnSpacing={{xs:1, sm:2, md:4}}>
       { workingImages ? 
         workingImages.map((item) => {
           let imageSpecies = item.species && item.species.length > 0;
@@ -617,6 +671,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             </Container>
           </Grid>
       }
+      </Grid>
       { workingImages && maxTiles < curUpload.images.length &&
           <Grid id='upload-edit-observer' size={{ xs: 12, sm: 12, md:12 }}>
             <Container sx={{border:0, color:'transparent'}}>
@@ -660,19 +715,20 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         </Grid>
       </Grid>
       { curEditState == editingStates.listImages || curEditState == editingStates.editImage ? 
-        <Grid id='image-edit-workspace' container direction="row" alignItems="start" justifyContent="start" rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}}
-              style={{ 'marginTop':'23px', 'marginLeft':'10px', 'marginRight':'10px',
-                       'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
-                       'maxHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
-                       'height':(curHeight-sidebarHeightTop-sidebarHeightSpecies)+'px',
-                       'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px', 
-                       'left':workplaceStartX,
-                       'minWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
-                       'maxWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
-                       'width':(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
-                       'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}>
+          <Box id="image-edit-wrapper-box"
+                style={{ 'marginTop':'23px', 'marginLeft':'10px', 'marginRight':'10px',
+                         'minHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
+                         'maxHeight':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
+                         'height':(curHeight-sidebarHeightTop-sidebarHeightSpecies-23)+'px',
+                         'top':(curStart+sidebarHeightTop+sidebarHeightSpecies)+'px', 
+                         'left':workplaceStartX,
+                         'minWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                         'maxWidth':(workspaceWidth-sidebarWidthLeft-(10*2))+'px',
+                         'width':(workspaceWidth-sidebarWidthLeft-(10*2))+'px', 
+                         'position':'absolute', overflow:'scroll', 'visibility':imageVisibility }}
+          >
             {generateImageTiles(handleEditingImage)}
-        </Grid>
+          </Box>
         : null
       }
       { curEditState == editingStates.editImage ?
@@ -691,7 +747,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        parentId='image-edit-edit'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
-                       onClose={() => {setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}
+                       onClose={() => {finishImageEdits();setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}
                        adjustments={true}
                        dropable={true}
                        navigation={{onPrev:handlePrevImage,onNext:handleNextImage}}
@@ -756,6 +812,20 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               />
           </Grid>
         : null
+      }
+      { pendingMessage && 
+            <Grid id="image-edit-pending-wrapper" container direction="row" alignItems="center" justifyContent="center"
+                  sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+            >
+              <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+                <Grid container direction="column" alignItems="center" justifyContent="center" >
+                    <Typography gutterBottom variant="body2" color="lightgrey">
+                      {pendingMessage}
+                    </Typography>
+                    <CircularProgress variant="indeterminate" />
+                </Grid>
+              </div>
+            </Grid>
       }
     </Box>
   );

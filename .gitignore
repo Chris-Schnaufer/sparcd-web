@@ -137,3 +137,9 @@ flask_session
 
 # SQLite databases
 *.sqlite
+
+# Maven Java Builds
+target
+
+# Java
+*.jar

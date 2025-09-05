@@ -87,7 +87,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
         <Grid container rowSpacing={{xs:1, sm:2, md:4}} columnSpacing={{xs:1, sm:2, md:4}} sx={{ 'margin': '4vw' }} >
           <Grid size={{ xs: 12, sm: 6, md:6 }}>
             <LandingCard title="Upload Images" 
-                         action={[!mobileDevice ? {'title':'Upload', 'onClick':() => newUpload()} : null]}
+                         action={[!mobileDevice ? {'title':'Upload Images', 'onClick':() => newUpload()} : null]}
             >
               <LandingUpload loadingSandbox={loadingSandbox} onChange={setUploadSelection} />
             </LandingCard>

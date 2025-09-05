@@ -32,6 +32,28 @@ export default function LocationSelection({title, locations, defaultLocation, on
   const theme = useTheme();
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
 
+  /**
+   * Handles the user selecting a new location
+   * @function
+   */
+  const handleContinue = React.useCallback(() => {
+    const locEl = document.getElementById('upload-edit-location');
+    if (!locEl) {
+      console.log('ERROR: Unable to find edited location ID for updating');
+      return;
+    }
+
+    // Find the new location entry
+    const newLoc = locations.find((item) => item.idProperty == locEl.value);
+    if (!newLoc) {
+      console.log('ERROR: Unable to find full location for updating');
+      return;
+    }
+
+    onContinue(newLoc);
+
+  }, [locations, onContinue])
+
   let displayCoordSystem = 'LATLON';
   if (userSettings['coordinatesDisplay']) {
     displayCoordSystem = userSettings['coordinatesDisplay'];
@@ -83,7 +105,7 @@ export default function LocationSelection({title, locations, defaultLocation, on
         </FormControl>
       </CardContent>
       <CardActions>
-        <Button sx={{'flex':'1'}} size="small" onClick={onContinue} >Continue</Button>
+        <Button sx={{'flex':'1'}} size="small" onClick={handleContinue} >Continue</Button>
         <Button sx={{'flex':'1'}} size="small" onClick={onCancel} >Cancel</Button>
       </CardActions>
     </Card>
