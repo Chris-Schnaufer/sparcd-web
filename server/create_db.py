@@ -93,7 +93,8 @@ def build_database(path: str, admin_info: tuple=None) -> None:
              'CREATE TABLE sandbox(id INTEGER PRIMARY KEY ASC, name TEXT NOT NULL, ' \
                             'path TEXT NOT NULL, s3_url TEXT NOT NULL, bucket TEXT NOT NULL, ' \
                             's3_base_path TEXT NOT NULL, location_id TEXT NOT NULL, ' \
-                            'location_name TEXT NOT NULL, location_ele REAL NOT NULL, '
+                            'location_name TEXT NOT NULL, location_lat REAL NOT NULL, ' \
+                            'location_lon READ NOT NULL, location_ele REAL NOT NULL, '
                             'timestamp INTEGER, upload_id TEXT DEFAULT NULL)',
              'CREATE TABLE sandbox_files(id INTEGER PRIMARY KEY ASC, sandbox_id INTEGER NOT NULL, '\
                             'filename TEXT NOT NULL, source_path TEXT, ' \

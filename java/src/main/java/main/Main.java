@@ -19,7 +19,7 @@ public class Main {
 
 		for (String one_str : strs)
 		{
-			String parts[] = one_str.split(",");
+			String parts[] = one_str.trim().split(",");
 			System.out.println("DEBUG: Species:" + String.join(" - ", parts));
 			species.add(new SpeciesEntry(new Species(parts[0], parts[1]), Integer.parseInt(parts[2])));
 		}
@@ -29,7 +29,7 @@ public class Main {
 
 	private static Location parseSpeciesParameter(String str)
 	{
-		String parts[] = str.split(",");
+		String parts[] = str.trim().split(",");
 		System.out.println("DEBUG: Location:" + String.join(" - ", parts));
 
 		return new Location(parts[0], parts[1], Double.parseDouble(parts[2]), Double.parseDouble(parts[3]), Double.parseDouble(parts[4]));
@@ -118,5 +118,7 @@ public class Main {
 	    		ifile, 
 	    		species, 
 	    		loc);
+
+		System.exit(0);
     }
 }

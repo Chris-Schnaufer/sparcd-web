@@ -232,6 +232,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       formData.append('locId', newLoc.idProperty);
       formData.append('locName', newLoc.nameProperty);
       formData.append('locElevation', newLoc.elevationProperty);
+      formData.append('locLat', newLoc.latProperty);
+      formData.append('locLon', newLoc.lngProperty);
 
       try {
         const resp = fetch(updateLocationUrl, {
@@ -465,7 +467,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     formData.append('collection', curUpload.collectionId);
     formData.append('upload', curUpload.upload);
     formData.append('path', curUpload.images[curImageIdx].s3_path);
-    formData.append('common', speciesItems[curKeySpeciesIdx].commonName);
+    formData.append('common', speciesItems[curKeySpeciesIdx].name);
     formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
     formData.append('count', speciesCount);
 

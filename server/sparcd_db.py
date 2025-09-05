@@ -620,7 +620,8 @@ class SPARCdDatabase:
 
     def sandbox_new_upload(self, s3_url: str, username: str, path: str, files: tuple, \
                                             s3_bucket: str, s3_path: str, location_id: str, \
-                                            location_name: str, location_ele: float) -> str:
+                                            location_name: str, location_lat: float, \
+                                            location_lon: float, location_ele: float) -> str:
         """ Adds new sandbox upload entries
         Arguments:
             s3_url: the URL to the s3 instance the upload is for
@@ -631,6 +632,8 @@ class SPARCdDatabase:
             s3_path: the base path of the S3 upload
             location_id: the ID of the location associated with the upload
             location_name: the name of the location
+            location_lat: the latitude of the location
+            location_lon: the longitude of the location
             location_ele: the elevation of the location
         Return:
             Returns the upload ID if entries are added to the database
@@ -643,11 +646,12 @@ class SPARCdDatabase:
         upload_id = uuid.uuid4().hex
         cursor = self._conn.cursor()
         cursor.execute('INSERT INTO sandbox(s3_url, name, path, bucket, s3_base_path, ' \
-                                            'location_id, location_name, location_ele, '\
+                                            'location_id, location_name, location_lat, ' \
+                                            'location_lon, location_ele, '\
                                             'timestamp, upload_id) ' \
-                                    'VALUES(?,?,?,?,?,?,?,?,strftime("%s", "now"),?)', 
+                                    'VALUES(?,?,?,?,?,?,?,?,?,?,strftime("%s", "now"),?)', 
                             (s3_url, username, path, s3_bucket, s3_path, location_id, \
-                                                            location_name, location_ele, upload_id))
+                                location_name, location_lat, location_lon, location_ele, upload_id))
 
         sandbox_id = cursor.lastrowid
 
@@ -876,8 +880,8 @@ class SPARCdDatabase:
 
         # Get the date
         cursor = self._conn.cursor()
-        cursor.execute('SELECT location_id, location_name, location_ele FROM sandbox ' \
-                        'WHERE name=? AND upload_id=?', (username, upload_id))
+        cursor.execute('SELECT location_id, location_name, location_lat, location_lon, location_ele ' \
+                        'FROM sandbox WHERE name=? AND upload_id=?', (username, upload_id))
 
         res = cursor.fetchone()
         if not res or len(res) < 3:
@@ -885,7 +889,8 @@ class SPARCdDatabase:
 
         cursor.close()
 
-        return {'idProperty': res[0], 'nameProperty': res[1], 'elevationProperty': res[2]}
+        return {'idProperty': res[0], 'nameProperty': res[1], 'latProperty':res[2], \
+                                                'lngProperty': res[3], 'elevationProperty': res[4]}
 
     def get_file_mimetypes(self, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file paths and mimetypes for an upload
@@ -1051,6 +1056,7 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
+            cursor.close()
             return {bucket + ':' + upload_path:tuple()}
 
         file_species = {}
@@ -1059,6 +1065,8 @@ class SPARCdDatabase:
                 file_species[one_result[0]].append(one_result[1:])
             else:
                 file_species[one_result[0]] = [one_result[1:]]
+
+        cursor.close()
 
         return {bucket + ':' + upload_path:file_species}
 
@@ -1078,7 +1086,10 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
+            cursor.close()
             return []
+
+        cursor.close()
 
         return res
 
@@ -1098,7 +1109,10 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
+            cursor.close()
             return []
+
+        cursor.close()
 
         return int(res[0])
 
@@ -1141,6 +1155,7 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
+            cursor.close()
             return False
         user_id = res[0][0]
 
@@ -1182,6 +1197,7 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) < 1:
+            cursor.close()
             return False
         user_id = res[0][0]
 
@@ -1238,6 +1254,8 @@ class SPARCdDatabase:
         else:
             species = res
 
+        cursor.close()
+
         return {'locations': locations, 'species': species} | location_idxs | species_idxs
 
     def have_admin_changes(self, s3_url: str, username: str) -> dict:
@@ -1273,6 +1291,8 @@ class SPARCdDatabase:
             species_count = 0
         else:
             species_count = res[0][0]
+
+        cursor.close()
 
         return {'locationsCount': locations_count, 'speciesCount': species_count}
 
@@ -1333,7 +1353,10 @@ class SPARCdDatabase:
 
         res = cursor.fetchall()
         if not res or len(res) <= 0 or len(res[0]) < 5:
+            cursor.close()
             return None
+
+        cursor.close()
 
         return {'s3_url': s3_url, 'bucket':res[0][0], 'base_path':res[0][1], \
                  'loc_id':res[0][2], 'loc_name':res[0][3], 'loc_ele':res[0][4]}
@@ -1376,17 +1399,19 @@ class SPARCdDatabase:
                                                                                 'before connecting')
 
         cursor = self._conn.cursor()
-        cursor.execute('SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count FROM ' \
-                                                    'image_edits WHERE s3_url=? AND username=? ' \
-                                                    'AND updated=0 ' + 
-                                                    'bucket=? ' if bucket else '' +
-                                                    's3_file_path LIKE ?% ' if s3_path else '' +
-                                                    'ORDER BY obs_scientific ASC, id ASC',
-                            (val for val in [s3_url, username, bucket, s3_path] if val is not None)
-                        )
+        query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count FROM ' \
+                                                'image_edits WHERE s3_url=? AND username=? ' \
+                                                'AND updated=0 ' + \
+                                                ('AND bucket=? ' if bucket else '') + \
+                                                ('AND s3_file_path LIKE (?)% ' if s3_path else '') + \
+                                                'ORDER BY obs_scientific ASC, id ASC'
+        query_data = tuple(val for val in [s3_url, username, bucket, s3_path] if val is not None)
+        print('HACK: NEXT FILES INFO:', query, query_data, flush=True)
+        cursor.execute(query, query_data)
 
         res = cursor.fetchall()
         if not res or len(res) <= 0:
+            cursor.close()
             return None
 
         res_dict = {}
@@ -1412,6 +1437,8 @@ class SPARCdDatabase:
                                                     'count':one_res[4]
                                                   }]
                                        }
+
+        cursor.close()
 
         return [one_item for _, one_item in res_dict.items()]
 

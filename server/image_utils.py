@@ -116,7 +116,7 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
 
     if len(species_string) <= 0 and len(location_string) <= 0:
         del res
-        print(f"WARNING: no species or locations found in image: {image_path}", flush=True)
+        #print(f"WARNING: no species or locations found in image: {image_path}", flush=True)
         return None, None, None
 
     return_species = []
@@ -142,37 +142,36 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
 
 
 
-def write_embedded_image_info(image_path: str, config_path: str, species_path: str=None, \
-                                                                        loc_path: str=None) -> bool:
+def write_embedded_image_info(image_path: str, location_json: str, species_json: str) -> bool:
     """ Updates the embedded SPARCd information
     Arguments:
         image_path: the path of the image to update
-        config_path: the path to the exiftool configuration file
-        species_path: optional path to the binary data for the species
-        loc_path: optional path to the binary data for the location
+        location_json: the JSON data for the locations
+        species_json: the JSON data for the species
     Return:
         Returns True if the file was updated and False if a problem ocurred
     """
     # Check for nothing to do
-    if not species_path and not loc_path:
+    if not location_json and not species_json:
         return True
 
     # Setup the command to execute
-    cmd = ["exiftool", "-config", config_path]
-    cmd.append("-SanimalFlag=1")
-    if species_path:
-        cmd.append(f"'-Species<={species_path}'")
-    if loc_path:
-        cmd.append(f"'-Location<={loc_path}'")
-    cmd.append(image_path)
+    cmd = ["java", "-jar", "ExifWriter.jar"]
+    cmd.append(f"-file={image_path}")
+    if species_json:
+        cmd.append(f"-species={species_json}")
+    if location_json:
+        cmd.append(f"-location={location_json}")
 
     # Run the command
     try:
         print('HACK: EXIFTOOL UPDATE:', cmd, flush=True)
-        res = subprocess.run(cmd, capture_output=True, check=True)
+        _ = subprocess.run(cmd, capture_output=True, check=True)
     except subprocess.CalledProcessError as ex:
         print(f'ERROR: Exception setting exif information into image {image_path}', flush=True)
         print(f'       {ex}', flush=True)
+        print(ex.stdout, flush=True)
+        print(ex.stderr, flush=True)
         return False
 
     return True

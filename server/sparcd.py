@@ -104,7 +104,7 @@ CAMTRAP_OBSERVATION_CONFIDENCE_INDEX = 18
 CAMTRAP_OBSERVATION_COMMENT_IDX = 19
 
 # TODO: Move to image_utils.py and add reference as needed
-EXIFTOOL_CONFIG_TEXT = """%Image::ExifTool::UserDefined = ( 
+EXIFTOOL_CONFIG_TEXT = """%Image::ExifTool::UserDefined = (
     'Image::ExifTool::Exif::Main' => {
         0x0227 => {
             Name => 'SanimalFlag',
@@ -1028,8 +1028,8 @@ def create_observation_data(collection_id: str, location_id: str, s3_base_path: 
             'FALSE',                                # Camera setup
             '',                                     # Taxon ID
             '',                                     # Scientific name
-            '',                                     # Count
-            '',                                     # Count new species
+            '0',                                    # Count
+            '0',                                    # Count new species
             '',                                     # Life stage
             '',                                     # Sex
             '',                                     # Behaviour
@@ -1037,7 +1037,7 @@ def create_observation_data(collection_id: str, location_id: str, s3_base_path: 
             '',                                     # Classification method
             '',                                     # Classified by
             '',                                     # Classification timestmp
-            '',                                     # Classification confidence
+            '1.0000',                               # Classification confidence
             '',                                     # Comments
             )
         for one_file in all_files
@@ -1441,56 +1441,48 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> b
     return True
 
 
-def update_image_file_exif(file_path: str, exiftool_config_path: str, loc_id: str=None, \
-                            loc_name: str=None, loc_ele: float=None, \
-                                                                species_data: tuple=None) -> bool:
+def update_image_file_exif(file_path: str, loc_id: str=None, loc_name: str=None, \
+                                            loc_ele: float=None, loc_lat: float=None, \
+                                            loc_lon: float=None, species_data: tuple=None) -> bool:
     """ Updates the image file with location exif information
     Arguments:
         file_path: the path to the file to modify
-        exiftool_config_path: the name of the exif config file, will be created if it doesn't exist
         loc_id: the location id
         loc_name: the location name
         loc_ele: the location elevation
+        loc_lat: the location latitude
+        loc_lon: the location longitude
         species_data: a tuple containing dicts of each species' common and scientific names, and
                       count
     Return:
         Returns whether or not the file was successfully updated
     """
-    exif_species_data_file = None
-    if species_data is not None:
-        exif_species_data_file = os.path.splitext(file_path)[0]+'_species.bin'
-        with open(exif_species_data_file, 'wb') as ofile:
-            ofile.write('\0'.join(','.join((one_species['common'], \
-                                           one_species['scientific'], \
-                                           str(one_species['count']))) \
-                                                for one_species in species_data).encode()
-                        )
-
-    exif_location_data_file = None
+    exif_location_data = None
     if loc_id and loc_name and loc_ele is not None:
-        exif_location_data_file = os.path.splitext(file_path)[0]+'_location.bin'
-        with open(exif_location_data_file, 'wb') as ofile:
-            ofile.write('\0'.join((loc_name, loc_ele, loc_id)).encode() )
+        exif_location_data = ",".join((loc_name, loc_id, str(loc_lat), str(loc_lon), str(loc_ele)))
+
+    exif_species_data = None
+    if species_data is not None:
+        print('HACK: $$$$ SPECIES:', species_data, flush=True)
+        exif_species_data = [','.join((one_species['common'], \
+                                       one_species['scientific'], \
+                                       str(one_species['count']))) \
+                                for one_species in species_data
+                            ]
 
     # Check if we have any changes
-    if not exif_species_data_file and not exif_location_data_file:
+    if not exif_location_data and not exif_species_data:
+        print(f'HACK: EXIF CHANGE: NO DATA TO UPLOAD', flush=True)
         return True
 
     # Update the image file
-    print('HACK: ABOUT TO UPDATE EXIF:', file_path, flush=True)
-    print('HACK:                     :', exiftool_config_path, flush=True)
-    print('HACK:                     :', exif_species_data_file, flush=True)
-    print('HACK:                     :', exif_location_data_file, flush=True)
-    result = image_utils.write_embedded_image_info(file_path, exiftool_config_path,
-                                            exif_species_data_file, exif_location_data_file)
+    result = image_utils.write_embedded_image_info(
+                        file_path,
+                        json.dumps(exif_location_data) if exif_location_data is not None else None,
+                        json.dumps(exif_species_data) if exif_species_data is not None else None
+                        )
 
-    # Remove the temporary files
-# HACK: TODO ADD THIS BACK IN
-#    if exif_species_data_file:
-#        os.unlink(exif_species_data_file)
-#    if exif_location_data_file:
-#        os.unlink(exif_location_data_file)
-#
+    print(f'HACK: EXIF CHANGE RESULT {result}', flush=True)
     return result
 
 
@@ -1517,7 +1509,7 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
     success_files = []
     failed_files = []
     # HACK
-    print('HACK: PROCESSUPLOADCHANGES:', s3_url, username, collection_id, upload_name, 
+    print('HACK: PROCESSUPLOADCHANGES:', s3_url, username, collection_id, upload_name,
             change_locations is None, files_info is None, flush=True)
     # HACK
 
@@ -1536,19 +1528,14 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
     edit_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX + 'edits_' + uuid.uuid4().hex)
     print('HACK: TEMPORARYEDITFOLDER:', edit_folder, flush=True)
 
-    # Write the exiftool configuration file if we don't have it yet
-    exiftool_config_path = os.path.join(edit_folder, SPARCD_PREFIX + 'exiftool_cfg')
-    if not os.path.exists(exiftool_config_path):
-        with open(exiftool_config_path, 'w', encoding='utf-8') as ofile:
-            ofile.write(EXIFTOOL_CONFIG_TEXT)
-
     # All species and locations in case we have to look something up
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
                                                                                 username, password)
 
     # Loop through the files
     for idx, one_file in enumerate(update_files):
-        temp_file_name = ("-"+str(idx)).join(os.path.splitext(os.path.basename(one_file['s3_path'])))
+        temp_file_name = ("-"+str(idx)).join(os.path.splitext(\
+                                                            os.path.basename(one_file['s3_path'])))
         print('HACK:   TEMPFILENAME:', temp_file_name, idx, one_file, flush=True)
         save_path = os.path.join(edit_folder, temp_file_name)
 
@@ -1569,11 +1556,14 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
         save_species = None
 
         if file_edits:
-            for new_species in file_edits['spcies']:
+            for new_species in file_edits['species']:
                 found = False
                 changed = False
                 for orig_species in cur_species:
                     if orig_species['scientific'] == new_species['scientific']:
+                        if orig_species['common'] != new_species['common']:
+                            orig_species['common'] = new_species['common']
+                            changed = True
                         if orig_species['count'] != new_species['count']:
                             orig_species['count'] = new_species['count']
                             changed = True
@@ -1582,7 +1572,7 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
 
                 if not found:
                     cur_species.append({'common': new_species['common'], \
-                                         'scientific:': new_species['scientific'], \
+                                         'scientific': new_species['scientific'], \
                                          'count': new_species['count']})
                     changed = True
 
@@ -1598,12 +1588,16 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
         # Check if we have any changes
         if save_species or save_location:
             # Update the image file
-            if update_image_file_exif(save_path, exiftool_config_path,
+            print('HACK: SAVING EXIF LOCATION:', save_location, flush=True)
+            if update_image_file_exif(save_path,
                                     loc_id = save_location['loc_id'] if save_location else None,
                                     loc_name = save_location['loc_name'] if save_location else None,
                                     loc_ele = save_location['loc_ele'] if save_location else None,
+                                    loc_lat = save_location['loc_lat'] if save_location else None,
+                                    loc_lon = save_location['loc_lon'] if save_location else None,
                                     species_data = save_species):
                 # Put the file back onto S3
+                print('HACK: PUTTING IMAGE BACK',s3_url, one_file['bucket'], one_file['s3_path'], save_path, flush=True)
                 S3Connection.upload_file(s3_url, username, password, one_file['bucket'],
                                                                     one_file['s3_path'], save_path)
 
@@ -1618,13 +1612,12 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
             success_files.append(one_file)
 
         # Perform some cleanup
-# HACK: TODO ADD THIS BACK IN
-#        for one_path in [save_path+"_original", save_path]:
-#            if one_path and os.path.exists(one_path):
-#                os.unlink(one_path)
+        for one_path in [save_path+"_original", save_path]:
+            if one_path and os.path.exists(one_path):
+                os.unlink(one_path)
 
     # Remove the downloading folder
-# HACK: TODO: ADD THIS BACK    shutil.rmtree(edit_folder)
+    shutil.rmtree(edit_folder)
 
     return success_files, failed_files
 
@@ -2641,12 +2634,6 @@ def sandbox_prev():
                                                                                 True)
     print('HACK:     ',upload_id, old_upload_id,flush=True)
 
-    # Check if the old upload exif configuration file exists and remove it if it does
-    exiftool_config_path = os.path.join(tempfile.gettempdir(),
-                                                SPARCD_PREFIX+'exiftool_cfg_'+str(old_upload_id))
-    if os.path.exists(exiftool_config_path):
-        os.unlink(exiftool_config_path)
-
     return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
                         'uploadedFiles': uploaded_files, 'elapsed_sec': elapsed_sec, \
                         'id': upload_id})
@@ -2734,6 +2721,8 @@ def sandbox_new():
                                                                 s3_bucket, s3_path,
                                                                 our_location['idProperty'],
                                                                 our_location['nameProperty'],
+                                                                our_location['latProperty'],
+                                                                our_location['lngProperty'],
                                                                 our_location['elevationProperty'])
 
     # Update the collection to reflect the new upload
@@ -2801,22 +2790,22 @@ def sandbox_file():
 
         # Check if we need to update the location in the file
         sb_location = db.sandbox_get_location(user_info["name"], upload_id)
-        if sb_location and cur_location and sb_location['idProperty'] != cur_location['id']:
-            # Write the exiftool configuration file for the upload if we don't have it yet
-            exiftool_config_path = os.path.join(tempfile.gettempdir(),
-                                                SPARCD_PREFIX+'exiftool_cfg_'+str(upload_id))
-            if not os.path.exists(exiftool_config_path):
-                with open(exiftool_config_path, 'w', encoding='utf-8') as ofile:
-                    ofile.write(EXIFTOOL_CONFIG_TEXT)
+        print('HACK:     COMPARELOC:', sb_location, cur_location, flush=True)
+        if not cur_location or \
+                (sb_location and cur_location and sb_location['idProperty'] != cur_location['id']):
 
+            print('HACK:     UPDATING LOCATION', flush=True)
             # Update the location
-            if not update_image_file_exif(temp_file[1], exiftool_config_path,
+            if not update_image_file_exif(temp_file[1],
                                             loc_id=sb_location['idProperty'],
                                             loc_name=sb_location['nameProperty'],
-                                            loc_ele=sb_location['elevationProperty']):
+                                            loc_ele=sb_location['elevationProperty'],
+                                            loc_lat=sb_location['latProperty'],
+                                            loc_lon=sb_location['lngProperty'],
+                                            ):
                 print('Warning: Unable to update sandbox file with the location: ' \
                         f'{request.files[one_file].filename} with upload_id {upload_id}'
-                     )
+                     , flush=True)
 
         # Upload the file to S3
         S3Connection.upload_file(s3_url, user_info["name"],
@@ -2974,9 +2963,9 @@ def sandbox_completed():
                                      (media_info[one_key] for one_key in media_info.keys()) )
 
     # Update the OBSERVATIONS with species information
-    obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
     file_species = db.get_file_species(user_info['name'], upload_id)
     if file_species:
+        obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
         for one_species in file_species:
             added = False
             if one_species['filename'] in obs_info:
@@ -3086,6 +3075,8 @@ def image_location():
     loc_id = request.form.get('locId', None)
     loc_name = request.form.get('locName', None)
     loc_ele = request.form.get('locElevation', None)
+    loc_lat = request.form.get('locLat', None)
+    loc_lon = request.form.get('locLon', None)
 
     # Check what we have from the requestor
     if not all (item for item in [token, coll_id, upload_id, loc_id, loc_name, loc_ele, timestamp]):
@@ -3115,7 +3106,9 @@ def image_location():
                             {
                                 'loc_id': loc_id,
                                 'loc_name': loc_name,
-                                'loc_ele': loc_ele
+                                'loc_ele': loc_ele,
+                                'loc_lat': loc_lat,
+                                'loc_lon': loc_lon,
                             })
 
     return json.dumps({'success': True})
@@ -3193,7 +3186,7 @@ def image_edit_complete():
     path = request.form.get('path', None) # Image path on S3 under bucket
 
     # Check what we have from the requestor
-    if not all(item for item in [token, coll_id, upload_id, path, upload_name]):
+    if not all(item for item in [token, coll_id, upload_id, path]):
         return "Not Found", 406
 
     path = do_decrypt(path)
@@ -3218,10 +3211,13 @@ def image_edit_complete():
     upload_location_info = db.get_next_upload_location(user_info["url"], user_info["name"])
 
     upload_files_info = db.get_next_files_info(user_info["url"], user_info["name"],
-                upload_location_info['bucket'] if 'bucket' in upload_location_info else None,
-                upload_location_info['base_path'] if 'base_path' in upload_location_info else None
+                upload_location_info['bucket'] if upload_location_info and \
+                                                    'bucket' in upload_location_info else None,
+                upload_location_info['base_path'] if upload_location_info and \
+                                                    'base_path' in upload_location_info else None
                 )
 
+    print('HACK: NEXTFILEDB:', upload_files_info, upload_location_info, flush=True)
     if upload_files_info:
         # Update the image
         success_files, errored_files = process_upload_changes(s3_url,
@@ -3233,6 +3229,8 @@ def image_edit_complete():
                                                             files_info=upload_files_info)
 
         if success_files:
+            # Update the Observations file
+
             db.complete_image_edits(user_info["name"], success_files)
             if not errored_files and upload_location_info:
                 db.complete_upload_location(user_info["url"],
