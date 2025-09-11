@@ -1858,10 +1858,12 @@ def login_token():
         token_valid, login_info = token_is_valid(token, client_ip, user_agent_hash, db)
         if token_valid:
             # Everything checks out
-            return json.dumps({'value':token,
-                               'name':login_info['name'],
-                               'settings':login_info['settings']|{'email':login_info['email']}
-                               })
+            return json.dumps(
+                {  'value':token,
+                   'name':login_info['name'],
+                   'settings': \
+                        secure_user_settings(login_info['settings']|{'email':login_info['email']})
+               })
 
         # Delete the old token from the database
         db.reconnect()
