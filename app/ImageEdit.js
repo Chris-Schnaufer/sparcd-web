@@ -16,7 +16,7 @@ import Typography from '@mui/material/Typography';
 
 import { v4 as uuidv4 } from 'uuid';
 
-import { SpeciesInfoContext } from './serverInfo';
+import { SpeciesInfoContext, UserSettingsContext } from './serverInfo';
 import ImageAdjustments from './components/ImageAdjustments';
 import ImageEditSpecies from './components/ImageEditSpecies';
 import InputSlider from './components/InputSlider';
@@ -45,6 +45,7 @@ const Input = styled(MuiInput)`
 export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
                                    navigation, species, onSpeciesChange}) {
   const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [brightness, setBrightness] = React.useState(100);    // Image brightness
   const [contrast, setContrast] = React.useState(100);        // Image contrast
   const [hue, setHue] = React.useState(0);    // From 360 to -360
@@ -115,6 +116,9 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     const speciesKeyItem = speciesItems.find((item) => item.scientificName.toUpperCase() === speciesScientificName);
     if (speciesKeyItem) {
       handleSpeciesAdd(speciesKeyItem);
+      if (userSettings.autonext) {
+        navigation.onNext();
+      }
     }
   }
 

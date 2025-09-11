@@ -8,6 +8,9 @@ from time import sleep
 from typing import Optional
 import uuid
 
+
+MAX_ALLOWED_EXPIRED_TOKENS_PER_USER = 1
+
 # TODO: Move the Sqlite-specific code (queries, etc) to a sqlite-only file and keep the post-query
 #       logic here
 
@@ -66,7 +69,7 @@ class SPARCdDatabase:
         return self._conn is not None
 
     def add_token(self, token: str, user: str, password: str, client_ip: str,
-                  user_agent: str, s3_url: str) -> None:
+                                user_agent: str, s3_url: str, token_timeout_sec: int=None) -> None:
         """ Saves the token and associated user information
         Arguments:
             token: the unique token to save
@@ -75,6 +78,7 @@ class SPARCdDatabase:
             client_ip: the IP address of the client
             user_agent: a user agent value
             s3_url: the URL of the s3 instance
+            token_timeout_sec: timeout for cleaning up expired tokens from the table
         """
         if self._conn is None:
             raise RuntimeError('save_token: attempting to access database before connecting')
@@ -84,6 +88,22 @@ class SPARCdDatabase:
         query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
                 'user_agent) VALUES(?,?,?,?,strftime("%s", "now"),?,?)'
         cursor.execute(query, (token, user, password, s3_url, client_ip, user_agent))
+
+        if token_timeout_sec is not None:
+            cursor.execute('WITH exptok AS (SELECT id, (strftime("%s", "now")-timestamp) AS ' \
+                                        'elapsed_sec FROM tokens WHERE name=?) ' \
+                            'SELECT count(1) FROM tokens, exptok ' \
+                                        'WHERE tokens.id=exptok.id AND exptok.elapsed_sec > ?',
+                            (user, token_timeout_sec))
+
+            res = cursor.fetchone()
+
+            if res and res[0] >= MAX_ALLOWED_EXPIRED_TOKENS_PER_USER:
+                cursor.execute('DELETE FROM tokens WHERE tokens.id IN ' \
+                                    '(SELECT id from tokens WHERE name=? AND ' \
+                                                        '(strftime("%s", "now")-timestamp) >= ?)',
+                            (user, token_timeout_sec))
+
         self._conn.commit()
         cursor.close()
 
@@ -1382,13 +1402,11 @@ class SPARCdDatabase:
         self._conn.commit()
         cursor.close()
 
-    def get_next_files_info(self, s3_url: str, username: str, bucket: str=None, \
-                                                            s3_path:str=None) -> Optional[tuple]:
+    def get_next_files_info(self, s3_url: str, username: str, s3_path:str=None) -> Optional[tuple]:
         """ Returns the file editing information for a user, possibly for only one location
         Arguments:
             s3_url: the URL to the S3 instance
             username: the name of the user to check for
-            bucket: the bucket to check for changes
             s3_path: the S3 upload path to get changes for
         Return:
             Returns a tuple of file information dict containing each image's name, bucket, s3_path,
@@ -1398,17 +1416,60 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('Attempting to get file edits fron the database '\
                                                                                 'before connecting')
+        return common_get_next_files_info(s3_url, username, 0, s3_path=s3_path)
+
+    def get_edited_files_info(self, s3_url: str, username: str, upload_id: str) -> Optional[tuple]:
+        """ Returns the file editing information for a user, possibly for only one location
+        Arguments:
+            s3_url: the URL to the S3 instance
+            username: the name of the user to check for
+            upload_id: the ID of the upload to search for
+        Return:
+            Returns a tuple of file information dict containing each image's name, bucket, s3_path,
+            and species. The species key contains a tuple of species common (name), 
+            scientific (name), and the count. None is returned if there are no records
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get file edits fron the database '\
+                                                                                'before connecting')
+        return common_get_next_files_info(s3_url, username, 1, upload_id=upload_id)
+
+    def common_get_next_files_info(self, s3_url: str, username: str, updated_value: int, \
+                                                s3_path:str=None, upload_id: str=None) -> Optional[tuple]:
+        """ Returns the file editing information for a user, possibly for only one location
+        Arguments:
+            s3_url: the URL to the S3 instance
+            username: the name of the user to check for
+            updated_level: the numeric updated value to check for in the query
+            s3_path: optional S3 upload path to get changes for
+            upload_id: optional upload ID to look for
+        Return:
+            Returns a tuple of file information dict containing each image's name, bucket, s3_path,
+            and species. The species key contains a tuple of species common (name), 
+            scientific (name), and the count. None is returned if there are no records
+        Notes:
+            It's recommended that only one of the S3 path, or the upload ID, is specified, not both.
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get common file edits fron the database '\
+                                                                                'before connecting')
 
         cursor = self._conn.cursor()
-        query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count, ' \
-                                            'obs_timestamp ' \
-                                            'FROM image_edits WHERE s3_url=? AND username=? ' \
-                                            'AND updated=0 ' + \
-                                            ('AND bucket=? ' if bucket else '') + \
-                                            ('AND s3_file_path LIKE (?)% ' if s3_path else '') + \
-                                            'ORDER BY obs_scientific ASC, id ASC'
-        query_data = tuple(val for val in [s3_url, username, bucket, s3_path] if val is not None)
-        print('HACK: NEXT FILES INFO:', query, query_data, flush=True)
+        # HACK
+        print('HACK: COMMONGETNEXTFILESINFO:',s3_url,username,updated_value,s3_path,
+                                                                            upload_id, flush=True)
+        #HACK
+        query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count ' \
+                                    'FROM image_edits WHERE s3_url=? AND username=? ' \
+                                    'AND updated=? ' \
+                                    ('AND s3_file_path=? ' if s3_path is not None else '') \
+                                    ('AND s3_file_path LIKE ?' if upload_id is not None else '') \
+                                    'ORDER BY obs_scientific ASC, id ASC'
+        if upload_id is not None:
+            upload_id = '%' + upload_id + '%'
+        query_data = tuple(val for val in [s3_url, username, updated_value, s3_path, upload_id] \
+                                                                                if val is not None)
+        print('HACK: COMMONGETNEXTFILESINFO:    ', query, query_data, flush=True)
         cursor.execute(query, query_data)
 
         res = cursor.fetchall()
@@ -1431,6 +1492,7 @@ class SPARCdDatabase:
                                                            'timestamp': one_res[5],
                                                          })
             else:
+                # TODO:                                    'timestamp': one_res[5],
                 res_dict[one_res[1]] = {'s3_url': s3_url,
                                         'filename': os.path.basename(one_res[1]),
                                         'bucket': one_res[0],
@@ -1438,7 +1500,6 @@ class SPARCdDatabase:
                                         'species':[{'common':one_res[2],
                                                     'scientific':one_res[3],
                                                     'count':one_res[4],
-                                                    'timestamp': one_res[5],
                                                   }]
                                        }
 
@@ -1477,20 +1538,56 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('Attempting to mark file edits as updated in the database '\
                                                                                 'before connecting')
+        common_complete_image_edits(username, files, 0, 1)
+
+
+    def finish_image_edits(self, username: str, files: tuple) -> None:
+        """ Marks the passed in files as having completely finished their editing updates
+        Arguments:
+            username: the username associated with these changes
+            files: a tuple of file dict containing the s3_url, bucket, and path to the file
+        Notes:
+            See get_next_files_info()
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark file edits as completely finished in the database '\
+                                                                                'before connecting')
+        common_complete_image_edits(username, files, 1, 2)
+
+
+    def common_complete_image_edits(self, username: str, files: tuple, old_updated: int, ' \
+                                                                        new_updated: int) -> None:
+        """ Common function to mark the files as having completed their edits
+        Arguments:
+            username: the username associated with these changes
+            files: a tuple of file dict containing the s3_url, bucket, and path to the file
+            old_updated: the old updated column value to look for
+            new_updated: the new updated column value for entries that were found
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to mark file edits as updated in the database '\
+                                                                                'before connecting')
 
         # Prepare to process the data in batches
         cur_idx = 0
         count = 0
         cursor = self._conn.cursor()
-        query = 'UPDATE image_edits SET updated=1 WHERE s3_url=? AND username=? AND bucket=? AND ' \
-                's3_file_path=?'
+        query = 'UPDATE image_edits SET updated=? WHERE s3_url=? AND username=? AND bucket=? AND ' \
+                's3_file_path=? AND updated=?'
         while True:
             cur_file = files[cur_idx]
-            cursor.execute(query, (cur_file['s3_url'], username, cur_file['bucket'],
-                                                                            cur_file['s3_path']))
+            print('HACK: COMPLETEIMAGEEDITS:',cur_file, flush=True)
+            cursor.execute(query, (new_updated, cur_file['s3_url'], username, cur_file['bucket'],
+                                                                cur_file['s3_path'], old_updated))
 
-            cur_idx = 0
+            cur_idx += 1
             count += 1
+
+            # We're done once we've gone through the files
+            if cur_idx >= len(files):
+                break
+
+            # Flush out the changes and continue processing the files
             if count > 30:
                 self._conn.commit()
                 cursor.close()

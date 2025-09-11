@@ -13,7 +13,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
 import { AddMessageContext, LocationsInfoContext, NarrowWindowContext, SizeContext, SpeciesInfoContext, TokenContext, 
-          UploadEditContext } from './serverInfo';
+          UploadEditContext, UserSettingsContext } from './serverInfo';
 import ImageEdit from './ImageEdit';
 import ImageTile from './components/ImageTile';
 import { Level } from './components/Messages';
@@ -43,6 +43,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const narrowWindow = React.useContext(NarrowWindowContext);
   const speciesItems = React.useContext(SpeciesInfoContext);
   const uiSizes = React.useContext(SizeContext);
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const [changesMade, setChangesMade] = React.useState(false); // Used to see if there have been changes made
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
@@ -65,7 +67,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const [windowSize, setWindowSize] = React.useState({'width':640,'height':480}); // The current window size
 
   // Some local variables
-  const curUploadLocation = locationItems.find((item) => item.idProperty === curUpload.location);
+  const curUploadLocation = React.useMemo(() => locationItems.find((item) => item.idProperty === curUpload.location), [curUpload, locationItems]);
 
   // Bind functions to ensure scope
   const getTooltipInfoOpen = getTooltipInfo.bind(UploadEdit);
@@ -74,7 +76,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const handleEditingImage = editingImage.bind(UploadEdit);
   const handleNextImage = nextImage.bind(UploadEdit);
   const handlePrevImage = prevImage.bind(UploadEdit);
-  const handleSpeciesChange = speciesChange.bind(UploadEdit);
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let workingTileCount = 40;
@@ -116,19 +117,23 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @param {object} speciesAdd The species to add to the image
    */
   const handleSpeciesAdd = React.useCallback((speciesAdd) => {
-    const haveSpeciesIdx = curImageEdit.species.findIndex((item) => item.name === speciesAdd.name);
+    const haveSpeciesIdx = curImageEdit.species.findIndex((item) => item.scientificName === speciesAdd.scientificName);
+    let workingSpecies = null;
     if (haveSpeciesIdx > -1) {
+      workingSpecies = curImageEdit.species[haveSpeciesIdx];
       curImageEdit.species[haveSpeciesIdx].count = parseInt(curImageEdit.species[haveSpeciesIdx].count) + 1;
       window.setTimeout(() => {
         setSpeciesRedraw(curImageEdit.name+curImageEdit.species[haveSpeciesIdx].name+curImageEdit.species[haveSpeciesIdx].count);
       }, 100);
     } else {
-      curImageEdit.species.push({name:speciesAdd.name,count:1});
+      workingSpecies = {scientificName:speciesAdd.scientificName, name:speciesAdd.name, count:1};
+      curImageEdit.species.push(workingSpecies);
       window.setTimeout(() => {
-        setSpeciesRedraw(curImageEdit.name+speciesAdd.name+'1');
+        setSpeciesRedraw(curImageEdit.name+workingSpecies.name+'1');
       }, 100);
     }
-  }, [curImageEdit])
+    handleSpeciesChange(curImageEdit.name, workingSpecies.name, workingSpecies.count);
+  }, [curImageEdit, handleSpeciesChange, setSpeciesRedraw])
 
   /**
    * Handles the user scrolling past the end of the images, so we load more
@@ -211,6 +216,30 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
   }, [narrowWindow, uiSizes]);
 
+  // Handling keypress events when adding a species to an image
+  React.useEffect(() => {
+    function onKeypress(event) {
+      if (curEditState === editingStates.editImage) {
+        if (event.key !== 'Meta') {
+          const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
+          if (speciesKeyItem) {
+            handleSpeciesAdd(speciesKeyItem);
+            event.preventDefault();
+
+            if (userSettings.autonext) {
+              handleNextImage();
+            }
+          }
+        }
+      }
+    }
+
+    document.addEventListener("keydown", onKeypress);
+
+    return () => {
+      document.removeEventListener("keydown", onKeypress);
+    }
+  }, [curEditState, curImageEdit, editingStates, handleSpeciesAdd, speciesItems]);
   /**
    * Updates the server with a new location for the upload
    * @function
@@ -249,6 +278,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           .then((respData) => {
               // Clean up the UI
               setPendingMessage(null);
+              setChangesMade(true);
           })
           .catch(function(err) {
             console.log('Update Location Error: ',err);
@@ -268,6 +298,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     searchSetup('Image Name', handleImageSearch);
   }, [addMessage, curUpload, editingStates, handleImageSearch, setPendingMessage, searchSetup, serverURL, setCurEditState, setEditingLocation])
 
+
   // Adding drag-and-drop starting attributes to species elements
   React.useLayoutEffect(() => {
     speciesItems.forEach((item) => {
@@ -276,26 +307,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     });
   }, [speciesItems]);
 
-  // Handling keypress events when adding a species to an image
-  React.useEffect(() => {
-    function onKeypress(event) {
-      if (curEditState === editingStates.editImage) {
-        if (event.key !== 'Meta') {
-          const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
-          if (speciesKeyItem) {
-            handleSpeciesAdd(speciesKeyItem);
-            event.preventDefault();
-          }
-        }
-      }
-    }
-
-    document.addEventListener("keydown", onKeypress);
-
-    return () => {
-      document.removeEventListener("keydown", onKeypress);
-    }
-  }, [curEditState,curImageEdit, editingStates, handleSpeciesAdd, speciesItems]);
 
   // Checking if we already have a location for the upload so we skip the initial prompt to assign loc.
   React.useEffect(() => {
@@ -441,7 +452,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @param {string} speciesName The name of the species whose count is changing
    * @param {int} speciesCount The new count for that species
    */
-  function speciesChange(imageName, speciesName, speciesCount) {
+  const handleSpeciesChange = React.useCallback((imageName, speciesName, speciesCount) => {
     const curImageIdx = curUpload.images.findIndex((item) => item.name === imageName);
     if (curImageIdx === -1) {
       console.log('Warning: Unable to find image for updating species', imageName);
@@ -483,7 +494,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             }
           })
         .then((respData) => {
-            // Nothing to do
+            // Mark that something has changed
+          setChangesMade(true);
         })
         .catch(function(err) {
           console.log('Update Species Count Error: ',err);
@@ -493,7 +505,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       console.log('Update Species Count Unknown Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
     }
-  }
+  }, [addMessage, curUpload, editToken, serverURL, speciesItems]);
 
   /**
    * Updates the currently edited image with any changes made
@@ -508,15 +520,103 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return;
     }
 
-    const speciesUrl = serverURL + '/imageEditComplete?t=' + encodeURIComponent(editToken);
+    submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path);
+  }
+
+  /**
+   * Handles the user finishing up image edits
+   * @function
+   */
+  const handleImageEditClose = React.useCallback(() => {
+    finishImageEdits();
+    setCurEditState(editingStates.listImages);
+    searchSetup('Image Name', handleImageSearch);
+    if (changesMade) {
+      setPendingMessage("Finishing up changes made to images");
+      submitAllImageEdited(curUpload.collectionId, curUpload.upload, new Date().toISOString());
+    }
+  }, [curUpload, editingStates, finishImageEdits, handleImageSearch, searchSetup, setCurEditState, setPendingMessage, submitImageEditClose]);
+
+  /**
+   * Makes the call when the user has fully completed editing images
+   * @function
+   * @param {string} collectionId The ID of the collection the image belongs to
+   * @param {string} uploadName The name of the upload begin edited
+   * @param {string} timestamp The ISO string of the edit timestamp
+   * @param {integer} {numTries} The number of attempted tries
+   */
+  const submitAllImageEdited = React.useCallback((collectionId, uploadName, timestamp, numTries) => {
+
+    numTries = numTries ? numTries + 1 : 1;
+
+    const allEditedUrl = serverURL + '/imagesAllEdited?t=' + encodeURIComponent(editToken);
     const formData = new FormData();
 
-    formData.append('collection', curUpload.collectionId);
-    formData.append('upload', curUpload.upload);
-    formData.append('path', curUpload.images[curImageIdx].s3_path);
+    formData.append('collection', collectionId);
+    formData.append('upload', uploadName);
+    formData.append('timestamp', timestamp);
 
+    console.log('HACK: SUBMITALLIMAGESEDITED', imagePath);
     try {
-      const resp = fetch(speciesUrl, {
+      const resp = fetch(allEditedUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to finish all image editing changes: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Check for a good response
+            if (respData.success === true) {
+              // Check if most things worked out but a retry is in order
+              if (respData.retry === undefined || respData.retry !== true) {
+                setPendingMessage(null);
+              } else {
+                // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
+                if (numTries < 4) {
+                  console.log('HACK: SUBMITALLIMAGESEDITED:  RETRY:  ', imagePath);
+                  window.setTimeout(() => submitAllImageEdited(collectionId, uploadName, timestamp, numTries), 1000 * numTries);
+                } else {
+                  addMessage(Level.Error, "Unable to finish all image editing changes " + imagePath);
+                }
+              }
+            }
+        })
+        .catch(function(err) {
+          console.log('Finish Images Edit Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while finishing the edited images changes');
+      });
+    } catch (err) {
+      console.log('Finish Images Edit Commit Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while finishing the edited image changes');
+    }
+  }, [addMessage, editToken, serverURL]);
+
+  /**
+   * Makes the call for an image to be finished with editing. Allows for retry events
+   * @function
+   * @param {string} collectionId The ID of the collection the image belongs to
+   * @param {string} uploadName The name of the upload begin edited
+   * @param {string} image_path The path of the image 
+   * @param {integer} {numTries} The number of attempted tries
+   */
+  const submitImageEditComplete = React.useCallback((collectionId, uploadName, imagePath, numTries) => {
+
+    numTries = numTries ? numTries + 1 : 1;
+
+    const completedUrl = serverURL + '/imageEditComplete?t=' + encodeURIComponent(editToken);
+    const formData = new FormData();
+
+    formData.append('collection', collectionId);
+    formData.append('upload', uploadName);
+    formData.append('path', imagePath);
+
+    console.log('HACK: SUBMITIMAGEDITCOMPLETE', imagePath);
+    try {
+      const resp = fetch(completedUrl, {
         method: 'POST',
         body: formData
       }).then(async (resp) => {
@@ -527,7 +627,16 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             }
           })
         .then((respData) => {
-            // Nothing to do
+            // Check for a good response and 
+            if (respData.success === true && respData.retry === true) {
+              // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
+              if (numTries < 4) {
+                console.log('HACK: SUBMITIMAGEDITCOMPLETE:  RETRY:  ', imagePath);
+                window.setTimeout(() => submitImageEditComplete(collectionId, uploadName, imagePath, numTries), 1000 * numTries);
+              } else {
+                addMessage(Level.Error, "Unable to complete the editing changes to image " + imagePath);
+              }
+            }
         })
         .catch(function(err) {
           console.log('Update Image Edit Complete Error: ',err);
@@ -537,7 +646,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       console.log('Update Image Edit Commit Complete Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while updating the stored image with these changes');
     }
-  }
+  }, [addMessage, editToken, serverURL]);
 
   /**
    * Calls the server to get location details for tooltips
@@ -686,8 +795,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   }
 
   // TODO: Make species bar on top when narrow screen
-  const topbarVisiblity = curEditState == editingStates.editImage || curEditState == editingStates.listImages ? 'visible' : 'hidden';
-  const imageVisibility = (curEditState == editingStates.editImage || curEditState == editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
+  const topbarVisiblity = curEditState === editingStates.editImage || curEditState === editingStates.listImages ? 'visible' : 'hidden';
+  const imageVisibility = (curEditState === editingStates.editImage || curEditState === editingStates.listImages) && !editingLocation ? 'visible' : 'hidden';
   // Return the rendered page
   return (
     <Box id="upload-edit"sx={{ flexGrow: 1, top:curStart+'px', height: uiSizes.workspace.height+'px', width: uiSizes.workspace.width+'px' }} >
@@ -708,8 +817,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           </Typography>
         </Grid>
         <Grid sx={{marginLeft:'auto'}}>
-          <Typography variant="body" sx={{ paddingLeft: '10px'}}>
-            {curUpload.location && curUpload.location.length ? curUpload.location : '<location>'}
+          <Typography variant="body" sx={{ paddingLeft: '10px', fontSize:'larger'}}>
+            {curUploadLocation && curUploadLocation.nameProperty ? curUploadLocation.nameProperty : '<location>'}
           </Typography>
           <IconButton aria-label="edit" size="small" color={'lightgrey'} onClick={handleEditLocation}>
             <BorderColorOutlinedIcon sx={{fontSize:'smaller'}}/>
@@ -733,7 +842,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           </Box>
         : null
       }
-      { curEditState == editingStates.editImage ?
+      { curEditState === editingStates.editImage ?
         <Grid id='image-edit-edit' container direction="column" alignItems="center" justifyContent="center"
               style={{ 'paddingTop':'10px', 'paddingLeft':'10px',
                        'minHeight':curHeight+'px', 'maxHeight':curHeight+'px', 'height':curHeight+'px',
@@ -749,7 +858,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        parentId='image-edit-edit'
                        maxWidth={workspaceWidth-40}
                        maxHeight={curHeight-40} 
-                       onClose={() => {finishImageEdits();setCurEditState(editingStates.listImages);searchSetup('Image Name', handleImageSearch);}}
+                       onClose={handleImageEditClose}
                        adjustments={true}
                        dropable={true}
                        navigation={{onPrev:handlePrevImage,onNext:handleNextImage}}

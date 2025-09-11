@@ -898,6 +898,7 @@ class S3Connection:
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
+        print('HACK: GETCAMTRP FILE',bucket, path,temp_file[1], flush=True)
         csv_data = get_s3_file(minio, bucket, path, temp_file[1])
 
         os.unlink(temp_file[1])
