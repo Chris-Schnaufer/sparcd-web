@@ -294,7 +294,7 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
                      margin: '0px'}}
         >
         { collectionsItems && collectionsItems.map((item, idx) =>
-          <Grid key={'collection-'+item.name} >
+          <Grid key={'collection-'+item.name+'-'+idx} >
                 <Grid display='flex' justifyContent='left' size='grow' >
                   <Card id={"collection-"+item.name} onClick={(event) => onCollectionChange(event, item.bucket, item.id)} variant="outlined"
                         sx={{minWidth:'400px', maxWidth:'400px', backgroundColor:'rgba(206,223,205,0.7)',

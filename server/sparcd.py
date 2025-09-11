@@ -38,7 +38,7 @@ from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE,deg2utm, deg2utm_c
 import query_helpers
 from sparcd_db import SPARCdDatabase
 from sparcd_utils import get_fernet_key_from_passcode, secure_user_settings
-from s3_access import S3Connection, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
+from s3_access import S3Connection, make_s3_path, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
                       OBSERVATIONS_CSV_FILE_NAME, CAMTRAP_FILE_NAMES, SPARCD_PREFIX, \
                       S3_UPLOADS_PATH_PART
 
@@ -991,12 +991,12 @@ def create_media_data(deployment_id: str, s3_base_path: str, all_files: tuple) -
         A tuple containing tuples of the the media data
     """
     return [
-            ('/'.join((s3_base_path,one_file)),     # Media ID
+            (make_s3_path((s3_base_path,one_file)), # Media ID
             deployment_id,                          # Deployment ID
-            '/'.join((s3_base_path,one_file)),      # Sequence ID
+            make_s3_path((s3_base_path,one_file)),  # Sequence ID
             '',                                     # Capture method
             '',                                     # Timestamp
-            '/'.join((s3_base_path,one_file)),      # File path
+            make_s3_path((s3_base_path,one_file)),  # File path
             os.path.basename(one_file),             # File name
             '',                                     # File media type
             '',                                     # EXIF data
@@ -1020,7 +1020,7 @@ def create_observation_data(deployment_id: str, s3_base_path: str, all_files: tu
             ('',                                    # Observation ID
             deployment_id,                          # Deployment ID
             '',                                     # Sequence ID
-            '/'.join((s3_base_path,one_file)),      # Media ID
+            make_s3_path((s3_base_path,one_file)),  # Media ID
             '',                                     # Timestamp
             '',                                     # Observation type
             'FALSE',                                # Camera setup
@@ -1172,7 +1172,7 @@ def update_observations(s3_path: str, observations: tuple, \
                 '',                                                  # Observation ID
                 deployment_id,                                       # Deployment ID
                 '',                                                  # Sequence ID
-                '/'.join((s3_path,one_species['filename'])),         # Media ID
+                make_s3_path((s3_path,one_species['filename'])),     # Media ID
                 one_species['timestamp'],                            # Timestamp
                 '',                                                  # Observation type
                 'FALSE',                                             # Camera setup
@@ -1222,7 +1222,7 @@ def load_camtrap_info(url: str, user: str, token: str, db: SPARCdDatabase, bucke
 
     # Try S3 since we don't have the data
     camtrap_data = S3Connection.get_camtrap_file(url, user, do_decrypt(db.get_password(token)),
-                                    bucket, '/'.join((s3_path.rstrip('/').rstrip('\\'), filename)))
+                                    bucket, make_s3_path((s3_path, filename)))
 
     # Check if we need to save it to disk
     if temp_to_disk is True:
@@ -1577,7 +1577,7 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
 
     # Make a dict of the files passed in for easier lookup
     if files_info:
-        file_info_dict = {one_file['filename']+one_file['s3_path']+one_file['bucket']: one_file \
+        file_info_dict = {one_file['name']+one_file['s3_path']+one_file['bucket']: one_file \
                                                                         for one_file in files_info}
     else:
         file_info_dict = {}
@@ -1600,7 +1600,7 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
                                                             os.path.basename(one_file['s3_path'])))
             save_path = os.path.join(edit_folder, temp_file_name)
 
-            file_key = one_file['filename']+one_file['s3_path']+one_file['bucket']
+            file_key = one_file['name']+one_file['s3_path']+one_file['bucket']
             file_edits = file_info_dict[file_key] if file_key in file_info_dict else None
 
             # Only manipulate the image if there appears to be some reason for downloading it
@@ -1926,7 +1926,6 @@ def collections():
 
     token = request.args.get('t')
     if not token:
-        print('COLLECTIONS TOKEN', flush=True)
         return "Not Found", 404
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -3007,16 +3006,18 @@ def sandbox_completed():
     media_info = load_camtrap_media(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
     file_mimetypes = db.get_file_mimetypes(user_info['name'], upload_id)
 
-    for one_key,one_type in file_mimetypes:
-        media_info[one_key][CAMTRAP_MEDIA_TYPE_IDX] = one_type
+    if media_info:
+        for one_key,one_type in file_mimetypes:
+            media_info[one_key][CAMTRAP_MEDIA_TYPE_IDX] = one_type
 
-    # Upload the MEDIA csv file to the server
-    S3Connection.upload_camtrap_data(s3_url, user_info["name"], do_decrypt(db.get_password(token)),
-                                     s3_bucket, '/'.join((s3_path, MEDIA_CSV_FILE_NAME)),
-                                     (media_info[one_key] for one_key in media_info.keys()) )
+        # Upload the MEDIA csv file to the server
+        S3Connection.upload_camtrap_data(s3_url, user_info["name"], do_decrypt(db.get_password(token)),
+                                         s3_bucket, make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),
+                                         (media_info[one_key] for one_key in media_info.keys()) )
 
     # Update the OBSERVATIONS with species information
     file_species = db.get_file_species(user_info['name'], upload_id)
+    num_files_with_species = 0
     if file_species:
         deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db, s3_bucket,
                                                                                             s3_path)
@@ -3031,8 +3032,10 @@ def sandbox_completed():
         row_groups = (obs_info[one_key] for one_key in obs_info)
         S3Connection.upload_camtrap_data(s3_url, user_info["name"],
                                     do_decrypt(db.get_password(token)),
-                                     s3_bucket, '/'.join((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                     s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                      [one_row for one_set in row_groups for one_row in one_set] )
+
+        num_files_with_species = len(obs_info)
 
     # Clean up any temporary files we might have
     for one_filename in [MEDIA_CSV_FILE_NAME, OBSERVATIONS_CSV_FILE_NAME]:
@@ -3042,9 +3045,10 @@ def sandbox_completed():
             os.unlink(del_path)
 
     # Update the upload metadata with the count of files that have species
-    S3Connection.update_upload_metadata_image_species(s3_url, user_info["name"],
-                                                                do_decrypt(db.get_password(token)),
-                                                                s3_bucket, s3_path, len(obs_info))
+    if num_files_with_species > 0:
+        S3Connection.update_upload_metadata_image_species(s3_url, user_info["name"],
+                                                        do_decrypt(db.get_password(token)),
+                                                        s3_bucket, s3_path, num_files_with_species)
 
     # Update the collection to reflect the new upload metadata
     updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
@@ -3107,7 +3111,7 @@ def image_location():
         return "Unauthorized", 401
 
     bucket = SPARCD_PREFIX + coll_id
-    upload_path = f'Collections/{coll_id}/{S3_UPLOADS_PATH_PART}/{upload_id}'
+    upload_path = f'Collections/{coll_id}/{S3_UPLOADS_PATH_PART}{upload_id}'
 
     db.add_collection_edit(user_info["url"], bucket, upload_path, user_info['name'], timestamp,
                                                                         loc_id, loc_name, loc_ele)
@@ -3115,48 +3119,51 @@ def image_location():
     s3_url = web_to_s3_url(user_info["url"])
     process_upload_changes(s3_url, do_decrypt(db.get_password(token)), user_info["name"],
                             coll_id, upload_id,
-                            {
-                                'loc_id': loc_id,
-                                'loc_name': loc_name,
-                                'loc_ele': loc_ele,
-                                'loc_lat': loc_lat,
-                                'loc_lon': loc_lon,
-                            })
+                            change_locations={
+                                                'loc_id': loc_id,
+                                                'loc_name': loc_name,
+                                                'loc_ele': loc_ele,
+                                                'loc_lat': loc_lat,
+                                                'loc_lon': loc_lon,
+                                            })
 
     # Update the Deployments file and the others that are dependent upon the Deployment ID
     deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db, bucket,
                                                                                         upload_path)
     deployment_id = coll_id + ':' +loc_id
-    deployment_info[CAMTRAP_VER05_DEPLOYMENT_LOCATION_ID_IDX] = deployment_id
-    deployment_info[CAMTRAP_VER05_DEPLOYMENT_LOCATION_NAME_IDX] = loc_name
-    deployment_info[CAMTRAP_VER05_DEPLOYMENT_LONGITUDE_IDX] = loc_lat
-    deployment_info[CAMTRAP_VER05_DEPLOYMENT_LATITUDE_IDX] = loc_lon
-    deployment_info[CAMTRAP_VER05_DEPLOYMENT_CAMERA_HEIGHT_IDX] = loc_ele
+    deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LOCATION_ID_IDX] = deployment_id
+    deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LOCATION_NAME_IDX] = loc_name
+    deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LONGITUDE_IDX] = loc_lat
+    deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LATITUDE_IDX] = loc_lon
+    deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_CAMERA_HEIGHT_IDX] = loc_ele
 
     S3Connection.upload_camtrap_data(s3_url, user_info["name"],
-                                do_decrypt(db.get_password(token)),
-                                bucket, '/'.join((upload_path, DEPLOYMENT_CSV_FILE_NAME)),
-                                (deployment_info,) )
+                        do_decrypt(db.get_password(token)),
+                        bucket,
+                        make_s3_path((upload_path, DEPLOYMENT_CSV_FILE_NAME)),
+                        deployment_info )
 
     # Get and update the Media information
     media_info = load_camtrap_media(s3_url, user_info["name"], token, db, bucket, upload_path)
     for one_media in media_info:
-        one_media[CAMTRAP_VER05_MEDIA_DEPLOYMENT_ID_IDX] = deployment_id
+        media_info[one_media][CAMTRAP_VER05_MEDIA_DEPLOYMENT_ID_IDX] = deployment_id
 
     S3Connection.upload_camtrap_data(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)),
-                                bucket, '/'.join((upload_path, MEDIA_CSV_FILE_NAME)),
-                                (media_info,) )
+                                bucket, make_s3_path((upload_path, MEDIA_CSV_FILE_NAME)),
+                                media_info )
 
     # Get and update the Observation information
     obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, bucket, upload_path)
-    for one_obs in obs_info:
-        one_obs[CAMTRAP_VER05_OBSERVATION_DEPLOYMENT_ID_IDX] = deployment_id
+
+    for one_file in obs_info:
+        for one_obs in obs_info[one_file]:
+            one_obs[CAMTRAP_VER05_OBSERVATION_DEPLOYMENT_ID_IDX] = deployment_id
 
     S3Connection.upload_camtrap_data(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)),
-                                bucket, '/'.join((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
-                                (obs_info,) )
+                                bucket, make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                obs_info )
 
     # Get and update the Observation information
 
@@ -3281,8 +3288,8 @@ def image_edit_complete():
                                         'error': False}
 
     # Update the image and the observations information
-    upload_files_info = [one_file|{'filename':one_file['s3_path']\
-                                        [one_file['s3_path'].index(upload_id)+len(upload_id)+1:]} \
+    upload_files_info = [one_file|{'name': \
+                    one_file['s3_path'][one_file['s3_path'].index(upload_id)+len(upload_id)+1:]} \
                                                                 for one_file in upload_files_info]
     success_files, errored_files = process_upload_changes(s3_url,
                                                         do_decrypt(db.get_password(token)),
@@ -3352,7 +3359,7 @@ def images_all_edited():
                                                                 for one_file in edited_files_info]
 
     s3_bucket = SPARCD_PREFIX + coll_id
-    s3_path = '/'.join(('Collections', coll_id, S3_UPLOADS_PATH_PART.rstrip('/'), upload_id))
+    s3_path = make_s3_path(('Collections', coll_id, S3_UPLOADS_PATH_PART, upload_id))
 
     deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db,
                                                                 s3_bucket, s3_path, True)
@@ -3373,7 +3380,7 @@ def images_all_edited():
     row_groups = (obs_info[one_key] for one_key in obs_info)
     S3Connection.upload_camtrap_data(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)),
-                                s3_bucket, '/'.join((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 [one_row for one_set in row_groups for one_row in one_set] )
 
     db.finish_image_edits(user_info["name"], edited_files_info)

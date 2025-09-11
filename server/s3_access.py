@@ -32,6 +32,17 @@ S3_UPLOADS_PATH_PART = 'Uploads/'
 
 S3_UPLOAD_META_JSON_FILE_NAME = 'UploadMeta.json'
 
+
+def make_s3_path(parts: tuple) -> str:
+    """ Makes the parts into an S3 path
+    Arguments:
+        parts: the path particles
+    Return:
+        The parts joined into an S3 path
+    """
+    return "/".join([one_part.rstrip('/').rstrip('\\') for one_part in parts])
+
+
 def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):
     """Downloads files from S3 server
     Arguments:
@@ -86,15 +97,15 @@ def get_user_collections(minio: Minio, user: str, buckets: tuple) -> tuple():
     os.close(temp_file[0])
     for one_bucket in buckets:
         collections_path = 'Collections'
-        base_path = os.path.join(collections_path, one_bucket[len(SPARCD_PREFIX):])
+        base_path = make_s3_path((collections_path, one_bucket[len(SPARCD_PREFIX):]))
 
-        coll_info_path = os.path.join(base_path, COLLECTION_JSON_FILE_NAME)
+        coll_info_path = make_s3_path((base_path, COLLECTION_JSON_FILE_NAME))
         coll_data = get_s3_file(minio, one_bucket, coll_info_path, temp_file[1])
         if coll_data is None or not coll_data:
             continue
         coll_data = json.loads(coll_data)
 
-        permissions_path = os.path.join(base_path, PERMISSIONS_JSON_FILE_NAME)
+        permissions_path = make_s3_path((base_path, PERMISSIONS_JSON_FILE_NAME))
         perm_data = get_s3_file(minio, one_bucket, permissions_path, temp_file[1])
 
         if perm_data is not None:
@@ -127,6 +138,9 @@ def get_uploaded_folders(minio: Minio, bucket: str, upload_path: str) -> tuple:
     """
     subfolders = []
 
+    # Make sure we end with a path separator
+    upload_path = upload_path.rstrip('/') + '/'
+
     # Get the list of folders under a single upload
     for one_obj in minio.list_objects(bucket, upload_path):
         if one_obj.is_dir and not one_obj.object_name == upload_path:
@@ -149,7 +163,7 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
 
     for one_coll in collections:
         # Get the uploads and their information
-        uploads_path = os.path.join(one_coll['base_path'], S3_UPLOADS_PATH_PART)
+        uploads_path = make_s3_path((one_coll['base_path'], S3_UPLOADS_PATH_PART)) + '/'
         for one_obj in minio.list_objects(one_coll['bucket'], uploads_path):
             if one_obj.is_dir and not one_obj.object_name == uploads_path:
                 if one_coll['bucket'] not in all_uploads_paths:
@@ -202,20 +216,21 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
 
     for one_path in upload_paths:
         # Upload information
-        upload_info_path = os.path.join(one_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        upload_info_path = make_s3_path((one_path, S3_UPLOAD_META_JSON_FILE_NAME))
         coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if coll_info_data is not None:
             try:
                 coll_info = json.loads(coll_info_data)
             except json.JSONDecodeError:
-                print(f'Unable to load JSON information: {upload_info_path}')
+                print('get_upload_data_thread: Unable to load JSON information: ' \
+                      f'{upload_info_path}')
                 continue
         else:
-            print(f'Unable to get upload information: {upload_info_path}')
+            print(f'get_upload_data_thread: Unable to get upload information: {upload_info_path}')
             continue
 
         # Location data
-        upload_info_path = os.path.join(one_path, DEPLOYMENT_CSV_FILE_NAME)
+        upload_info_path = make_s3_path((one_path, DEPLOYMENT_CSV_FILE_NAME))
         csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if csv_data is not None:
             reader = csv.reader(StringIO(csv_data))
@@ -246,7 +261,8 @@ def download_data_thread(minio: Minio, file_info: tuple, dest_root_path: str) ->
     Return:
         The orignal bucket and path, and the path to the downloaded file
     """
-    dest_file = os.path.join(dest_root_path, file_info[2] if len(file_info) >= 3 else file_info[1])
+    dest_file = make_s3_path((dest_root_path, file_info[2] if len(file_info) >= 3 else \
+                                                                                    file_info[1]))
 
     # Make sure the destination folders exist
     base = os.path.dirname(dest_file)
@@ -269,7 +285,7 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
         Returns the tuple of found images
     """
     images = []
-    cur_paths = [upload_paths]
+    cur_paths = upload_paths if not isinstance(upload_paths, str) else [upload_paths]
 
     # Get the image names and urls
     # pylint: disable=modified-iterating-list
@@ -433,23 +449,23 @@ class S3Connection:
         os.close(temp_file[0])
 
         # Upload information
-        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        upload_info_path = make_s3_path((upload_path, S3_UPLOAD_META_JSON_FILE_NAME))
         upload_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if upload_info_data is not None:
             try:
                 coll_info = json.loads(upload_info_data)
             except json.JSONDecodeError:
-                print(f'Unable to load JSON information: {upload_info_path}')
+                print(f'get_upload_info: Unable to load JSON information: {upload_info_path}')
                 os.unlink(temp_file[1])
                 return None
         else:
-            print(f'Unable to get upload information: {upload_info_path}')
+            print(f'get_upload_info: Unable to get upload information: {upload_info_path}')
             os.unlink(temp_file[1])
             return None
 
         # Location data
         upload_info = None
-        upload_info_path = os.path.join(upload_path, DEPLOYMENT_CSV_FILE_NAME)
+        upload_info_path = make_s3_path((upload_path, DEPLOYMENT_CSV_FILE_NAME))
         csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if csv_data is not None:
             reader = csv.reader(StringIO(csv_data))
@@ -486,7 +502,7 @@ class S3Connection:
             the image file name, bucket s3_path, and unique key
         """
         bucket = SPARCD_PREFIX + collection_id
-        upload_path = os.path.join('Collections', collection_id, 'Uploads', upload_name)
+        upload_path = make_s3_path(('Collections', collection_id, 'Uploads', upload_name)) + '/'
 
         minio = Minio(url, access_key=user, secret_key=password)
 
@@ -508,7 +524,8 @@ class S3Connection:
             Returns the images, or None
         """
         bucket = SPARCD_PREFIX + collection_id
-        upload_path = os.path.join('Collections', collection_id, 'Uploads', upload_name)
+        upload_path = make_s3_path(('Collections', collection_id, S3_UPLOADS_PATH_PART, \
+                                                                                upload_name)) + '/'
 
         minio = Minio(url, access_key=user, secret_key=password)
 
@@ -520,7 +537,7 @@ class S3Connection:
         os.close(temp_file[0])
 
         # Get the species information for each image
-        upload_info_path = os.path.join(upload_path, OBSERVATIONS_CSV_FILE_NAME)
+        upload_info_path = make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME))
         csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if csv_data is not None:
 
@@ -568,8 +585,8 @@ class S3Connection:
             print(f'Invalid bucket name specified: {bucket}')
             return None
 
-        uploads_path = os.path.join('Collections', bucket[len(SPARCD_PREFIX):], \
-                                                                S3_UPLOADS_PATH_PART)
+        uploads_path = make_s3_path(('Collections', bucket[len(SPARCD_PREFIX):],
+                                                                S3_UPLOADS_PATH_PART)) + '/'
 
         minio = Minio(url, access_key=user, secret_key=password)
 
@@ -582,13 +599,13 @@ class S3Connection:
                 # Get the data on this upload
 
                 # Upload information
-                upload_info_path = os.path.join(one_obj.object_name, S3_UPLOAD_META_JSON_FILE_NAME)
+                upload_info_path = make_s3_path((one_obj.object_name,S3_UPLOAD_META_JSON_FILE_NAME))
                 meta_info_data = get_s3_file(minio, bucket, upload_info_path, \
                                              temp_file[1])
                 if meta_info_data is not None:
                     meta_info_data = json.loads(meta_info_data)
                 else:
-                    print(f'Unable to get upload information: {upload_info_path}')
+                    print(f'list_uploads: Unable to get upload information: {upload_info_path}')
                     continue
 
                 # Add the name
@@ -596,7 +613,7 @@ class S3Connection:
 
                 # Location data
                 meta_info_data['loc'] = None
-                upload_info_path = os.path.join(one_obj.object_name, DEPLOYMENT_CSV_FILE_NAME)
+                upload_info_path = make_s3_path((one_obj.object_name, DEPLOYMENT_CSV_FILE_NAME))
                 csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
                 if csv_data is not None:
                     reader = csv.reader(StringIO(csv_data))
@@ -611,7 +628,7 @@ class S3Connection:
 
                 # Uploaded images data
                 cur_images = []
-                upload_info_path = os.path.join(one_obj.object_name, OBSERVATIONS_CSV_FILE_NAME)
+                upload_info_path = make_s3_path((one_obj.object_name, OBSERVATIONS_CSV_FILE_NAME))
                 csv_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
                 if csv_data is not None:
                     cur_row = 0
@@ -674,7 +691,7 @@ class S3Connection:
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
-        file_path = os.path.join(SETTINGS_FOLDER, filename)
+        file_path = make_s3_path((SETTINGS_FOLDER, filename))
         config_data = None
         try:
             config_data = get_s3_file(minio, settings_bucket, file_path, temp_file[1])
@@ -711,7 +728,7 @@ class S3Connection:
         os.close(temp_file[0])
 
 
-        file_path = os.path.join(SETTINGS_FOLDER, filename)
+        file_path = make_s3_path((SETTINGS_FOLDER, filename))
         try:
             with open(temp_file[1], 'w', encoding="utf-8") as ofile:
                 ofile.write(config)
@@ -813,7 +830,7 @@ class S3Connection:
 
         bucket = SPARCD_PREFIX + collection_id
         upload_folder = timestamp.strftime('%Y.%m.%d.%H.%M.%S') + '_' + user
-        new_path = '/'.join(('Collections',collection_id,'Uploads',upload_folder))
+        new_path = make_s3_path(('Collections',collection_id,'Uploads',upload_folder))
 
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
@@ -945,9 +962,9 @@ class S3Connection:
                 coll_info: the collection information to save
         """
         collections_path = 'Collections'
-        base_path = os.path.join(collections_path, bucket[len(SPARCD_PREFIX):])
+        base_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):]))
 
-        coll_info_path = os.path.join(base_path, COLLECTION_JSON_FILE_NAME)
+        coll_info_path = make_s3_path((base_path, COLLECTION_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
         S3Connection.upload_file_data(url, user, password, bucket, coll_info_path,
@@ -974,9 +991,9 @@ class S3Connection:
                 perm_info: the tuple of permissions information
         """
         collections_path = 'Collections'
-        base_path = os.path.join(collections_path, bucket[len(SPARCD_PREFIX):])
+        base_path = make_s3_path((collections_path, bucket[len(SPARCD_PREFIX):]))
 
-        perms_info_path = os.path.join(base_path, PERMISSIONS_JSON_FILE_NAME)
+        perms_info_path = make_s3_path((base_path, PERMISSIONS_JSON_FILE_NAME))
 
         # Upload the data making sure to only update what's expected
         S3Connection.upload_file_data(url, user, password, bucket, perms_info_path,
@@ -1010,16 +1027,18 @@ class S3Connection:
         os.close(temp_file[0])
 
         # Get the upload information
-        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        upload_info_path = make_s3_path((upload_path, S3_UPLOAD_META_JSON_FILE_NAME))
         coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if coll_info_data is not None:
             try:
                 coll_info = json.loads(coll_info_data)
             except json.JSONDecodeError:
-                print(f'Unable to load JSON information: {upload_info_path}')
+                print('update_upload_metadata_image_species: Unable to load JSON information: ' \
+                      f'{upload_info_path}')
                 return False
         else:
-            print(f'Unable to get upload information: {upload_info_path}')
+            print('update_upload_metadata_image_species: Unable to get upload information: ' \
+                  f'{upload_info_path}')
             return False
 
         # Update and save the upload information
@@ -1052,16 +1071,18 @@ class S3Connection:
         os.close(temp_file[0])
 
         # Get the upload information
-        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        upload_info_path = make_s3_path((upload_path, S3_UPLOAD_META_JSON_FILE_NAME))
         coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
         if coll_info_data is not None:
             try:
                 coll_info = json.loads(coll_info_data)
             except json.JSONDecodeError:
-                print(f'Unable to load JSON information: {upload_info_path}')
+                print('update_upload_metadata_comment: Unable to load JSON information: ' \
+                      f'{upload_info_path}')
                 return False
         else:
-            print(f'Unable to get upload information: {upload_info_path}')
+            print('update_upload_metadata_comment: Unable to get upload information: ' \
+                 f'{upload_info_path}')
             return False
 
         # Update and save the upload information
