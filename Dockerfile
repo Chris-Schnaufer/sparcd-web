@@ -3,8 +3,7 @@
 # Build our Java app
 FROM node:current-alpine AS java-build
 
-ENV JAVA_WORKDIR=/javasite
-WORKDIR ${JAVA_WORKDIR}
+WORKDIR /javasite
 
 RUN apk add openjdk21
 RUN apk add maven
@@ -17,8 +16,7 @@ RUN mvn -U compile package
 # Build our Frontend install
 FROM node:current-alpine AS frontend-build
 
-ENV WORKDIR=/buildsite
-WORKDIR ${WORKDIR}
+WORKDIR /buildsite
 
 # Install needed tools (won't have an impact if everything is all set)
 RUN apk add npm nodejs
@@ -43,9 +41,6 @@ FROM node:current-alpine
 ENV WORKDIR=/website
 WORKDIR ${WORKDIR}
 
-# Allow Session secret key override
-ARG SECRET_KEY=this_is_not_a_secret_key_252627
-
 # Allow port number overrides
 ARG PORT_NUMBER=3000
 
@@ -54,14 +49,6 @@ ARG ADMIN_NAME=admin
 
 # Allow override of the admin email
 ARG ADMIN_EMAIL=admin@arizona.edu
-
-# Copy over the Java app
-COPY -from=java-build ${JAVA_WORKDIR}/ExifWriter-1.0-jar-with-dependencies.jar ./server/ExifWriter.jar
-
-# Copy over the built website
-COPY --from=frontend-build /${WORKDIR}/out ./
-RUN mkdir templates
-RUN mv index.html templates/
 
 # Install python stuff
 COPY ./requirements.txt ./
@@ -75,8 +62,17 @@ RUN apk add gdal-dev && \
     apk del python3-dev && \
     apk del gdal-dev
 
-# Install Java runtimes
+# Install additional tools and runtimes
 RUN apk add openjdk21
+RUN apk add exiftool
+
+# Copy over the Java app
+COPY --from=java-build /javasite/target/ExifWriter-1.0-jar-with-dependencies.jar ./ExifWriter.jar
+
+# Copy over the built website
+COPY --from=frontend-build /buildsite/out ./
+RUN mkdir templates
+RUN mv index.html templates/
 
 # Copy the source code over
 COPY ./server/* ./
@@ -93,7 +89,10 @@ EXPOSE ${PORT_NUMBER}
 # Setup the gunicorn environment
 ENV SERVER_DIR=${WORKDIR} \
     WEB_SITE_URL="0.0.0.0:"${PORT_NUMBER} \
-    SPARCD_CODE=${SECRET_KEY} \
     SPARCD_DB=${WORKDIR}/sparcd.sqlite 
 
-ENTRYPOINT gunicorn -w 4 -b ${WEB_SITE_URL} --env SPARCD_DB=${SPARCD_DB} --env SPARCD_CODE=${SPARCD_CODE} --access-logfile '-' sparcd:app --timeout 18000
+RUN echo
+RUN echo gunicorn -w 4 -b "0.0.0.0:${PORT_NUMBER}" --access-logfile '-' sparcd:app --timeout 18000 > ${WORKDIR}/startup_server.sh
+RUN chmod +x ${WORKDIR}/startup_server.sh
+
+ENTRYPOINT ["sh", "./startup_server.sh"]
