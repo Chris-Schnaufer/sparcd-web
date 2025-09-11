@@ -1,6 +1,21 @@
 
-# Build our basic install
-FROM node:current-alpine AS build
+
+# Build our Java app
+FROM node:current-alpine AS java-build
+
+ENV JAVA_WORKDIR=/javasite
+WORKDIR ${JAVA_WORKDIR}
+
+RUN apk add openjdk21
+RUN apk add maven
+
+COPY ./java/pom.xml .
+COPY ./java/src ./src
+
+RUN mvn -U compile package
+
+# Build our Frontend install
+FROM node:current-alpine AS frontend-build
 
 ENV WORKDIR=/buildsite
 WORKDIR ${WORKDIR}
@@ -40,8 +55,11 @@ ARG ADMIN_NAME=admin
 # Allow override of the admin email
 ARG ADMIN_EMAIL=admin@arizona.edu
 
+# Copy over the Java app
+COPY -from=java-build ${JAVA_WORKDIR}/ExifWriter-1.0-jar-with-dependencies.jar ./server/ExifWriter.jar
+
 # Copy over the built website
-COPY --from=build /buildsite/out ./
+COPY --from=frontend-build /${WORKDIR}/out ./
 RUN mkdir templates
 RUN mv index.html templates/
 
@@ -56,6 +74,9 @@ RUN apk add gdal-dev && \
     apk del gcc g++ && \
     apk del python3-dev && \
     apk del gdal-dev
+
+# Install Java runtimes
+RUN apk add openjdk21
 
 # Copy the source code over
 COPY ./server/* ./
