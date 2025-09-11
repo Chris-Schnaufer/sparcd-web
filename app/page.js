@@ -1013,8 +1013,10 @@ export default function Home() {
                        onRememberChange={handleRememberChanged} />
               </LoginValidContext.Provider>
               :
-                renderAction(curAction, editing)
-            }
+                <AddMessageContext.Provider value={addMessage}>
+                  {renderAction(curAction, editing)}
+                </AddMessageContext.Provider>
+              }
             <FooterBar />
             <Grid id="login-checking-wrapper" container direction="row" alignItems="center" justifyContent="center"
                   sx={{position:'absolute', top:0, left:0, width:'100vw', height:'100vh', backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111,

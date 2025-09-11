@@ -269,13 +269,11 @@ def get_s3_images(minio: Minio, bucket: str, upload_paths: tuple, need_url: bool
         Returns the tuple of found images
     """
     images = []
-    print('HACK:GETS3IMAGES:',type(upload_paths),upload_paths,flush=True)
     cur_paths = [upload_paths]
 
     # Get the image names and urls
     # pylint: disable=modified-iterating-list
     for cur_path in cur_paths:
-        print('HACK:          :',cur_path,flush=True)
         for one_obj in minio.list_objects(bucket, cur_path):
             if one_obj.is_dir:
                 if not one_obj.object_name == cur_path:
@@ -898,7 +896,6 @@ class S3Connection:
         temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
         os.close(temp_file[0])
 
-        print('HACK: GETCAMTRP FILE',bucket, path,temp_file[1], flush=True)
         csv_data = get_s3_file(minio, bucket, path, temp_file[1])
 
         os.unlink(temp_file[1])
@@ -1027,6 +1024,48 @@ class S3Connection:
 
         # Update and save the upload information
         coll_info['imagesWithSpecies'] = new_count
+        data = json.dumps(coll_info, indent=2)
+        minio.put_object(bucket, upload_info_path, BytesIO(data.encode()), len(data),
+                                                                    content_type='application/json')
+
+        os.unlink(temp_file[1])
+        return True
+
+
+    @staticmethod
+    def update_upload_metadata_comment(url: str, user: str, password: str, bucket: str, \
+                                                    upload_path: str, new_comment: str) -> bool:
+        """ Update the upload's metadata on the S3 instance with a new count
+        Arguments:
+            url: the URL to the s3 instance
+            user: the name of the user to use when connecting
+            password: the user's password
+            bucket: the bucket to upload to
+            upload_path: path under the bucket to the metadata
+            new_comment: the comment to add to the metadata
+        Return:
+            Returns True if no problem was found and False otherwise
+        """
+        minio = Minio(url, access_key=user, secret_key=password)
+
+        temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
+        os.close(temp_file[0])
+
+        # Get the upload information
+        upload_info_path = os.path.join(upload_path, S3_UPLOAD_META_JSON_FILE_NAME)
+        coll_info_data = get_s3_file(minio, bucket, upload_info_path, temp_file[1])
+        if coll_info_data is not None:
+            try:
+                coll_info = json.loads(coll_info_data)
+            except json.JSONDecodeError:
+                print(f'Unable to load JSON information: {upload_info_path}')
+                return False
+        else:
+            print(f'Unable to get upload information: {upload_info_path}')
+            return False
+
+        # Update and save the upload information
+        coll_info['editComments'].append(new_comment)
         data = json.dumps(coll_info, indent=2)
         minio.put_object(bucket, upload_info_path, BytesIO(data.encode()), len(data),
                                                                     content_type='application/json')

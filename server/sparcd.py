@@ -1143,19 +1143,12 @@ def update_observations(s3_path: str, observations: tuple, \
 
     for one_species in file_species:
         added = False
-        print('HACK:UPDATEOBSERVATIONS:',one_species, flush=True)
-        print('HACK:                  :',observations.keys(), flush=True)
-        print('HACK:                  :',deployment_id, flush=True)
         if one_species['filename'] in observations:
             for one_row in observations[one_species['filename']]:
                 # See if we have an the entry or we have an open entry
                 if one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] == \
                                                                 one_species['scientific'] or \
                    not one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX]:
-                    # HACK
-                    print('HACK:           COUNT:', one_species['scientific'],
-                                                                one_species['count'], flush=True)
-                    # HACK
                     one_row[CAMTRAP_OBSERVATION_DATE_IDX] = one_species['timestamp']
                     one_row[CAMTRAP_OBSERVATION_SCIENTIFIC_NAME_IDX] = one_species['scientific']
                     one_row[CAMTRAP_OBSERVATION_COUNT_IDX] = str(one_species['count'])
@@ -1174,10 +1167,7 @@ def update_observations(s3_path: str, observations: tuple, \
 
         # Add a new entry if needed
         if not added:
-            # HACK
-            print('HACK:       NEW COUNT:', one_species['scientific'], one_species['count'],
-                                                                                    flush=True)
-            # HACK
+
             observations[one_species['filename']].append((
                 '',                                                  # Observation ID
                 deployment_id,                                       # Deployment ID
@@ -1225,22 +1215,19 @@ def load_camtrap_info(url: str, user: str, token: str, db: SPARCdDatabase, bucke
     # First try the local file system
     load_path = os.path.join(tempfile.gettempdir(),
                     bucket+'_'+os.path.basename(s3_path)+'_'+filename)
-    print('HACK:LOADCAMTRAPINFO:', load_path, flush=True)
     if os.path.exists(load_path):
-        print('HACK:                : HAVE DISK FILE', flush=True)
-        return load_timed_info(load_path)
+        camtrap_data = load_timed_info(load_path)
+        if camtrap_data is not None:
+            return camtrap_data
 
     # Try S3 since we don't have the data
     camtrap_data = S3Connection.get_camtrap_file(url, user, do_decrypt(db.get_password(token)),
                                     bucket, '/'.join((s3_path.rstrip('/').rstrip('\\'), filename)))
 
     # Check if we need to save it to disk
-    print('HACK:                : SAVETODISK:',temp_to_disk, flush=True)
     if temp_to_disk is True:
-        print('HACK:                :     SAVING',flush=True)
         save_timed_info(load_path, camtrap_data)
 
-    print('HACK:                : DONE', flush=True)
     return camtrap_data
 
 def zip_iterator(read_fd: int):
@@ -1609,7 +1596,6 @@ def process_upload_changes(s3_url: str, password: str, username: str, collection
 
         # Loop through the files
         for idx, one_file in enumerate(update_files):
-            print('HACK: PROCESSUPLOADCHANGES:',one_file,flush=True)
             temp_file_name = ("-"+str(idx)).join(os.path.splitext(\
                                                             os.path.basename(one_file['s3_path'])))
             save_path = os.path.join(edit_folder, temp_file_name)
@@ -3287,7 +3273,10 @@ def image_edit_complete():
 
     if not upload_files_info:
         return {'success': True, 'retry': True, 'message': "No changes found for file", \
-                                        'collection':coll_id, 'upload_id': upload_id, 'path': path}
+                                        'collection':coll_id, 'upload_id': upload_id, \
+                                        'path': request.form.get('path', None), \
+                                        'filename': os.path.basename(path), \
+                                        'error': False}
 
     # Update the image and the observations information
     upload_files_info = [one_file|{'filename':one_file['s3_path']\
@@ -3305,10 +3294,10 @@ def image_edit_complete():
 
     if errored_files:
         return {'success': False, 'retry': True, 'message': 'Not all the edits could be completed',\
-                                        'collection':coll_id, 'upload_id': upload_id, 'path': path}
+                           'error':True, 'collection':coll_id, 'upload_id': upload_id, 'path': path}
 
 
-    return {'success': True, 'message': "The images have been successfully updated"}
+    return {'success': True, 'message': "The images have been successfully updated", 'error': False}
 
 
 @app.route('/imagesAllEdited', methods = ['POST'])
@@ -3328,15 +3317,11 @@ def images_all_edited():
 
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
-    timestamp = request.form.get('timestamp', datetime.datetime.utcnow().isoformat())
+    timestamp = request.form.get('timestamp', datetime.datetime.now().isoformat())
 
     # Check what we have from the requestor
     if not all(item for item in [token, coll_id, upload_id]):
         return "Not Found", 406
-
-    path = do_decrypt(path)
-    if upload_id not in path or coll_id not in path:
-        return "Not Found", 404
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
@@ -3356,8 +3341,8 @@ def images_all_edited():
     edited_files_info = db.get_edited_files_info(user_info["url"], user_info["name"], upload_id)
 
     if not edited_files_info:
-        return {'success': True, 'retry': True, 'message': "No changes found for file", \
-                                        'collection':coll_id, 'upload_id': upload_id, 'path': path}
+        return {'success': True, 'retry': True, 'message': "No changes found for to the upload", \
+                                                    'collection':coll_id, 'upload_id': upload_id}
 
     # Update the image and the observations information
     edited_files_info = [one_file|{'filename':one_file['s3_path']\
@@ -3365,7 +3350,7 @@ def images_all_edited():
                                                                 for one_file in edited_files_info]
 
     s3_bucket = SPARCD_PREFIX + coll_id
-    s3_path = '/'.join('Collections', coll_id, S3_UPLOADS_PATH_PART, upload_id)
+    s3_path = '/'.join(('Collections', coll_id, S3_UPLOADS_PATH_PART.rstrip('/'), upload_id))
 
     deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db,
                                                                 s3_bucket, s3_path, True)
@@ -3389,10 +3374,15 @@ def images_all_edited():
                                 s3_bucket, '/'.join((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 [one_row for one_set in row_groups for one_row in one_set] )
 
-        db.finish_image_edits(user_info["name"], edited_files_info)
+    db.finish_image_edits(user_info["name"], edited_files_info)
 
-    # TODO: HERE: Update the upload metadata with an editing comment
-
+    # Update the upload metadata with an editing comment
+    S3Connection.update_upload_metadata_comment(s3_url, user_info["name"],
+                                        do_decrypt(db.get_password(token)),
+                                        s3_bucket,s3_path,
+                                        f'Edited by {user_info["name"]} on ' + \
+                                                datetime.datetime.fromisoformat(timestamp).\
+                                                        strftime("%Y.%m.%d.%H.%M.%S"))
 
     return {'success': True, 'message': "The images have been successfully updated"}
 

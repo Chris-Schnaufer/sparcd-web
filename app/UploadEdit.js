@@ -112,6 +112,68 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   }, [narrowWindow, uiSizes])
 
   /**
+   * Updates the server when the species count changes
+   * @function
+   * @param {string} imageName The name of the image getting changed
+   * @param {string} speciesName The name of the species whose count is changing
+   * @param {int} speciesCount The new count for that species
+   */
+  const handleSpeciesChange = React.useCallback((imageName, speciesName, speciesCount) => {
+    const curImageIdx = curUpload.images.findIndex((item) => item.name === imageName);
+    if (curImageIdx === -1) {
+      console.log('Warning: Unable to find image for updating species', imageName);
+      return;
+    }
+    const curSpeciesIdx = curUpload.images[curImageIdx].species.findIndex((item) => item.name === speciesName);
+    if (curSpeciesIdx === -1) {
+      console.log('Warning: Unable to find species',speciesName,'for updating count in image',imageName);
+      return;
+    }
+    curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
+
+    const curKeySpeciesIdx = speciesItems.findIndex((item) => item.scientificName === curUpload.images[curImageIdx].species[curSpeciesIdx].scientificName);
+    if (curKeySpeciesIdx <= -1) {
+      console.log('Warning: Unable to find species',speciesName,'in list of species for updating image',imageName);
+      return;
+    }
+
+    const speciesUrl = serverURL + '/imageSpecies?t=' + encodeURIComponent(editToken);
+    const formData = new FormData();
+
+    formData.append('timestamp', new Date().toISOString());
+    formData.append('collection', curUpload.collectionId);
+    formData.append('upload', curUpload.upload);
+    formData.append('path', curUpload.images[curImageIdx].s3_path);
+    formData.append('common', speciesItems[curKeySpeciesIdx].name);
+    formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
+    formData.append('count', speciesCount);
+
+    try {
+      const resp = fetch(speciesUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Mark that something has changed
+          setChangesMade(true);
+        })
+        .catch(function(err) {
+          console.log('Update Species Count Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while updating the image species');
+      });
+    } catch (err) {
+      console.log('Update Species Count Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
+    }
+  }, [addMessage, curUpload, editToken, serverURL, speciesItems]);
+
+  /**
    * Common add a species to the current image function
    * @function
    * @param {object} speciesAdd The species to add to the image
@@ -446,73 +508,12 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   }
 
   /**
-   * Updates the server when the species count changes
-   * @function
-   * @param {string} imageName The name of the image getting changed
-   * @param {string} speciesName The name of the species whose count is changing
-   * @param {int} speciesCount The new count for that species
-   */
-  const handleSpeciesChange = React.useCallback((imageName, speciesName, speciesCount) => {
-    const curImageIdx = curUpload.images.findIndex((item) => item.name === imageName);
-    if (curImageIdx === -1) {
-      console.log('Warning: Unable to find image for updating species', imageName);
-      return;
-    }
-    const curSpeciesIdx = curUpload.images[curImageIdx].species.findIndex((item) => item.name === speciesName);
-    if (curSpeciesIdx === -1) {
-      console.log('Warning: Unable to find species',speciesName,'for updating count in image',imageName);
-      return;
-    }
-    curUpload.images[curImageIdx].species[curSpeciesIdx].count = speciesCount;
-
-    const curKeySpeciesIdx = speciesItems.findIndex((item) => item.scientificName === curUpload.images[curImageIdx].species[curSpeciesIdx].scientificName);
-    if (curKeySpeciesIdx <= -1) {
-      console.log('Warning: Unable to find species',speciesName,'in list of species for updating image',imageName);
-      return;
-    }
-
-    const speciesUrl = serverURL + '/imageSpecies?t=' + encodeURIComponent(editToken);
-    const formData = new FormData();
-
-    formData.append('timestamp', new Date().toISOString());
-    formData.append('collection', curUpload.collectionId);
-    formData.append('upload', curUpload.upload);
-    formData.append('path', curUpload.images[curImageIdx].s3_path);
-    formData.append('common', speciesItems[curKeySpeciesIdx].name);
-    formData.append('species', speciesItems[curKeySpeciesIdx].scientificName);
-    formData.append('count', speciesCount);
-
-    try {
-      const resp = fetch(speciesUrl, {
-        method: 'POST',
-        body: formData
-      }).then(async (resp) => {
-            if (resp.ok) {
-              return resp.json();
-            } else {
-              throw new Error(`Failed to update image species: ${resp.status}`, {cause:resp});
-            }
-          })
-        .then((respData) => {
-            // Mark that something has changed
-          setChangesMade(true);
-        })
-        .catch(function(err) {
-          console.log('Update Species Count Error: ',err);
-          addMessage(Level.Error, 'A problem ocurred while updating the image species');
-      });
-    } catch (err) {
-      console.log('Update Species Count Unknown Error: ',err);
-      addMessage(Level.Error, 'An unkown problem ocurred while updating the image species');
-    }
-  }, [addMessage, curUpload, editToken, serverURL, speciesItems]);
-
-  /**
    * Updates the currently edited image with any changes made
    * @function
-   * 
+   * @param {function} {cbSuccess} The optional function to call upon success
+   * @param {function} {cbFailure} The optional function to call upon failure
    */
-  function finishImageEdits() {
+  function finishImageEdits(cbSuccess, cbFailure) {
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
     if (curImageIdx === -1) {
       console.log("Error: unable to find current image to commit changes made");
@@ -520,22 +521,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return;
     }
 
-    submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path);
+    submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path, cbSuccess, cbFailure);
   }
-
-  /**
-   * Handles the user finishing up image edits
-   * @function
-   */
-  const handleImageEditClose = React.useCallback(() => {
-    finishImageEdits();
-    setCurEditState(editingStates.listImages);
-    searchSetup('Image Name', handleImageSearch);
-    if (changesMade) {
-      setPendingMessage("Finishing up changes made to images");
-      submitAllImageEdited(curUpload.collectionId, curUpload.upload, new Date().toISOString());
-    }
-  }, [curUpload, editingStates, finishImageEdits, handleImageSearch, searchSetup, setCurEditState, setPendingMessage, submitImageEditClose]);
 
   /**
    * Makes the call when the user has fully completed editing images
@@ -556,7 +543,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     formData.append('upload', uploadName);
     formData.append('timestamp', timestamp);
 
-    console.log('HACK: SUBMITALLIMAGESEDITED', imagePath);
     try {
       const resp = fetch(allEditedUrl, {
         method: 'POST',
@@ -577,7 +563,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
               } else {
                 // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
                 if (numTries < 4) {
-                  console.log('HACK: SUBMITALLIMAGESEDITED:  RETRY:  ', imagePath);
                   window.setTimeout(() => submitAllImageEdited(collectionId, uploadName, timestamp, numTries), 1000 * numTries);
                 } else {
                   addMessage(Level.Error, "Unable to finish all image editing changes " + imagePath);
@@ -596,14 +581,35 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   }, [addMessage, editToken, serverURL]);
 
   /**
+   * Handles the user finishing up image edits
+   * @function
+   */
+  const handleImageEditClose = React.useCallback(() => {
+    setCurEditState(editingStates.listImages);
+    searchSetup('Image Name', handleImageSearch);
+
+    if (changesMade) {
+      setPendingMessage("Finishing up changes made to images");
+    }
+
+    finishImageEdits(() => {
+      if (changesMade) {
+          submitAllImageEdited(curUpload.collectionId, curUpload.upload, new Date().toISOString());
+        }
+    });
+  }, [curUpload, editingStates, finishImageEdits, handleImageSearch, searchSetup, setCurEditState, setPendingMessage, submitAllImageEdited]);
+
+  /**
    * Makes the call for an image to be finished with editing. Allows for retry events
    * @function
    * @param {string} collectionId The ID of the collection the image belongs to
    * @param {string} uploadName The name of the upload begin edited
    * @param {string} image_path The path of the image 
+   * @param {function} {cbSuccess} The optional function to call upon success
+   * @param {function} {cbFailure} The optional function to call upon failure
    * @param {integer} {numTries} The number of attempted tries
    */
-  const submitImageEditComplete = React.useCallback((collectionId, uploadName, imagePath, numTries) => {
+  const submitImageEditComplete = React.useCallback((collectionId, uploadName, imagePath, cbSuccess, cbFailure, numTries) => {
 
     numTries = numTries ? numTries + 1 : 1;
 
@@ -614,7 +620,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     formData.append('upload', uploadName);
     formData.append('path', imagePath);
 
-    console.log('HACK: SUBMITIMAGEDITCOMPLETE', imagePath);
     try {
       const resp = fetch(completedUrl, {
         method: 'POST',
@@ -628,14 +633,33 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
           })
         .then((respData) => {
             // Check for a good response and 
-            if (respData.success === true && respData.retry === true) {
-              // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
-              if (numTries < 4) {
-                console.log('HACK: SUBMITIMAGEDITCOMPLETE:  RETRY:  ', imagePath);
-                window.setTimeout(() => submitImageEditComplete(collectionId, uploadName, imagePath, numTries), 1000 * numTries);
+            if (respData.success === true) {
+              if (respData.retry !== true) {
+                if (typeof(cbSuccess) === 'function') {
+                  cbSuccess();
+                }
               } else {
-                addMessage(Level.Error, "Unable to complete the editing changes to image " + imagePath);
+                // Things worked out, but there may be a timing issue with the edits, try again if we're not trying too much
+                if (numTries < 4) {
+                  window.setTimeout(() => submitImageEditComplete(collectionId, uploadName, imagePath, cbSuccess, cbFailure, numTries), 1000 * numTries);
+                } else {
+                  // We've made many tries, if there isn't an error, we assume it was taken care of
+                  if (respData.error !== true) {
+                    if (typeof(cbSuccess) === 'function') {
+                      cbSuccess();
+                    }
+                  } else {
+                    const msg = "Unable to complete the editing changes to image " + respData.filename;
+                    if (typeof(cbFailure) === 'function') {
+                      cbFailure(msg);
+                    } else {
+                      addMessage(Level.Error, msg);
+                    }
+                  }
+                }
               }
+            } else {
+              addMessage(Level.Error, respData.message);
             }
         })
         .catch(function(err) {

@@ -83,7 +83,6 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('save_token: attempting to access database before connecting')
 
-        print('HACK:ADDTOKEN:',s3_url,flush=True)
         cursor = self._conn.cursor()
         query = 'INSERT INTO tokens(token, name, password, s3_url, timestamp, client_ip, ' \
                 'user_agent) VALUES(?,?,?,?,strftime("%s", "now"),?,?)'
@@ -1416,7 +1415,7 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('Attempting to get file edits fron the database '\
                                                                                 'before connecting')
-        return common_get_next_files_info(s3_url, username, 0, s3_path=s3_path)
+        return self.common_get_next_files_info(s3_url, username, 0, s3_path=s3_path)
 
     def get_edited_files_info(self, s3_url: str, username: str, upload_id: str) -> Optional[tuple]:
         """ Returns the file editing information for a user, possibly for only one location
@@ -1432,10 +1431,10 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('Attempting to get file edits fron the database '\
                                                                                 'before connecting')
-        return common_get_next_files_info(s3_url, username, 1, upload_id=upload_id)
+        return self.common_get_next_files_info(s3_url, username, 1, upload_id=upload_id)
 
     def common_get_next_files_info(self, s3_url: str, username: str, updated_value: int, \
-                                                s3_path:str=None, upload_id: str=None) -> Optional[tuple]:
+                                        s3_path:str=None, upload_id: str=None) -> Optional[tuple]:
         """ Returns the file editing information for a user, possibly for only one location
         Arguments:
             s3_url: the URL to the S3 instance
@@ -1455,21 +1454,16 @@ class SPARCdDatabase:
                                                                                 'before connecting')
 
         cursor = self._conn.cursor()
-        # HACK
-        print('HACK: COMMONGETNEXTFILESINFO:',s3_url,username,updated_value,s3_path,
-                                                                            upload_id, flush=True)
-        #HACK
         query = 'SELECT bucket, s3_file_path, obs_common, obs_scientific, obs_count ' \
                                     'FROM image_edits WHERE s3_url=? AND username=? ' \
-                                    'AND updated=? ' \
-                                    ('AND s3_file_path=? ' if s3_path is not None else '') \
-                                    ('AND s3_file_path LIKE ?' if upload_id is not None else '') \
+                                    'AND updated=? ' + \
+                                    ('AND s3_file_path=? ' if s3_path is not None else '') + \
+                                    ('AND s3_file_path LIKE ? ' if upload_id is not None else '') + \
                                     'ORDER BY obs_scientific ASC, id ASC'
         if upload_id is not None:
             upload_id = '%' + upload_id + '%'
         query_data = tuple(val for val in [s3_url, username, updated_value, s3_path, upload_id] \
                                                                                 if val is not None)
-        print('HACK: COMMONGETNEXTFILESINFO:    ', query, query_data, flush=True)
         cursor.execute(query, query_data)
 
         res = cursor.fetchall()
@@ -1538,7 +1532,7 @@ class SPARCdDatabase:
         if self._conn is None:
             raise RuntimeError('Attempting to mark file edits as updated in the database '\
                                                                                 'before connecting')
-        common_complete_image_edits(username, files, 0, 1)
+        self.common_complete_image_edits(username, files, 0, 1)
 
 
     def finish_image_edits(self, username: str, files: tuple) -> None:
@@ -1550,12 +1544,12 @@ class SPARCdDatabase:
             See get_next_files_info()
         """
         if self._conn is None:
-            raise RuntimeError('Attempting to mark file edits as completely finished in the database '\
-                                                                                'before connecting')
-        common_complete_image_edits(username, files, 1, 2)
+            raise RuntimeError('Attempting to mark file edits as completely finished in the ' \
+                                                                    'database before connecting')
+        self.common_complete_image_edits(username, files, 1, 2)
 
 
-    def common_complete_image_edits(self, username: str, files: tuple, old_updated: int, ' \
+    def common_complete_image_edits(self, username: str, files: tuple, old_updated: int, \
                                                                         new_updated: int) -> None:
         """ Common function to mark the files as having completed their edits
         Arguments:
@@ -1576,7 +1570,6 @@ class SPARCdDatabase:
                 's3_file_path=? AND updated=?'
         while True:
             cur_file = files[cur_idx]
-            print('HACK: COMPLETEIMAGEEDITS:',cur_file, flush=True)
             cursor.execute(query, (new_updated, cur_file['s3_url'], username, cur_file['bucket'],
                                                                 cur_file['s3_path'], old_updated))
 
