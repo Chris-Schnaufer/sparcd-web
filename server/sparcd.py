@@ -96,7 +96,6 @@ CONF_LOCATIONS_FILE_NAME = 'locations.json'
 CONF_SPECIES_FILE_NAME = 'species.json'
 
 # Some CAMTRAP definitions
-# TODO: Move camtrap definitions to their own file (from here and s3_access)
 CAMTRAP_VER05_DEPLOYMENT_ID_IDX = 0
 CAMTRAP_VER05_DEPLOYMENT_LOCATION_ID_IDX = 1
 CAMTRAP_VER05_DEPLOYMENT_LOCATION_NAME_IDX = 2

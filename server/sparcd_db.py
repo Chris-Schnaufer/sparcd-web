@@ -11,9 +11,6 @@ import uuid
 
 MAX_ALLOWED_EXPIRED_TOKENS_PER_USER = 1
 
-# TODO: Move the Sqlite-specific code (queries, etc) to a sqlite-only file and keep the post-query
-#       logic here
-
 class SPARCdDatabase:
     """Class handling access connections to the database
     """
@@ -209,7 +206,6 @@ class SPARCdDatabase:
                                                                         (username,email,species))
             self._conn.commit()
         except sqlite3.IntegrityError as ex:
-            # TODO: Track this exception here to prevent something?
             # If the user already exists, we ignore the error and continue
             if not ex.sqlite_errorcode == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
                 raise ex
@@ -292,7 +288,6 @@ class SPARCdDatabase:
         Return:
             Returns True if data is saved, and False if something went wrong
         """
-        # TODO: have a hash value to check to see if record JSON has changed
         if self._conn is None:
             raise RuntimeError('Attempting to access database before connecting')
 
@@ -423,7 +418,6 @@ class SPARCdDatabase:
         Return:
             Returns True if the data was saved and False if something went wrong
         """
-        # TODO: have a hash value to check to see if record JSON has changed
         if self._conn is None:
             raise RuntimeError('Attempting to access database before connecting')
 
@@ -460,7 +454,7 @@ class SPARCdDatabase:
                                         (s3_url, bucket, one_upload['name'], one_upload['json']))
                 tries += 1
             except sqlite3.Error as ex:
-                print(f'Unable to update collections: {ex.sqlite_errorcode} {one_upload}')
+                print(f'Unable to update uploads: {ex.sqlite_errorcode} {one_upload}')
                 break
 
         if tries < len(uploads):
@@ -468,7 +462,7 @@ class SPARCdDatabase:
             cursor.close()
             return False
 
-        # Update the timeout table for collections and do some cleanup if needed
+        # Update the timeout table for uploads and do some cleanup if needed
         cursor.execute('SELECT COUNT(1) FROM table_timeout WHERE name=(?)', (bucket,))
         res = cursor.fetchone()
 
@@ -1486,7 +1480,6 @@ class SPARCdDatabase:
                                                            'timestamp': one_res[5],
                                                          })
             else:
-                # TODO:                                    'timestamp': one_res[5],
                 res_dict[one_res[1]] = {'s3_url': s3_url,
                                         'filename': os.path.basename(one_res[1]),
                                         'bucket': one_res[0],

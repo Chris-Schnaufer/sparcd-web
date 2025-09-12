@@ -10,7 +10,6 @@ def get_csv_raw(results: Results) -> str:
     Returns:
         A tuple of the csv fields in dict format
     """
-    # TODO: coordinate conversion (return X and Y for all corrdinate systems)
     csv_results = []
     for one_image in results.get_images():
         image_loc = results.get_image_location(one_image['loc'])
@@ -76,7 +75,6 @@ def get_csv_location(results: Results) -> str:
     Returns:
         A tuple of the csv fields in dict format
     """
-    # TODO: Handle coordinate system formats
     csv_results = []
     for one_loc in results.get_locations():
         csv_results.append({'name': one_loc['nameProperty'],
