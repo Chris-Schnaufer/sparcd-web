@@ -339,10 +339,11 @@ def get_later_timestamp(cur_ts: object, new_ts: object) -> Optional[object]:
     return cur_ts
 
 
-def load_timed_temp_colls(user: str) -> Optional[list]:
+def load_timed_temp_colls(user: str, admin: bool) -> Optional[list]:
     """ Loads collection information from a temporary file
     Arguments:
-        user: username to find permissions for
+        user: username to find permissions for and filter on
+        admin: if set to True all the collections are returned
     Return:
         Returns the loaded collection data if valid, otherwise None is returned
     """
@@ -351,9 +352,14 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
     if loaded_colls is None:
         return None
 
+    # Make sure we have a boolean value for admin and not Truthiness
+    if not admin in [True, False]:
+        admin = False
+
     # Get this user's permissions
     user_coll = []
     for one_coll in loaded_colls:
+        user_has_permissions = False
         new_coll = one_coll
         new_coll['permissions'] = None
         if 'allPermissions' in one_coll and one_coll['allPermissions']:
@@ -362,12 +368,16 @@ def load_timed_temp_colls(user: str) -> Optional[list]:
                     if one_perm and 'usernameProperty' in one_perm and \
                                 one_perm['usernameProperty'] == user:
                         new_coll['permissions'] = one_perm
+                        user_has_permissions = True
                         break
             finally:
                 pass
-        user_coll.append(new_coll)
 
-    # Return the corrected collections
+        # Only return collections that the user has permissions to
+        if admin is True or user_has_permissions is True:
+            user_coll.append(new_coll)
+
+    # Return the collections
     return user_coll
 
 
@@ -1942,7 +1952,7 @@ def collections():
 
     # Check if we have a stored temporary file containing the collections information
     # and return that
-    return_colls = load_timed_temp_colls(user_info['name'])
+    return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
     if return_colls:
         # Clear all permissions unless we're an owner
         for one_coll in return_colls:
@@ -1963,7 +1973,11 @@ def collections():
     save_timed_temp_colls(return_colls)
 
     # Return the collections
-    return json.dumps([{**one_coll, **{'allPermissions':None}} for one_coll in return_colls])
+    if user_info['admin'] is True:
+        # Filter out collections if not an admin
+        return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
+                                                                            one_coll['permissions']]
+    return json.dumps([one_coll|{'allPermissions':None} for one_coll in return_colls])
 
 
 @app.route('/sandbox', methods = ['GET'])
@@ -2004,7 +2018,7 @@ def sandbox():
 
     # Get the collections to fill in the return data
     # TODO: combine this with a load from S3?
-    all_collections = load_timed_temp_colls(user_info['name'])
+    all_collections = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
 
     return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
                                 do_decrypt(db.get_password(token)), sandbox_items, all_collections)
@@ -2171,7 +2185,7 @@ def upload():
     # Reload the saved information
     all_images = None
     if os.path.exists(save_path):
-        # TODO: figure out how to clean this file up
+        # Get the images and flatten the structure as needed
         all_images = load_timed_info(save_path, TIMEOUT_UPLOADS_FILE_SEC)
         if all_images is not None:
             all_images = [all_images[one_key] for one_key in all_images.keys()]
@@ -2787,7 +2801,7 @@ def sandbox_new():
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'])
+        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -3010,7 +3024,8 @@ def sandbox_completed():
             media_info[one_key][CAMTRAP_MEDIA_TYPE_IDX] = one_type
 
         # Upload the MEDIA csv file to the server
-        S3Connection.upload_camtrap_data(s3_url, user_info["name"], do_decrypt(db.get_password(token)),
+        S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+                                         do_decrypt(db.get_password(token)),
                                          s3_bucket, make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),
                                          (media_info[one_key] for one_key in media_info.keys()) )
 
@@ -3056,7 +3071,7 @@ def sandbox_completed():
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'])
+        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -3173,7 +3188,7 @@ def image_location():
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'])
+        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -3613,7 +3628,7 @@ def admin_users():
 
     # Organize the collection permissions by user
     # TODO: Handle when collections have timed out
-    all_collections = load_timed_temp_colls(user_info['name'])
+    all_collections = load_timed_temp_colls(user_info['name'], True)
     user_collections = {}
     if all_collections:
         for one_coll in all_collections:
@@ -3952,7 +3967,7 @@ def admin_collection_update():
     s3_bucket = SPARCD_PREFIX + col_id
 
     # TODO: Handle when collections have timed out
-    all_collections = load_timed_temp_colls(user_info['name'])
+    all_collections = load_timed_temp_colls(user_info['name'], True)
 
     # Update the entry to what we need
     found_coll = None
@@ -3984,7 +3999,7 @@ def admin_collection_update():
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'])
+        return_colls = load_timed_temp_colls(user_info['name'], True)
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
