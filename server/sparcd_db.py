@@ -1477,7 +1477,6 @@ class SPARCdDatabase:
                     res_dict[one_res[1]]['species'].append({'common':one_res[2],
                                                            'scientific':one_res[3],
                                                            'count':one_res[4],
-                                                           'timestamp': one_res[5],
                                                          })
             else:
                 res_dict[one_res[1]] = {'s3_url': s3_url,
