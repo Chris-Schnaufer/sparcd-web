@@ -2017,7 +2017,7 @@ def sandbox():
     s3_url = web_to_s3_url(user_info["url"])
 
     # Get the collections to fill in the return data
-    # TODO: combine this with a load from S3?
+    # TODO: combine this with a load from S3 if not found locally?
     all_collections = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
 
     return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
@@ -2102,7 +2102,6 @@ def species():
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
                                             user_info["name"], do_decrypt(db.get_password(token)))
 
-    # TODO: Timestamp the downloaded species and the user-specific species and only update as needed
     keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
     keyed_user = {one_species['scientificName']:one_species for one_species in user_species}
 
@@ -2418,7 +2417,7 @@ def query():
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info["name"], do_decrypt(db.get_password(token)),
-                        user_info['settings'], 60) # TODO: add query interval
+                        user_info['settings'], 60)
 
     # Format and return the results
     results_id = uuid.uuid4().hex
@@ -3627,7 +3626,8 @@ def admin_users():
         return json.dumps(all_users)
 
     # Organize the collection permissions by user
-    # TODO: Handle when collections have timed out
+    # TODO: Combine load_timed_temp_colls with S3Connection.get_collections? See /collections
+    #       here and elsewhere
     all_collections = load_timed_temp_colls(user_info['name'], True)
     user_collections = {}
     if all_collections:
@@ -3649,7 +3649,6 @@ def admin_users():
 
     # Put it all together
     return_users = []
-    # TODO: What to do if collections havent been loaded yet?
     for one_user in all_users:
         return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
                          'auto': one_user[3] == 1,
@@ -3966,7 +3965,6 @@ def admin_collection_update():
     s3_url = web_to_s3_url(user_info["url"])
     s3_bucket = SPARCD_PREFIX + col_id
 
-    # TODO: Handle when collections have timed out
     all_collections = load_timed_temp_colls(user_info['name'], True)
 
     # Update the entry to what we need
