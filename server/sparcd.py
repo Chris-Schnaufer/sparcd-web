@@ -256,18 +256,17 @@ def token_is_valid(token: str, client_ip: str, user_agent: str, db: SPARCdDataba
     """
     # Get the user information using the token
     db.reconnect()
-    login_info = db.get_token_user_info(token)
-    #print('HACK:LOGININFO:',login_info["url"] if login_info else '<null>',flush=True)
+    login_info, elapsed_sec = db.get_token_user_info(token)
     if login_info is not None:
-        if login_info and 'settings' in login_info:
-            login_info['settings'] = json.loads(login_info['settings'])
-        if login_info and 'species' in login_info:
-            login_info['species'] = json.loads(login_info['species'])
+        if login_info.settings:
+            login_info.settings = json.loads(login_info.settings)
+        if login_info.species:
+            login_info.species = json.loads(login_info.species)
 
         # Is the session still good
-        if abs(int(login_info['elapsed_sec'])) < SESSION_EXPIRE_SECONDS and \
-           client_ip.rstrip('/') in (login_info['client_ip'].rstrip('/'), '*') and \
-           login_info['user_agent'] == user_agent:
+        if abs(int(elapsed_sec)) < SESSION_EXPIRE_SECONDS and \
+           client_ip.rstrip('/') in (login_info.client_ip.rstrip('/'), '*') and \
+           login_info.user_agent == user_agent:
             # Update to the newest timestamp
             db.update_token_timestamp(token)
             return True, login_info
@@ -1869,9 +1868,9 @@ def login_token():
             # Everything checks out
             return json.dumps(
                 {  'value':token,
-                   'name':login_info['name'],
+                   'name':login_info.name,
                    'settings': \
-                        secure_user_settings(login_info['settings']|{'email':login_info['email']})
+                        secure_user_settings(login_info.settings|{'email':login_info['email']})
                })
 
         # Delete the old token from the database
@@ -1888,7 +1887,7 @@ def login_token():
         minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
     except MinioException as ex:
-        print('S3 exception caught:', ex)
+        print('S3 exception caught:', ex, flush=True)
         return "Not Found", 404
 
     # Save information into the database - also cleans up old tokens if there's too many
@@ -1902,21 +1901,21 @@ def login_token():
         # Get the species
         cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
                                                                                     user, password)
-        user_info = db.auto_add_user(user, species=cur_species)
+        user_info = db.auto_add_user(user, species=json.dumps(cur_species))
 
     # Add in the email if we have user settings
-    if 'settings' in user_info and isinstance(user_info['settings'], str) and user_info['settings']:
+    if user_info.settings:
         try:
-            cur_settings = json.loads(user_info['settings'])
-            user_info['settings'] = cur_settings|{'email':user_info['email']}
+            cur_settings = json.loads(user_info.settings)
+            user_info.settings = cur_settings|{'email':user_info.email}
         except json.JSONDecodeError as ex:
             print('Unable to add email to user settings:', user_info, flush=True)
             print(ex)
 
-    user_info['settings'] = secure_user_settings(user_info['settings'])
+    user_info.settings = secure_user_settings(user_info.settings)
 
-    return json.dumps({'value':new_key, 'name':user_info['name'],
-                       'settings':user_info['settings']})
+    return json.dumps({'value':new_key, 'name':user_info.name,
+                       'settings':user_info.settings})
 
 
 @app.route('/collections', methods = ['GET'])
@@ -1952,7 +1951,7 @@ def collections():
 
     # Check if we have a stored temporary file containing the collections information
     # and return that
-    return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
+    return_colls = load_timed_temp_colls(user_info.name, bool(user_info.admin))
     if return_colls:
         # Clear all permissions unless we're an owner
         for one_coll in return_colls:
@@ -1961,8 +1960,8 @@ def collections():
         return json.dumps(return_colls)
 
     # Get the collection information from the server
-    s3_url = web_to_s3_url(user_info["url"])
-    all_collections = S3Connection.get_collections(s3_url, user_info["name"], \
+    s3_url = web_to_s3_url(user_info.url)
+    all_collections = S3Connection.get_collections(s3_url, user_info.name, \
                                                             do_decrypt(db.get_password(token)))
 
     return_colls = []
@@ -1973,7 +1972,7 @@ def collections():
     save_timed_temp_colls(return_colls)
 
     # Return the collections
-    if user_info['admin'] is True:
+    if user_info.admin is True:
         # Filter out collections if not an admin
         return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
                                                                             one_coll['permissions']]
@@ -2011,16 +2010,16 @@ def sandbox():
         return "Unauthorized", 401
 
     # Get the sandbox information from the database
-    sandbox_items = db.get_sandbox(user_info["url"])
+    sandbox_items = db.get_sandbox(user_info.url)
 
     # The S3 endpoint in case we need it
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
     # Get the collections to fill in the return data
     # TODO: combine this with a load from S3 if not found locally?
-    all_collections = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
+    all_collections = load_timed_temp_colls(user_info.name, bool(user_info.admin))
 
-    return_sandbox = get_sandbox_collections(s3_url, user_info["name"],
+    return_sandbox = get_sandbox_collections(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)), sandbox_items, all_collections)
 
     return json.dumps(return_sandbox)
@@ -2057,8 +2056,8 @@ def locations():
         return "Unauthorized", 401
 
     # Get the locations to return
-    s3_url = web_to_s3_url(user_info["url"])
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    s3_url = web_to_s3_url(user_info.url)
+    cur_locations = load_locations(s3_url, user_info.name, do_decrypt(db.get_password(token)))
 
     # Return the locations
     return json.dumps(cur_locations)
@@ -2095,12 +2094,12 @@ def species():
         return "Unauthorized", 401
 
     # Get the species to return
-    s3_url = web_to_s3_url(user_info["url"])
-    user_species = user_info['species']
+    s3_url = web_to_s3_url(user_info.url)
+    user_species = user_info.species
 
     # Get the current species to see if we need to update the user's species
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+                                            user_info.name, do_decrypt(db.get_password(token)))
 
     keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
     keyed_user = {one_species['scientificName']:one_species for one_species in user_species}
@@ -2131,7 +2130,7 @@ def species():
     if updated is True:
         user_species = [keyed_user[one_key] for one_key in keyed_user]
         species_json = json.dumps(user_species)
-        db.save_user_species(user_info['name'], species_json)
+        db.save_user_species(user_info.name, species_json)
         return species_json
 
     # Return the collections
@@ -2179,7 +2178,7 @@ def upload():
                                                                 collection_upload + '.json')
 
     # The URL to the S3 instance
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
     # Reload the saved information
     all_images = None
@@ -2191,8 +2190,8 @@ def upload():
 
     if all_images is None:
         # Get the collection information from the server
-        all_images = S3Connection.get_images(s3_url, user_info["name"], \
-                                                do_decrypt(db.get_password(token)), \
+        all_images = S3Connection.get_images(s3_url, user_info.name,
+                                                do_decrypt(db.get_password(token)),
                                                 collection_id, collection_upload)
 
         # Save the images so we can reload them later
@@ -2206,7 +2205,7 @@ def upload():
         edit_key = one_image['bucket'] + ':' + upload_path
         if not edit_key in edits:
             edits = {**edits,
-                     **db.get_image_species_edits(user_info["url"], one_image['bucket'],upload_path)
+                     **db.get_image_species_edits(user_info.url, one_image['bucket'],upload_path)
                     }
         if not one_image['s3_path'] in edits[edit_key]:
             continue
@@ -2223,12 +2222,12 @@ def upload():
                     found = True
             # Add it in if not found
             if found is False:
-                check_species = user_info['species']
+                check_species = user_info.species
                 if not check_species:
                     check_species = load_sparcd_config(CONF_SPECIES_FILE_NAME,
                                                         TEMP_SPECIES_FILE_NAME,
                                                         s3_url,
-                                                        user_info["name"],
+                                                        user_info.name,
                                                         do_decrypt(db.get_password(token)))
 
 
@@ -2384,12 +2383,12 @@ def query():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
     # Get collections from the database
     coll_info = db.get_collections(TIMEOUT_COLLECTIONS_SEC)
     if coll_info is None or not coll_info:
-        all_collections = S3Connection.list_collections(s3_url, user_info["name"], \
+        all_collections = S3Connection.list_collections(s3_url, user_info.name,
                                                             do_decrypt(db.get_password(token)))
         coll_info = [{'name':one_coll['bucket'], 'json':one_coll} \
                                                             for one_coll in all_collections]
@@ -2407,17 +2406,16 @@ def query():
             cur_coll = [coll for coll in cur_coll if coll['name'] in one_filter[1]]
 
     # Get uploads information to further filter images
-    all_results = filter_collections(db, cur_coll, user_info["url"], user_info["name"], token,
-                                                                                            filters)
+    all_results = filter_collections(db, cur_coll, user_info.url, user_info.name, token, filters)
 
     # Get the species and locations
-    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
-                                            user_info["name"], do_decrypt(db.get_password(token)))
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
+                                            user_info.name, do_decrypt(db.get_password(token)))
+    cur_locations = load_locations(s3_url, user_info.name, do_decrypt(db.get_password(token)))
 
     results = Results(all_results, cur_species, cur_locations,
-                        s3_url, user_info["name"], do_decrypt(db.get_password(token)),
-                        user_info['settings'], 60)
+                        s3_url, user_info.name, do_decrypt(db.get_password(token)),
+                        user_info.settings, 60)
 
     # Format and return the results
     results_id = uuid.uuid4().hex
@@ -2487,7 +2485,7 @@ def query_dl():
 
         case 'DrSandersonAllPictures':
             dl_name = target if target else 'drsanderson_all.csv'
-            return Response(query_allpictures2csv(query_results[tab], user_info['settings'], \
+            return Response(query_allpictures2csv(query_results[tab], user_info.settings, \
                                     query_results['columsMods'][tab] if tab in \
                                                         query_results['columsMods'] else None), \
                             mimetype='application/csv', \
@@ -2495,7 +2493,7 @@ def query_dl():
 
         case 'csvRaw':
             dl_name = target if target else 'allresults.csv'
-            return Response(query_raw2csv(query_results[tab], user_info['settings'], \
+            return Response(query_raw2csv(query_results[tab], user_info.settings, \
                                     query_results['columsMods'][tab] if tab in \
                                                         query_results['columsMods'] else None), \
                             mimetype='text/csv', \
@@ -2503,7 +2501,7 @@ def query_dl():
 
         case 'csvLocation':
             dl_name = target if target else 'locations.csv'
-            return Response(query_location2csv(query_results[tab], user_info['settings'], \
+            return Response(query_location2csv(query_results[tab], user_info.settings, \
                                     query_results['columsMods'][tab] if tab in \
                                                         query_results['columsMods'] else None),\
                             mimetype='text/csv', \
@@ -2511,7 +2509,7 @@ def query_dl():
 
         case 'csvSpecies':
             dl_name = target if target else 'species.csv'
-            return Response(query_species2csv(query_results[tab], user_info['settings'], \
+            return Response(query_species2csv(query_results[tab], user_info.settings, \
                                     query_results['columsMods'][tab] if tab in \
                                                         query_results['columsMods'] else None), \
                             mimetype='text/csv', \
@@ -2519,7 +2517,7 @@ def query_dl():
 
         case 'imageDownloads':
             dl_name = target if target else 'allimages.gz'
-            s3_url = web_to_s3_url(user_info["url"])
+            s3_url = web_to_s3_url(user_info.url)
             read_fd, write_fd = os.pipe()
 
             # Get and acqure the lock: indicates the files are downloaded when released
@@ -2529,7 +2527,7 @@ def query_dl():
 
             # Run the download and compression as a seperate process
             dl_thread = threading.Thread(target=generate_zip,
-                                 args=(s3_url, user_info["name"],
+                                 args=(s3_url, user_info.name,
                                        do_decrypt(db.get_password(token)),
                                        [row['name'] for row in query_results[tab]],
                                        write_fd, download_finished_lock)
@@ -2590,21 +2588,20 @@ def set_settings():
     modified = False
     new_keys = tuple(new_settings.keys())
     for one_key in new_keys:
-        if not one_key in user_info['settings'] or \
-                                        not new_settings[one_key] == user_info['settings'][one_key]:
-            user_info['settings'][one_key] = new_settings[one_key]
+        if not one_key in user_info.settings or \
+                                        not new_settings[one_key] == user_info.settings[one_key]:
+            user_info.settings[one_key] = new_settings[one_key]
             modified = True
-    if not new_email == user_info['email']:
-        user_info['email'] = new_email
+    if not new_email == user_info.email:
+        user_info.email = new_email
         modified = True
 
     if modified:
-        db.update_user_settings(user_info['name'], json.dumps(user_info['settings']),
-                                                                                user_info['email'])
+        db.update_user_settings(user_info.name, json.dumps(user_info.settings), user_info.email)
 
-    user_info['settings'] = secure_user_settings(user_info['settings']|{'email':user_info['email']})
+    user_info.settings = secure_user_settings(user_info.settings|{'email':user_info.email})
 
-    return json.dumps(user_info['settings'])
+    return json.dumps(user_info.settings)
 
 
 @app.route('/locationInfo', methods = ['POST'])
@@ -2653,8 +2650,8 @@ def location_info():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    s3_url = web_to_s3_url(user_info["url"])
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    s3_url = web_to_s3_url(user_info.url)
+    cur_locations = load_locations(s3_url, user_info.name, do_decrypt(db.get_password(token)))
 
     for one_loc in cur_locations:
         if one_loc['idProperty'] == loc_id and one_loc['nameProperty'] == loc_name and \
@@ -2702,8 +2699,8 @@ def sandbox_prev():
 
 
     # Check with the DB if the upload has been started before
-    elapsed_sec, uploaded_files, upload_id, _ = db.sandbox_get_upload(user_info["url"],
-                                                                                user_info['name'],
+    elapsed_sec, uploaded_files, upload_id, _ = db.sandbox_get_upload(user_info.url,
+                                                                                user_info.name,
                                                                                 rel_path,
                                                                                 True)
     return json.dumps({'exists': (uploaded_files is not None), 'path': rel_path, \
@@ -2759,14 +2756,14 @@ def sandbox_new():
         return "Not Found", 406
 
     # Create the upload location
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
     client_ts = datetime.datetime.fromisoformat(timestamp).astimezone(dateutil.tz.gettz(timezone))
-    s3_bucket, s3_path = S3Connection.create_upload(s3_url, user_info["name"], \
+    s3_bucket, s3_path = S3Connection.create_upload(s3_url, user_info.name, \
                                         do_decrypt(db.get_password(token)), collection_id, \
                                         comment, client_ts, len(all_files))
 
     # Upload the CAMTRAP files to S3 storage
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    cur_locations = load_locations(s3_url, user_info.name, do_decrypt(db.get_password(token)))
     our_location = get_location_info(location_id, cur_locations)
     deployment_id = s3_bucket[len(SPARCD_PREFIX):] + ':' + location_id
     for one_file in CAMTRAP_FILE_NAMES:
@@ -2780,12 +2777,12 @@ def sandbox_new():
             data = '\n'.join([','.join(one_media) for one_media in \
                                     create_observation_data(deployment_id, s3_path, all_files)])
 
-        S3Connection.upload_file_data(s3_url, user_info["name"],
+        S3Connection.upload_file_data(s3_url, user_info.name,
                                         do_decrypt(db.get_password(token)), s3_bucket,
                                         s3_path + '/' + one_file, data, 'application/csv')
 
     # Add the entries to the database
-    upload_id = db.sandbox_new_upload(user_info["url"], user_info['name'], rel_path, all_files,
+    upload_id = db.sandbox_new_upload(user_info.url, user_info.name, rel_path, all_files,
                                                                 s3_bucket, s3_path,
                                                                 our_location['idProperty'],
                                                                 our_location['nameProperty'],
@@ -2794,13 +2791,13 @@ def sandbox_new():
                                                                 our_location['elevationProperty'])
 
     # Update the collection to reflect the new upload
-    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \
                                                     do_decrypt(db.get_password(token)), s3_bucket)
     if updated_collection:
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
+        return_colls = load_timed_temp_colls(user_info.name, bool(user_info.admin))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -2845,8 +2842,8 @@ def sandbox_file():
         return "Unauthorized", 401
 
     # Get the location to upload to
-    s3_url = web_to_s3_url(user_info["url"])
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
+    s3_url = web_to_s3_url(user_info.url)
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
     # Upload all the received files and update the database
     temp_file = tempfile.mkstemp(prefix=SPARCD_PREFIX)
@@ -2857,7 +2854,7 @@ def sandbox_file():
         cur_species, cur_location, cur_timestamp = image_utils.get_embedded_image_info(temp_file[1])
 
         # Check if we need to update the location in the file
-        sb_location = db.sandbox_get_location(user_info["name"], upload_id)
+        sb_location = db.sandbox_get_location(user_info.name, upload_id)
         if not cur_location or \
                 (sb_location and cur_location and sb_location['idProperty'] != cur_location['id']):
 
@@ -2874,13 +2871,13 @@ def sandbox_file():
                      , flush=True)
 
         # Upload the file to S3
-        S3Connection.upload_file(s3_url, user_info["name"],
+        S3Connection.upload_file(s3_url, user_info.name,
                                         do_decrypt(db.get_password(token)), s3_bucket,
                                         s3_path + '/' + request.files[one_file].filename,
                                         temp_file[1])
 
         # Update the database entry to show the file is uploaded
-        file_id = db.sandbox_file_uploaded(user_info['name'], upload_id,
+        file_id = db.sandbox_file_uploaded(user_info.name, upload_id,
                                 request.files[one_file].filename, request.files[one_file].mimetype)
 
         # Check if we need to store the species and locations in camtrap
@@ -2925,7 +2922,7 @@ def sandbox_counts():
         return "Unauthorized", 401
 
     # Mark the upload as completed
-    counts = db.sandbox_upload_counts(user_info['name'], upload_id)
+    counts = db.sandbox_upload_counts(user_info.name, upload_id)
 
     return json.dumps({'total': counts[0], 'uploaded': counts[1]})
 
@@ -2972,7 +2969,7 @@ def sandbox_reset():
         return "Not Found", 406
 
     # Check with the DB if the upload has been started before
-    upload_id = db.sandbox_reset_upload(user_info['name'], upload_id, all_files)
+    upload_id = db.sandbox_reset_upload(user_info.name, upload_id, all_files)
 
     return json.dumps({'id': upload_id})
 
@@ -3011,30 +3008,30 @@ def sandbox_completed():
         return "Unauthorized", 401
 
     # Get the sandbox information
-    s3_url = web_to_s3_url(user_info["url"])
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info['name'], upload_id)
+    s3_url = web_to_s3_url(user_info.url)
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
     # Update the MEDIA csv file to include media types
-    media_info = load_camtrap_media(s3_url, user_info["name"], token, db, s3_bucket, s3_path)
-    file_mimetypes = db.get_file_mimetypes(user_info['name'], upload_id)
+    media_info = load_camtrap_media(s3_url, user_info.name, token, db, s3_bucket, s3_path)
+    file_mimetypes = db.get_file_mimetypes(user_info.name, upload_id)
 
     if media_info:
         for one_key,one_type in file_mimetypes:
             media_info[one_key][CAMTRAP_MEDIA_TYPE_IDX] = one_type
 
         # Upload the MEDIA csv file to the server
-        S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+        S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                          do_decrypt(db.get_password(token)),
                                          s3_bucket, make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),
                                          (media_info[one_key] for one_key in media_info.keys()) )
 
     # Update the OBSERVATIONS with species information
-    file_species = db.get_file_species(user_info['name'], upload_id)
+    file_species = db.get_file_species(user_info.name, upload_id)
     num_files_with_species = 0
     if file_species:
-        deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db, s3_bucket,
+        deployment_info = load_camtrap_deployments(s3_url, user_info.name, token, db, s3_bucket,
                                                                                             s3_path)
-        obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket,
+        obs_info = load_camtrap_observations(s3_url, user_info.name, token, db, s3_bucket,
                                                                                             s3_path)
         obs_info = update_observations(s3_path, obs_info, file_species,
                                                 deployment_info[CAMTRAP_VER05_DEPLOYMENT_ID_IDX])
@@ -3043,7 +3040,7 @@ def sandbox_completed():
         # Tuple of row tuples for each file. (((,,),(,,)),((,,),(,,)), ...) Each row is also a tuple
         # We flatten further on the call so we're left with a single tuple containing all rows
         row_groups = (obs_info[one_key] for one_key in obs_info)
-        S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+        S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                     do_decrypt(db.get_password(token)),
                                      s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                      [one_row for one_set in row_groups for one_row in one_set] )
@@ -3059,18 +3056,18 @@ def sandbox_completed():
 
     # Update the upload metadata with the count of files that have species
     if num_files_with_species > 0:
-        S3Connection.update_upload_metadata_image_species(s3_url, user_info["name"],
+        S3Connection.update_upload_metadata_image_species(s3_url, user_info.name,
                                                         do_decrypt(db.get_password(token)),
                                                         s3_bucket, s3_path, num_files_with_species)
 
     # Update the collection to reflect the new upload metadata
-    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \
                                                     do_decrypt(db.get_password(token)), s3_bucket)
     if updated_collection:
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
+        return_colls = load_timed_temp_colls(user_info.name, bool(user_info.admin))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -3078,7 +3075,7 @@ def sandbox_completed():
             save_timed_temp_colls(return_colls)
 
     # Mark the upload as completed
-    db.sandbox_upload_complete(user_info['name'], upload_id)
+    db.sandbox_upload_complete(user_info.name, upload_id)
 
     return json.dumps({'success': True})
 
@@ -3126,11 +3123,11 @@ def image_location():
     bucket = SPARCD_PREFIX + coll_id
     upload_path = f'Collections/{coll_id}/{S3_UPLOADS_PATH_PART}{upload_id}'
 
-    db.add_collection_edit(user_info["url"], bucket, upload_path, user_info['name'], timestamp,
+    db.add_collection_edit(user_info.url, bucket, upload_path, user_info.name, timestamp,
                                                                         loc_id, loc_name, loc_ele)
 
-    s3_url = web_to_s3_url(user_info["url"])
-    process_upload_changes(s3_url, do_decrypt(db.get_password(token)), user_info["name"],
+    s3_url = web_to_s3_url(user_info.url)
+    process_upload_changes(s3_url, do_decrypt(db.get_password(token)), user_info.name,
                             coll_id, upload_id,
                             change_locations={
                                                 'loc_id': loc_id,
@@ -3141,7 +3138,7 @@ def image_location():
                                             })
 
     # Update the Deployments file and the others that are dependent upon the Deployment ID
-    deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db, bucket,
+    deployment_info = load_camtrap_deployments(s3_url, user_info.name, token, db, bucket,
                                                                                         upload_path)
     deployment_id = coll_id + ':' +loc_id
     deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LOCATION_ID_IDX] = deployment_id
@@ -3150,30 +3147,30 @@ def image_location():
     deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_LATITUDE_IDX] = loc_lon
     deployment_info[0][CAMTRAP_VER05_DEPLOYMENT_CAMERA_HEIGHT_IDX] = loc_ele
 
-    S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+    S3Connection.upload_camtrap_data(s3_url, user_info.name,
                         do_decrypt(db.get_password(token)),
                         bucket,
                         make_s3_path((upload_path, DEPLOYMENT_CSV_FILE_NAME)),
                         deployment_info )
 
     # Get and update the Media information
-    media_info = load_camtrap_media(s3_url, user_info["name"], token, db, bucket, upload_path)
+    media_info = load_camtrap_media(s3_url, user_info.name, token, db, bucket, upload_path)
     for one_media in media_info:
         media_info[one_media][CAMTRAP_VER05_MEDIA_DEPLOYMENT_ID_IDX] = deployment_id
 
-    S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+    S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)),
                                 bucket, make_s3_path((upload_path, MEDIA_CSV_FILE_NAME)),
                                 media_info )
 
     # Get and update the Observation information
-    obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, bucket, upload_path)
+    obs_info = load_camtrap_observations(s3_url, user_info.name, token, db, bucket, upload_path)
 
     for one_file in obs_info:
         for one_obs in obs_info[one_file]:
             one_obs[CAMTRAP_VER05_OBSERVATION_DEPLOYMENT_ID_IDX] = deployment_id
 
-    S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+    S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)),
                                 bucket, make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 obs_info )
@@ -3181,13 +3178,13 @@ def image_location():
     # Get and update the Observation information
 
     # Update the collection to reflect the new upload location
-    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \
                                                     do_decrypt(db.get_password(token)), bucket)
     if updated_collection:
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'], bool(user_info['admin']))
+        return_colls = load_timed_temp_colls(user_info.name, bool(user_info.admin))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -3243,7 +3240,7 @@ def image_species():
 
     bucket = SPARCD_PREFIX + coll_id
 
-    db.add_image_species_edit(user_info["url"], bucket, path, user_info['name'], timestamp,
+    db.add_image_species_edit(user_info.url, bucket, path, user_info.name, timestamp,
                                                                 common_name, scientific_name, count)
 
     return json.dumps({'success': True})
@@ -3288,10 +3285,10 @@ def image_edit_complete():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
     # Get any changes
-    upload_files_info = db.get_next_files_info(user_info["url"], user_info["name"], path)
+    upload_files_info = db.get_next_files_info(user_info.url, user_info.name, path)
 
     if not upload_files_info:
         return {'success': True, 'retry': True, 'message': "No changes found for file", \
@@ -3306,13 +3303,13 @@ def image_edit_complete():
                                                                 for one_file in upload_files_info]
     success_files, errored_files = process_upload_changes(s3_url,
                                                         do_decrypt(db.get_password(token)),
-                                                        user_info["name"],
+                                                        user_info.name,
                                                         coll_id,
                                                         upload_id,
                                                         files_info=upload_files_info)
 
     if success_files:
-        db.complete_image_edits(user_info["name"], success_files)
+        db.complete_image_edits(user_info.name, success_files)
 
     if errored_files:
         return {'success': False, 'retry': True, 'message': 'Not all the edits could be completed',\
@@ -3357,10 +3354,10 @@ def images_all_edited():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
     # Get any changes
-    edited_files_info = db.get_edited_files_info(user_info["url"], user_info["name"], upload_id)
+    edited_files_info = db.get_edited_files_info(user_info.url, user_info.name, upload_id)
 
     if not edited_files_info:
         return {'success': True, 'retry': True, 'message': "No changes found for to the upload", \
@@ -3374,9 +3371,9 @@ def images_all_edited():
     s3_bucket = SPARCD_PREFIX + coll_id
     s3_path = make_s3_path(('Collections', coll_id, S3_UPLOADS_PATH_PART, upload_id))
 
-    deployment_info = load_camtrap_deployments(s3_url, user_info["name"], token, db,
+    deployment_info = load_camtrap_deployments(s3_url, user_info.name, token, db,
                                                                 s3_bucket, s3_path, True)
-    obs_info = load_camtrap_observations(s3_url, user_info["name"], token, db, s3_bucket,
+    obs_info = load_camtrap_observations(s3_url, user_info.name, token, db, s3_bucket,
                                                                             s3_path, True)
     for one_file in edited_files_info:
         # Do the update
@@ -3391,18 +3388,18 @@ def images_all_edited():
     # tuple. We flatten further on the call so we're left with a single tuple containing all
     # rows
     row_groups = (obs_info[one_key] for one_key in obs_info)
-    S3Connection.upload_camtrap_data(s3_url, user_info["name"],
+    S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)),
                                 s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 [one_row for one_set in row_groups for one_row in one_set] )
 
-    db.finish_image_edits(user_info["name"], edited_files_info)
+    db.finish_image_edits(user_info.name, edited_files_info)
 
     # Update the upload metadata with an editing comment
-    S3Connection.update_upload_metadata_comment(s3_url, user_info["name"],
+    S3Connection.update_upload_metadata_comment(s3_url, user_info.name,
                                         do_decrypt(db.get_password(token)),
                                         s3_bucket,s3_path,
-                                        f'Edited by {user_info["name"]} on ' + \
+                                        f'Edited by {user_info.name} on ' + \
                                                 datetime.datetime.fromisoformat(timestamp).\
                                                         strftime("%Y.%m.%d.%H.%M.%S"))
 
@@ -3445,12 +3442,12 @@ def species_keybind():
         return "Unauthorized", 401
 
     # Get the species
-    if 'species' in user_info and user_info['species']:
-        cur_species = user_info['species']
+    if user_info.species:
+        cur_species = user_info.species
     else:
-        s3_url = web_to_s3_url(user_info["url"])
+        s3_url = web_to_s3_url(user_info.url)
         cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+                                            user_info.name, do_decrypt(db.get_password(token)))
 
     # Update the species
     found = False
@@ -3465,7 +3462,7 @@ def species_keybind():
         cur_species.append({'name':common, 'scientificName':scientific, 'keyBinding':new_key[0], \
                                             "speciesIconURL": "https://i.imgur.com/4qz5mI0.png"})
 
-    db.save_user_species(user_info['name'], json.dumps(cur_species))
+    db.save_user_species(user_info.name, json.dumps(cur_species))
 
     return json.dumps({'success': True})
 
@@ -3501,7 +3498,7 @@ def admin_check():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    return {'value': user_info['admin'] == 1}
+    return {'value': user_info.admin == 1}
 
 @app.route('/adminCheckChanges', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -3535,7 +3532,7 @@ def admin_check_changes():
         return "Unauthorized", 401
 
     # Check for changes in the db
-    changed = db.have_admin_changes(user_info["url"], user_info['name'])
+    changed = db.have_admin_changes(user_info.url, user_info.name)
 
     return {'success': True, 'locationsChanged': changed['locationsCount'] > 0, \
             'speciesChanged': changed['speciesCount'] > 0}
@@ -3577,12 +3574,12 @@ def settings_admin():
     # Log onto S3 to make sure the information is correct
     pw_ok = False
     try:
-        s3_url = web_to_s3_url(user_info["url"])
-        minio = Minio(s3_url, access_key=user_info["name"], secret_key=pw)
+        s3_url = web_to_s3_url(user_info.url)
+        minio = Minio(s3_url, access_key=user_info.name, secret_key=pw)
         _ = minio.list_buckets()
         pw_ok = True
     except MinioException as ex:
-        print(f'Admin password check failed for {user_info["name"]}:', ex)
+        print(f'Admin password check failed for {user_info.name}:', ex)
         return "Not Found", 401
 
     return json.dumps({'success': pw_ok})
@@ -3628,7 +3625,7 @@ def admin_users():
     # Organize the collection permissions by user
     # TODO: Combine load_timed_temp_colls with S3Connection.get_collections? See /collections
     #       here and elsewhere
-    all_collections = load_timed_temp_colls(user_info['name'], True)
+    all_collections = load_timed_temp_colls(user_info.name, True)
     user_collections = {}
     if all_collections:
         for one_coll in all_collections:
@@ -3688,9 +3685,9 @@ def admin_species():
         return "Unauthorized", 401
 
     # Get the species
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+                                            user_info.name, do_decrypt(db.get_password(token)))
 
     return json.dumps(cur_species)
 
@@ -3728,7 +3725,7 @@ def admin_user_update():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    if not user_info['name'] == old_name:
+    if not user_info.name == old_name:
         return {'success': False, 'message': f'User "{old_name}" not found'}
 
     db.update_user(old_name, new_email)
@@ -3772,9 +3769,9 @@ def admin_species_update():
         return "Unauthorized", 401
 
     # Get the species
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
     cur_species = load_sparcd_config(CONF_SPECIES_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                            user_info["name"], do_decrypt(db.get_password(token)))
+                                            user_info.name, do_decrypt(db.get_password(token)))
 
     # Make sure this is OK to do
     find_scientific = old_scientific if old_scientific else new_scientific
@@ -3789,7 +3786,7 @@ def admin_species_update():
         return {'success': False, 'message': f'Species "{new_scientific}" already exists'}
 
     # Put the change in the DB
-    if db.update_species(user_info["url"], user_info['name'], old_scientific, new_scientific, \
+    if db.update_species(user_info.url, user_info.name, old_scientific, new_scientific, \
                                                                 new_name, key_binding, icon_url):
         return {'success': True, 'message': f'Successfully updated species "{find_scientific}"'}
 
@@ -3859,8 +3856,8 @@ def admin_location_update():
         return "Unauthorized", 401
 
     # Get the location
-    s3_url = web_to_s3_url(user_info["url"])
-    cur_locations = load_locations(s3_url, user_info["name"], do_decrypt(db.get_password(token)))
+    s3_url = web_to_s3_url(user_info.url)
+    cur_locations = load_locations(s3_url, user_info.name, do_decrypt(db.get_password(token)))
 
     # Make sure this is OK to do
     if loc_old_lat and loc_old_lng:
@@ -3899,7 +3896,7 @@ def admin_location_update():
                             ])
 
     # Put the change in the DB
-    if db.update_location(user_info["url"], user_info['name'], loc_name, loc_id, loc_active,
+    if db.update_location(user_info.url, user_info.name, loc_name, loc_id, loc_active,
                                         loc_ele,loc_old_lat,loc_old_lng, loc_new_lat, loc_new_lng):
         return {'success': True, 'message': f'Successfully updated location {loc_name}',
                 'data':{'nameProperty': loc_name, 'idProperty': loc_id, \
@@ -3962,10 +3959,10 @@ def admin_collection_update():
         return "Unauthorized", 401
 
     # Get existing collection information and permissions
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
     s3_bucket = SPARCD_PREFIX + col_id
 
-    all_collections = load_timed_temp_colls(user_info['name'], True)
+    all_collections = load_timed_temp_colls(user_info.name, True)
 
     # Update the entry to what we need
     found_coll = None
@@ -3982,22 +3979,22 @@ def admin_collection_update():
         return {'success': False, 'message': "Unable to find collection in list to update"}
 
     # Upload the changes
-    S3Connection.save_collection_info(s3_url, user_info["name"],
+    S3Connection.save_collection_info(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)), found_coll['bucket'],
                                 found_coll)
 
-    S3Connection.save_collection_permissions(s3_url, user_info["name"],
+    S3Connection.save_collection_permissions(s3_url, user_info.name,
                                 do_decrypt(db.get_password(token)), found_coll['bucket'],
                                 col_all_perms)
 
     # Update the collection to reflect the changes
-    updated_collection = S3Connection.get_collection_info(s3_url, user_info["name"], \
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \
                                                     do_decrypt(db.get_password(token)), s3_bucket)
     if updated_collection:
         updated_collection = normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = load_timed_temp_colls(user_info['name'], True)
+        return_colls = load_timed_temp_colls(user_info.name, True)
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
@@ -4041,27 +4038,27 @@ def admin_complete_changes():
         return "Unauthorized", 401
 
     # Get the locations and species changes logged in the database
-    s3_url = web_to_s3_url(user_info["url"])
+    s3_url = web_to_s3_url(user_info.url)
 
-    changes = db.get_admin_changes(user_info["url"], user_info['name'])
+    changes = db.get_admin_changes(user_info.url, user_info.name)
     if not changes:
         return {'success': True, 'message': "There were no changes found to apply"}
 
     # Update the location
     if 'locations' in changes and changes['locations']:
-        if not update_admin_locations(s3_url, user_info['name'],do_decrypt(db.get_password(token)),
+        if not update_admin_locations(s3_url, user_info.name,do_decrypt(db.get_password(token)),
                                       changes):
             return 'Unable to update the locations', 422
     # Mark the locations as done in the DB
-    db.clear_admin_location_changes(user_info["url"], user_info['name'])
+    db.clear_admin_location_changes(user_info.url, user_info.name)
 
     # Update the species
     if 'species' in changes and changes['species']:
-        if not update_admin_species(s3_url, user_info['name'],do_decrypt(db.get_password(token)),
+        if not update_admin_species(s3_url, user_info.name,do_decrypt(db.get_password(token)),
                                     changes):
             return 'Unable to update the species. Any changed locations were updated', 422
     # Mark the species as done in the DB
-    db.clear_admin_species_changes(user_info["url"], user_info['name'])
+    db.clear_admin_species_changes(user_info.url, user_info.name)
 
     return {'success': True, 'message': "All changes were successully applied"}
 
@@ -4098,9 +4095,9 @@ def admin_abandon_changes():
         return "Unauthorized", 401
 
     # Mark the locations as done in the DB
-    db.clear_admin_location_changes(user_info["url"], user_info['name'])
+    db.clear_admin_location_changes(user_info.url, user_info.name)
 
     # Mark the species as done in the DB
-    db.clear_admin_species_changes(user_info["url"], user_info['name'])
+    db.clear_admin_species_changes(user_info.url, user_info.name)
 
     return {'success': True, 'message': "All changes were successully abandoned"}

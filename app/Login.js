@@ -160,6 +160,7 @@ export default function Login({prev_url, prev_user, prev_remember, onLogin, onRe
                     error={!valuesValid.password}
                     sx={{m:5}}
                     inputProps={{style: {fontSize: 12}}}
+                    onKeyPress={((ev) => {if (ev.key === 'Enter') { ev.preventDefault(); callLoginFunc(ev); } })}
                     slotProps={{
                       inputLabel: {
                         shrink: true,
