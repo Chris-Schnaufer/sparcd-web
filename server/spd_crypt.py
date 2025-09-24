@@ -6,6 +6,24 @@ from typing import Optional
 
 from cryptography.fernet import Fernet
 
+
+def generate_hash(values: tuple) -> str:
+    """ Generates a value-order-dependent hash from the tuple values and returns it
+    Arguments:
+        values: the values to get the hash value for
+    Return:
+        The hash value
+    Note:
+        All the values are converted into strings and joined for the hash making the
+        hash value dependent upon the order of the values in the tuple
+    """
+    halg = hashlib.sha3_256()
+    for one_val in values:
+        halg.update(str(one_val).encode('utf-8'))
+
+    return halg.hexdigest()
+
+
 def get_fernet_key_from_passcode(passcode: str) -> bytes:
     """ Returns a Fernet key based upon the passcode
     Arguments:

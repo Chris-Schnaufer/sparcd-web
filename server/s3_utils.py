@@ -3,18 +3,13 @@
 import json
 import os
 import tempfile
-from typing import Callable, Optional
+from typing import Callable
 from urllib.parse import urlparse
 
 from cryptography.fernet import InvalidToken
 
 from sparcd_utils import load_timed_info, save_timed_info
-from s3_access import S3Connection, SPARCD_PREFIX
-
-# Name of temporary collections file
-TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
-# Temporary collections file timeout length
-TIMEOUT_COLLECTIONS_FILE_SEC = 12 * 60 * 60
+from s3_access import S3Connection
 
 
 def make_s3_path(parts: tuple) -> str:
@@ -95,53 +90,19 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, \
     return loaded_config
 
 
-def load_timed_temp_colls(user: str, admin: bool) -> Optional[list]:
-    """ Loads collection information from a temporary file
+def save_sparcd_config(config_data, sparcd_file: str, timed_file: str, url: str, user: str, \
+                                                                        fetch_password: Callable):
+    """ Saves the species on S3 and locally
     Arguments:
-        user: username to find permissions for and filter on
-        admin: if set to True all the collections are returned
-    Return:
-        Returns the loaded collection data if valid, otherwise None is returned
+        config_data: the data to save
+        sparcd_file: the name of the sparcd configuration file
+        timed_file: the name of the timed file to save to
+        url: the URL to the S3 store
+        user: the S3 username
+        fetch_password: returns the S3 password
     """
-    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
-    loaded_colls = load_timed_info(coll_file_path, TIMEOUT_COLLECTIONS_FILE_SEC)
-    if loaded_colls is None:
-        return None
+    # Save to S3 and the local file system
+    S3Connection.put_configuration(sparcd_file, json.dumps(config_data, indent=4), url, user,
+                                                                                fetch_password())
 
-    # Make sure we have a boolean value for admin and not Truthiness
-    if not admin in [True, False]:
-        admin = False
-
-    # Get this user's permissions
-    user_coll = []
-    for one_coll in loaded_colls:
-        user_has_permissions = False
-        new_coll = one_coll
-        new_coll['permissions'] = None
-        if 'allPermissions' in one_coll and one_coll['allPermissions']:
-            try:
-                for one_perm in one_coll['allPermissions']:
-                    if one_perm and 'usernameProperty' in one_perm and \
-                                one_perm['usernameProperty'] == user:
-                        new_coll['permissions'] = one_perm
-                        user_has_permissions = True
-                        break
-            finally:
-                pass
-
-        # Only return collections that the user has permissions to
-        if admin is True or user_has_permissions is True:
-            user_coll.append(new_coll)
-
-    # Return the collections
-    return user_coll
-
-
-def save_timed_temp_colls(colls: tuple) -> None:
-    """ Attempts to save the collections to a temporary file on disk
-    Arguments:
-        colls: the collection information to save
-    """
-    # pylint: disable=broad-exception-caught
-    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
-    save_timed_info(coll_file_path, colls)
+    save_timed_info(timed_file, config_data)

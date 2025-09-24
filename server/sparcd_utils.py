@@ -4,17 +4,34 @@ import datetime
 import json
 import math
 import os
+import shutil
 import time
-from typing import Optional
+import tempfile
+from typing import Callable, Optional
+import uuid
 
 import dateutil.parser
 import dateutil.tz
 
+import image_utils
+import spd_crypt as crypt
+from sparcd_db import SPARCdDatabase
+from s3_access import S3Connection, SPARCD_PREFIX, SPECIES_JSON_FILE_NAME
+import s3_utils as s3u
+from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE, deg2utm, deg2utm_code
 
 # Maximum number of times to try updating a temporary file
 TEMP_FILE_MAX_WRITE_TRIES = 7
+# Temporary collections file timeout length
+TIMEOUT_COLLECTIONS_FILE_SEC = 12 * 60 * 60
 # Number of seconds to keep the temporary file around before it's invalid
 TEMP_FILE_EXPIRE_SEC = 1 * 60 * 60
+# Name of temporary collections file
+TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
+# Name of temporary species file
+TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
+# Configuration file name for locations
+CONF_LOCATIONS_FILE_NAME = 'locations.json'
 
 
 def secure_user_settings(settings: dict) -> dict:
@@ -191,3 +208,566 @@ def get_later_timestamp(cur_ts: object, new_ts: object) -> Optional[object]:
                 return new_ts
 
     return cur_ts
+
+
+
+def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
+    """ Cleans up old queries off the file system
+    Arguments:
+        db - connections to the current database
+    """
+    expired_queries = db.get_clear_queries(token)
+    if expired_queries:
+        for one_query_path in expired_queries:
+            if os.path.exists(one_query_path):
+                try:
+                    os.unlink(one_query_path)
+                # pylint: disable=broad-exception-caught
+                except Exception as ex:
+                    print(f'Unable to remove old query file: {one_query_path}')
+                    print(ex)
+
+
+def load_locations(s3_url: str, user_name: str, fetch_password: Callable) -> tuple:
+    """ Loads locations and converts lat-lon to UTM
+    Arguments:
+        s3_url - the URL to the S3 instance
+        user_name - the user's name for S3
+        fetch_password: returns the user's password
+    Return:
+        Returns the locations along with the converted coordinates
+    """
+    cur_locations = s3u.load_sparcd_config(CONF_LOCATIONS_FILE_NAME, TEMP_LOCATIONS_FILE_NAME, \
+                                                                s3_url, user_name, fetch_password)
+    if not cur_locations:
+        return cur_locations
+
+    for one_loc in cur_locations:
+        if 'utm_code' not in one_loc or 'utm_x' not in one_loc or 'utm_y' not in one_loc:
+            if 'latProperty' in one_loc and 'lngProperty' in one_loc:
+                utm_x, utm_y = deg2utm(float(one_loc['latProperty']), float(one_loc['lngProperty']))
+                one_loc['utm_code'] = ''.join([str(one_res) for one_res in \
+                                                    deg2utm_code(float(one_loc['latProperty']), \
+                                                                 float(one_loc['lngProperty']))
+                                              ])
+                one_loc['utm_x'] = round(utm_x, 2)
+                one_loc['utm_y'] = round(utm_y, 2)
+
+    return cur_locations
+
+
+def update_admin_locations(url: str, user: str, password: str, changes: dict) -> bool:
+    """ Updates the master list of locations with the changes under the
+        'locations' key
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        changes: the list of changes for locations
+    Return:
+        Returns True unless a problem is found
+    """
+    # Easy case where there's no changes
+    if 'locations' not in changes or not changes['locations']:
+        return True
+
+    # Try to get the configuration information from S3
+    all_locs = S3Connection.get_configuration(CONF_LOCATIONS_FILE_NAME, url, user, password)
+    if all_locs is None:
+        return False
+    all_locs = json.loads(all_locs)
+
+    all_locs = {crypt.generate_hash((one_loc['idProperty'], one_loc['latProperty'],
+                                one_loc['lngProperty']))
+                    : one_loc
+                for one_loc in all_locs}
+
+    for one_change in changes['locations']:
+        loc_id = one_change[changes['loc_id']]
+        loc_old_lat = one_change[changes['loc_old_lat']]
+        loc_old_lon = one_change[changes['loc_old_lng']]
+
+        # Update the entry if we have it, otherwise add it
+        cur_key = crypt.generate_hash((loc_id, loc_old_lat, loc_old_lon))
+        if cur_key in all_locs:
+            cur_loc = all_locs[cur_key]
+            cur_loc['nameProperty'] = one_change[changes['loc_name']]
+            cur_loc['latProperty'] = one_change[changes['loc_new_lat']]
+            cur_loc['lngProperty'] = one_change[changes['loc_new_lng']]
+            cur_loc['elevationProperty'] = one_change[changes['loc_elevation']]
+            if 'activeProperty' in cur_loc:
+                cur_loc['activeProperty'] = one_change[changes['loc_active']]
+            elif one_change[changes['loc_active']] == 1:
+                cur_loc['activeProperty'] = True
+        else:
+            all_locs[cur_key] = {
+                                    'idProperty': one_change[changes['loc_id']],
+                                    'nameProperty': one_change[changes['loc_name']],
+                                    'latProperty': one_change[changes['loc_new_lat']],
+                                    'lngProperty': one_change[changes['loc_new_lng']],
+                                    'elevationProperty': one_change[changes['loc_elevation']],
+                                    'activeProperty': one_change[changes['loc_active']] == 1
+                                }
+
+    all_locs = tuple(all_locs.values())
+
+    # Save to S3 and the local file system
+    S3Connection.put_configuration(CONF_LOCATIONS_FILE_NAME, json.dumps(all_locs, indent=4),
+                                    url, user, password)
+
+
+    config_file_path = os.path.join(tempfile.gettempdir(), TEMP_LOCATIONS_FILE_NAME)
+    save_timed_info(config_file_path, all_locs)
+
+    return True
+
+
+def load_timed_temp_colls(user: str, admin: bool) -> Optional[list]:
+    """ Loads collection information from a temporary file
+    Arguments:
+        user: username to find permissions for and filter on
+        admin: if set to True all the collections are returned
+    Return:
+        Returns the loaded collection data if valid, otherwise None is returned
+    """
+    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    loaded_colls = load_timed_info(coll_file_path, TIMEOUT_COLLECTIONS_FILE_SEC)
+    if loaded_colls is None:
+        return None
+
+    # Make sure we have a boolean value for admin and not Truthiness
+    if not admin in [True, False]:
+        admin = False
+
+    # Get this user's permissions
+    user_coll = []
+    for one_coll in loaded_colls:
+        user_has_permissions = False
+        new_coll = one_coll
+        new_coll['permissions'] = None
+        if 'allPermissions' in one_coll and one_coll['allPermissions']:
+            try:
+                for one_perm in one_coll['allPermissions']:
+                    if one_perm and 'usernameProperty' in one_perm and \
+                                one_perm['usernameProperty'] == user:
+                        new_coll['permissions'] = one_perm
+                        user_has_permissions = True
+                        break
+            finally:
+                pass
+
+        # Only return collections that the user has permissions to
+        if admin is True or user_has_permissions is True:
+            user_coll.append(new_coll)
+
+    # Return the collections
+    return user_coll
+
+
+def save_timed_temp_colls(colls: tuple) -> None:
+    """ Attempts to save the collections to a temporary file on disk
+    Arguments:
+        colls: the collection information to save
+    """
+    # pylint: disable=broad-exception-caught
+    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    save_timed_info(coll_file_path, colls)
+
+
+def format_upload_date(date_json: object) -> str:
+    """ Returns the date string from an upload's date JSON
+    Arguments:
+        date_json: the JSON containing the 'date' and 'time' objects
+    Returns:
+        Returns the formatted date and time, or an empty string if a problem is found
+    """
+    return_str = ''
+
+    if 'date' in date_json and date_json['date']:
+        cur_date = date_json['date']
+        if 'year' in cur_date and 'month' in cur_date and 'day' in cur_date:
+            return_str += f'{cur_date["year"]:4d}-{cur_date["month"]:02d}-{cur_date["day"]:02d}'
+
+    if 'time' in date_json and date_json['time']:
+        cur_time = date_json['time']
+        if 'hour' in cur_time and 'minute' in cur_time:
+            return_str += f' at {cur_time["hour"]:02d}:{cur_time["minute"]:02d}'
+
+    return return_str
+
+
+def normalize_upload(upload_entry: dict) -> dict:
+    """ Normalizes an S3 upload
+    Arguments:
+        upload_entry: the upload to normalize
+    Return:
+        The normalized upload
+    """
+    return {'name': upload_entry['info']['uploadUser'] + ' on ' + \
+                                            format_upload_date(upload_entry['info']['uploadDate']),
+            'description': upload_entry['info']['description'],
+            'imagesCount': upload_entry['info']['imageCount'],
+            'imagesWithSpeciesCount': upload_entry['info']['imagesWithSpecies'],
+            'location': upload_entry['location'],
+            'edits': upload_entry['info']['editComments'],
+            'key': upload_entry['key'],
+            'date': upload_entry['info']['uploadDate'],
+            'folders': upload_entry['uploaded_folders']
+          }
+
+
+def normalize_collection(coll: dict) -> dict:
+    """ Takes a collection from the S3 instance and normalizes the data for the website
+    Arguments:
+        coll: the collection to normalize
+    Return:
+        The normalized collection
+    """
+    cur_col = { 'name': coll['nameProperty'],
+                'bucket': coll['bucket'],
+                'organization': coll['organizationProperty'],
+                'email': coll['contactInfoProperty'],
+                'description': coll['descriptionProperty'],
+                'id': coll['idProperty'],
+                'permissions': coll['permissions'],
+                'allPermissions': coll['all_permissions'],
+                'uploads': []
+              }
+    cur_uploads = []
+    last_upload_date = None
+    for one_upload in coll['uploads']:
+        last_upload_date = get_later_timestamp(last_upload_date, \
+                                                            one_upload['info']['uploadDate'])
+        cur_uploads.append(normalize_upload(one_upload))
+
+    cur_col['uploads'] = cur_uploads
+    cur_col['last_upload_ts'] = last_upload_date
+    return cur_col
+
+
+def get_sandbox_collections(url: str, user: str, password: str, items: tuple, \
+                                                            all_collections: tuple=None) -> tuple:
+    """ Returns the sandbox information as collection information
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        items: the sandbox items as returned by the database
+        all_collections: the list of known collections
+    Return:
+        Returns the sandbox entries in collection format
+    """
+    coll_uploads = {}
+    return_info = []
+
+    # Get information on all the items
+    for one_item in items:
+        add_collection = False
+        cur_upload = None
+        s3_upload = False
+
+        bucket = one_item['bucket']
+        if bucket not in coll_uploads:
+            coll_uploads[bucket] = {'s3_collection':False, 'uploads':[]}
+
+        # Try to see if we've added the collection to the list already
+        found = [one_info for one_info in return_info if one_info['bucket'] == bucket]
+        if found:
+            found = found[0]
+
+            # Try to see if we can find the upload
+            if 'uploads' in found:
+                found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'].endswith(one_upload['key']) ]
+                if len(found_uploads) > 0:
+                    cur_upload = found_uploads[0]
+        else:
+            # Try to find the collection in the list of collections, otherwise fetch it
+            add_collection = True
+            if all_collections:
+                found = [one_col for one_col in all_collections if one_col['bucket'] == bucket]
+                if found:
+                    # Save the found collection and look for the upload
+                    found = found[0]
+
+                    found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'].endswith(one_upload['key']) ]
+                    if len(found_uploads) > 0:
+                        cur_upload = found_uploads[0]
+            else:
+                found = S3Connection.get_collection_info(url, user, password, bucket,
+                                                                            one_item['s3_path'])
+                if found:
+                    # Indicate we've downloaded collection from S3 and look for the upload
+                    coll_uploads[bucket]['s3_collection'] = True
+
+                    found_uploads = [one_upload for one_upload in found['uploads'] \
+                                            if one_item['s3_path'] == one_upload['path'] ]
+                    if len(found_uploads) > 0:
+                        cur_upload = found['uploads'][0]
+                        s3_upload = True
+
+        if not found:
+            print(f'ERROR: Unable to find collection bucket {bucket}. Continuing')
+            continue
+
+        if cur_upload is None:
+            cur_upload = S3Connection.get_upload_info(url, user, password, bucket,
+                                                                                one_item['s3_path'])
+            if cur_upload is None:
+                print(f'ERROR: Unable to retrieve upload for bucket {bucket}: ' \
+                                                                f'Path: "{one_item['s3_path']}"')
+                continue
+
+            s3_upload = True
+
+        # Check if we need to normalize the upload now
+        if s3_upload is True and coll_uploads[bucket]['s3_collection'] is False:
+            cur_upload = normalize_upload(cur_upload)
+            if 'complete' in one_item:
+                cur_upload['uploadCompleted'] = one_item['complete']
+            coll_uploads[bucket]['uploads'].append(cur_upload)
+        else:
+            if 'complete' in one_item:
+                cur_upload['uploadCompleted'] = one_item['complete']
+            coll_uploads[bucket]['uploads'].append(cur_upload)
+
+        if add_collection is True:
+            return_info.append(found)
+
+    # Assign the uploads and normalize any return information that's not done already
+    for idx, one_return in enumerate(return_info):
+        one_return['uploads'] = coll_uploads[one_return['bucket']]['uploads']
+        if coll_uploads[one_return['bucket']]['s3_collection'] is True:
+            return_info[idx] = normalize_collection(one_return)
+
+    # Return out result
+    return return_info
+
+
+def get_location_info(location_id: str, all_locations: tuple) -> dict:
+    """ Gets the location associated with the ID. Will return a unknown location if ID is not found
+    Arguments:
+        location_id: the ID of the location to use
+        all_locations: the list of available locations
+    Return:
+        The location information
+    """
+    our_location = [one_loc for one_loc in all_locations if one_loc['idProperty'] == location_id]
+    if our_location:
+        our_location = our_location[0]
+    else:
+        our_location = {'nameProperty':'Unknown', 'idProperty':'unknown',
+                                    'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0,
+                                    'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0}
+
+    return our_location
+
+
+def token_is_valid(token: str, client_ip: str, user_agent: str, db: SPARCdDatabase, \
+                                                                    expire_seconds: int) -> bool:
+    """Checks the database for a token and then checks the validity
+    Arguments:
+        token: the token to check
+        client_ip: the client IP to check (use '*' to skip IP check)
+        user_agent: the user agent value to check
+        db: the database storing the token
+        expire_seconds: the session expiration timeout
+    Returns:
+        Returns True if the token is valid and False if not
+    """
+    # Get the user information using the token
+    db.reconnect()
+    login_info, elapsed_sec = db.get_token_user_info(token)
+    if login_info is not None:
+        if login_info.settings:
+            login_info.settings = json.loads(login_info.settings)
+        if login_info.species:
+            login_info.species = json.loads(login_info.species)
+
+        # Is the session still good
+        if abs(int(elapsed_sec)) < expire_seconds and \
+           client_ip.rstrip('/') in (login_info.client_ip.rstrip('/'), '*') and \
+           login_info.user_agent == user_agent:
+            # Update to the newest timestamp
+            db.update_token_timestamp(token)
+            return True, login_info
+
+    return False, None
+
+
+def update_admin_species(url: str, user: str, password: str, changes: dict) -> Optional[tuple]:
+    """ Updates the master list of species with the changes under the
+        'species' key
+    Arguments:
+        url: the URL to the S3 instance
+        user: the S3 user name
+        password: the S3 password
+        changes: the list of changes for species
+    Return:
+        Returns the tuple of updated species, or None if a problem is found
+    """
+    # Easy case where there's no changes
+    if 'species' not in changes or not changes['species']:
+        return True
+
+    # Try to get the configuration information from S3
+    all_species = S3Connection.get_configuration(SPECIES_JSON_FILE_NAME, url, user, password)
+    if all_species is None:
+        return None
+    all_species = json.loads(all_species)
+
+    all_species = {one_species['scientificName']: one_species for one_species in all_species}
+
+    for one_change in changes['species']:
+
+        # Update the entry if we have it, otherwise add it
+        cur_key = one_change[changes['sp_old_scientific']]
+        if cur_key in all_species:
+            cur_species = all_species[cur_key]
+            cur_species['name'] = one_change[changes['sp_name']]
+            cur_species['scientificName'] = one_change[changes['sp_new_scientific']]
+            cur_species['speciesIconURL'] = one_change[changes['sp_icon_url']]
+            cur_species['keyBinding'] = one_change[changes['sp_keybind']] if \
+                                                        one_change[changes['sp_keybind']] else None
+        else:
+            all_species[cur_key] = {
+                                    'name': one_change[changes['sp_name']],
+                                    'scientificName': one_change[changes['sp_new_scientific']],
+                                    'speciesIconURL': one_change[changes['sp_icon_url']],
+                                    'keyBinding': one_change[changes['sp_keybind']],
+                                }
+
+    all_species = tuple(all_species.values())
+
+    return all_species
+
+
+def process_upload_changes(s3_url: str, username: str, fetch_password: Callable, \
+                            collection_id: str, upload_name: str, species_timed_file: str, \
+                            change_locations: tuple=None, files_info: tuple=None) -> tuple:
+    """ Updates the image files with the information passed in
+    Argument:
+        s3_url: the URL to the S3 endpoint (in clear text)
+        username: the name of the user associated with the token
+        fetch_password: returns the user password
+        collection_id: the ID of the collection the files are in
+        upload_name: the name of the upload
+        species_timed_file: the name of the timed file to load species from
+        change_locations: the location information for all the images in an upload
+        files_info: the file species changes
+    Return:
+        Returns a tuple of files that did not update. If a location is specified, this list
+        can include files not found in the original list
+    Notes:
+        If the location information doesn't have a location ID then only the files are processed.
+        If the location does have a location ID then all the files in the location are processed,
+        including the ones passed in
+    """
+    success_files = []
+    failed_files = []
+
+    # Make a dict of the files passed in for easier lookup
+    if files_info:
+        file_info_dict = {one_file['name']+one_file['s3_path']+one_file['bucket']: one_file \
+                                                                        for one_file in files_info}
+    else:
+        file_info_dict = {}
+
+    # Get the list of files to update
+    update_files = files_info if not change_locations else \
+                        S3Connection.get_image_paths(s3_url, username, fetch_password(), \
+                                                                        collection_id, upload_name)
+
+    edit_folder = tempfile.mkdtemp(prefix=SPARCD_PREFIX + 'edits_' + uuid.uuid4().hex)
+
+    try: # We have this "try" for the "finally" clause to remove the temporary folder
+        # All species and locations in case we have to look something up
+        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, species_timed_file, \
+                                                                s3_url, username, fetch_password())
+
+        # Loop through the files
+        for idx, one_file in enumerate(update_files):
+            temp_file_name = ("-"+str(idx)).join(os.path.splitext(\
+                                                            os.path.basename(one_file['s3_path'])))
+            save_path = os.path.join(edit_folder, temp_file_name)
+
+            file_key = one_file['name']+one_file['s3_path']+one_file['bucket']
+            file_edits = file_info_dict[file_key] if file_key in file_info_dict else None
+
+            # Only manipulate the image if there appears to be some reason for downloading it
+            if not file_edits and not change_locations:
+                success_files.append(one_file)
+                continue
+
+            # Get the image to work with
+            S3Connection.download_image(s3_url, username, fetch_password(), one_file['bucket'],
+                                                                    one_file['s3_path'], save_path)
+            cur_species, cur_location, _ = image_utils.get_embedded_image_info(save_path)
+
+            # Species: get the current species and add our changes to that before writing them out
+            save_species = None
+
+            if file_edits:
+                for new_species in file_edits['species']:
+                    found = False
+                    changed = False
+                    for orig_species in cur_species:
+                        if orig_species['scientific'] == new_species['scientific']:
+                            if orig_species['common'] != new_species['common']:
+                                orig_species['common'] = new_species['common']
+                                changed = True
+                            if orig_species['count'] != new_species['count']:
+                                orig_species['count'] = new_species['count']
+                                changed = True
+                            found = True
+                            break
+
+                    if not found:
+                        cur_species.append({'common': new_species['common'], \
+                                             'scientific': new_species['scientific'], \
+                                             'count': new_species['count']})
+                        changed = True
+
+                if changed:
+                    save_species = cur_species
+
+            # Location: if the location is different from what's in the file, write the data out
+            save_location = None
+            if change_locations and \
+                        (cur_location is None or change_locations['loc_id'] != cur_location['id']):
+                save_location = change_locations
+
+            # Check if we have any changes
+            if save_species or save_location:
+                # Update the image file
+                if image_utils.update_image_file_exif(save_path,
+                                loc_id = save_location['loc_id'] if save_location else None,
+                                loc_name = save_location['loc_name'] if save_location else None,
+                                loc_ele = save_location['loc_ele'] if save_location else None,
+                                loc_lat = save_location['loc_lat'] if save_location else None,
+                                loc_lon = save_location['loc_lon'] if save_location else None,
+                                species_data = save_species):
+                    # Put the file back onto S3
+                    S3Connection.upload_file(s3_url, username, fetch_password(), one_file['bucket'],
+                                                                    one_file['s3_path'], save_path)
+
+                    # Register this file as a success
+                    success_files.append(one_file)
+                else:
+                    # File did not update
+                    failed_files.append(file_info_dict[file_key] if file_key in file_info_dict else\
+                                            one_file|{'species': []})
+            else:
+                # Register this file as a success
+                success_files.append(one_file)
+
+            # Perform some cleanup
+            for one_path in [save_path+"_original", save_path]:
+                if one_path and os.path.exists(one_path):
+                    os.unlink(one_path)
+    finally:
+        # Remove the downloading folder
+        shutil.rmtree(edit_folder)
+
+    return success_files, failed_files

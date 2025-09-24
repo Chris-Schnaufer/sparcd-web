@@ -16,22 +16,41 @@ from minio import Minio, S3Error
 
 from s3_utils import make_s3_path
 
+# Prefix for SPARCd things
 SPARCD_PREFIX='sparcd-'
 
+# Our bucket prefix
 BUCKET_PREFIX = SPARCD_PREFIX
+# Prefix for settings buckets
 SETTINGS_BUCKET_PREFIX = BUCKET_PREFIX + 'settings'
+# Prefix for legacy settings bucket
 SETTINGS_BUCKET_LEGACY = 'sparcd'
+
+# Folder under which settings can be found
 SETTINGS_FOLDER = 'Settings'
 
-COLLECTION_JSON_FILE_NAME = 'collection.json'
-PERMISSIONS_JSON_FILE_NAME = 'permissions.json'
 
+# Configuration file name for collections
+COLLECTION_JSON_FILE_NAME = 'collection.json'
+
+# Configuration file name for permissions
+PERMISSIONS_JSON_FILE_NAME = 'permissions.json'
+# Configuration file name for species
+SPECIES_JSON_FILE_NAME = 'species.json'
+
+# CamTrap deployment CSV name on S3
 DEPLOYMENT_CSV_FILE_NAME = 'deployments.csv'
+# CamTrap media CSV name on S3
 MEDIA_CSV_FILE_NAME = 'media.csv'
+# CamTrap observation CSV name on S3
 OBSERVATIONS_CSV_FILE_NAME = 'observations.csv'
+# All CamTrap CSV names on S3
 CAMTRAP_FILE_NAMES = [DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, OBSERVATIONS_CSV_FILE_NAME]
+
+# S3 path particle for uploads
 S3_UPLOADS_PATH_PART = 'Uploads/'
 
+# The metadata JSON file name for uploads
 S3_UPLOAD_META_JSON_FILE_NAME = 'UploadMeta.json'
 
 

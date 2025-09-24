@@ -1,5 +1,6 @@
 """ Utlities for images"""
 
+import json
 import subprocess
 from typing import Optional
 from dateutil import parser
@@ -196,3 +197,45 @@ def write_embedded_image_info(image_path: str, location_json: str, species_json:
         return False
 
     return True
+
+
+def update_image_file_exif(file_path: str, loc_id: str=None, loc_name: str=None, \
+                                            loc_ele: float=None, loc_lat: float=None, \
+                                            loc_lon: float=None, species_data: tuple=None) -> bool:
+    """ Updates the image file with location exif information
+    Arguments:
+        file_path: the path to the file to modify
+        loc_id: the location id
+        loc_name: the location name
+        loc_ele: the location elevation
+        loc_lat: the location latitude
+        loc_lon: the location longitude
+        species_data: a tuple containing dicts of each species' common and scientific names, and
+                      count
+    Return:
+        Returns whether or not the file was successfully updated
+    """
+    exif_location_data = None
+    if loc_id and loc_name and loc_ele is not None:
+        exif_location_data = ",".join((loc_name, loc_id, str(loc_lat), str(loc_lon), str(loc_ele)))
+
+    exif_species_data = None
+    if species_data is not None:
+        exif_species_data = [','.join((one_species['common'], \
+                                       one_species['scientific'], \
+                                       str(one_species['count']))) \
+                                for one_species in species_data
+                            ]
+
+    # Check if we have any changes
+    if not exif_location_data and not exif_species_data:
+        return True
+
+    # Update the image file
+    result = write_embedded_image_info(
+                        file_path,
+                        json.dumps(exif_location_data) if exif_location_data is not None else None,
+                        json.dumps(exif_species_data) if exif_species_data is not None else None
+                        )
+
+    return result
