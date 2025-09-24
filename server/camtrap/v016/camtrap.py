@@ -1,8 +1,8 @@
 """ CamTrap version 0.1.6 implementation """
 
-from deployment import Deployment
-from media import Media
-from observation import Observation
+from .deployment import Deployment
+from .media import Media
+from .observation import Observation
 
 # CAMTRAP Deployment definitions:
 # https://github.com/tdwg/camtrap-dp/blob/0.1.6/deployments-table-schema.json

@@ -3,8 +3,8 @@
 import dataclasses
 import os
 
-from coordinate_utils import deg2utm
-from results import Results
+from .coordinate_utils import deg2utm
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass

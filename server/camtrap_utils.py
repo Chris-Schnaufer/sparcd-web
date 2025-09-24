@@ -7,7 +7,7 @@ from typing import Callable, Optional
 from camtrap.v016 import camtrap
 from s3_access import S3Connection, make_s3_path, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
                       OBSERVATIONS_CSV_FILE_NAME
-from sparcd_utils import load_timed_info, save_timed_info
+from sparcd_file_utils import load_timed_info, save_timed_info
 
 def load_camtrap_info(url: str, user: str, get_password: Callable, bucket: str, \
                         s3_path: str, filename: str, temp_to_disk: bool=False) -> Optional[tuple]:

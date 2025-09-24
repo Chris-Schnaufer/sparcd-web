@@ -5,8 +5,8 @@ import math
 import os
 import sys
 
-from analysis import Analysis
-from results import Results
+from .analysis import Analysis
+from .results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass

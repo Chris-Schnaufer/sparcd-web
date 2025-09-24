@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from analysis import Analysis
-from coordinate_utils import DEFAULT_UTM_ZONE
+from .analysis import Analysis
+from .coordinate_utils import DEFAULT_UTM_ZONE
 
 # The default interval value
 DEFAULT_INTERVAL_MIN=0

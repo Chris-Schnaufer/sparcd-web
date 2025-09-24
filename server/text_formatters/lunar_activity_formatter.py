@@ -5,8 +5,8 @@ import datetime
 import math
 import os
 
-from analysis import Analysis
-from results import Results
+from .analysis import Analysis
+from .results import Results
 
 # Number of days (in seconds) for a datetime to be considered to be within a moon phase
 MOON_PHASE_DATE_DIFF_SEC = 5 * 24 * 60 * 60     # Five days in seconds

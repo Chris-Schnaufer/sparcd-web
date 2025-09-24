@@ -8,18 +8,8 @@ from urllib.parse import urlparse
 
 from cryptography.fernet import InvalidToken
 
-from sparcd_utils import load_timed_info, save_timed_info
-from s3_access import S3Connection
-
-
-def make_s3_path(parts: tuple) -> str:
-    """ Makes the parts into an S3 path
-    Arguments:
-        parts: the path particles
-    Return:
-        The parts joined into an S3 path
-    """
-    return "/".join([one_part.rstrip('/').rstrip('\\') for one_part in parts])
+from sparcd_file_utils import load_timed_info, save_timed_info
+from s3_access import S3Connection, make_s3_path
 
 
 def web_to_s3_url(url: str, decrypt: Callable) -> str:
