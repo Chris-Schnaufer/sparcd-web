@@ -30,6 +30,7 @@ import image_utils
 import query_helpers
 import query_utils
 from sparcd_db import SPARCdDatabase
+import sparcd_file_utils as sdfu
 import sparcd_utils as sdu
 from s3_access import S3Connection, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
                       OBSERVATIONS_CSV_FILE_NAME, CAMTRAP_FILE_NAMES, SPARCD_PREFIX, \
@@ -303,7 +304,7 @@ def login_token():
                 {  'value':token,
                    'name':login_info.name,
                    'settings': \
-                        sdu.secure_user_settings(login_info.settings|{'email':login_info['email']})
+                        sdu.secure_user_settings(login_info.settings|{'email':login_info.email})
                })
 
         # Delete the old token from the database
@@ -623,7 +624,7 @@ def upload():
     all_images = None
     if os.path.exists(save_path):
         # Get the images and flatten the structure as needed
-        all_images = sdu.load_timed_info(save_path, TIMEOUT_UPLOADS_FILE_SEC)
+        all_images = sdfu.load_timed_info(save_path, TIMEOUT_UPLOADS_FILE_SEC)
         if all_images is not None:
             all_images = [all_images[one_key] for one_key in all_images.keys()]
 
@@ -634,7 +635,7 @@ def upload():
                                                 collection_id, collection_upload)
 
         # Save the images so we can reload them later
-        sdu.save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
+        sdfu.save_timed_info(save_path, {one_image['key']: one_image for one_image in all_images})
 
     # Get species data from the database and update the images
     edits = {}
@@ -742,7 +743,7 @@ def image():
         return "Unauthorized", 401
 
     # Load the image data
-    image_data = sdu.load_timed_info(image_store_path)
+    image_data = sdfu.load_timed_info(image_store_path)
     if image_data is None or not isinstance(image_data, dict):
         return "Not Found", 404
 
@@ -873,7 +874,7 @@ def query():
     # Save the query for lookup when downloading results
     save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + 'query_' + \
                                                                 results_id + '.json')
-    sdu.save_timed_info(save_path, return_info)
+    sdfu.save_timed_info(save_path, return_info)
     db.save_query_path(token, save_path)
 
     return json.dumps(return_info)
@@ -919,7 +920,7 @@ def query_dl():
     print('           ',query_info_path, flush=True)
 
     # Try and load the query results
-    query_results = sdu.load_timed_info(query_info_path, QUERY_RESULTS_TIMEOUT_SEC)
+    query_results = sdfu.load_timed_info(query_info_path, QUERY_RESULTS_TIMEOUT_SEC)
     if not query_results:
         return "Not Found", 404
 
@@ -1473,7 +1474,7 @@ def sandbox_completed():
     s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
     # Update the MEDIA csv file to include media types
-    media_info = ctu.load_camtrap_media(s3_url, user_info.name, token,
+    media_info = ctu.load_camtrap_media(s3_url, user_info.name,
                                                 lambda: get_password(token, db), s3_bucket, s3_path)
     file_mimetypes = db.get_file_mimetypes(user_info.name, upload_id)
 
@@ -1492,9 +1493,9 @@ def sandbox_completed():
     file_species = db.get_file_species(user_info.name, upload_id)
     num_files_with_species = 0
     if file_species:
-        deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name, token,
+        deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name,
                                                 lambda: get_password(token, db), s3_bucket, s3_path)
-        obs_info = ctu.load_camtrap_observations(s3_url, user_info.name, token,
+        obs_info = ctu.load_camtrap_observations(s3_url, user_info.name,
                                                 lambda: get_password(token, db), s3_bucket, s3_path)
         obs_info = ctu.update_observations(s3_path, obs_info, file_species,
                                         deployment_info[camtrap.CAMTRAP_DEPLOYMENT_ID_IDX])
@@ -1603,7 +1604,7 @@ def image_location():
                                                 })
 
     # Update the Deployments file and the others that are dependent upon the Deployment ID
-    deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name, token,
+    deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name,
                                             lambda: get_password(token, db), bucket, upload_path)
     deployment_id = coll_id + ':' +loc_id
     deployment_info[0][camtrap.CAMTRAP_DEPLOYMENT_LOCATION_ID_IDX] = deployment_id
@@ -1619,7 +1620,7 @@ def image_location():
                         deployment_info )
 
     # Get and update the Media information
-    media_info = ctu.load_camtrap_media(s3_url, user_info.name, token,
+    media_info = ctu.load_camtrap_media(s3_url, user_info.name,
                                             lambda: get_password(token, db), bucket, upload_path)
     for one_media in media_info:
         media_info[one_media][camtrap.CAMTRAP_MEDIA_DEPLOYMENT_ID_IDX] = deployment_id
@@ -1630,7 +1631,7 @@ def image_location():
                                 media_info )
 
     # Get and update the Observation information
-    obs_info = ctu.load_camtrap_observations(s3_url, user_info.name, token,
+    obs_info = ctu.load_camtrap_observations(s3_url, user_info.name,
                                             lambda: get_password(token, db), bucket, upload_path)
 
     for one_file in obs_info:

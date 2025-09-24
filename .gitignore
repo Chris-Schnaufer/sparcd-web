@@ -143,3 +143,6 @@ target
 
 # Java
 *.jar
+
+# Apple computers
+.DS_Store
