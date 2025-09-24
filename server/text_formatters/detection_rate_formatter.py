@@ -4,8 +4,8 @@ import dataclasses
 import datetime
 import os
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 def last_day_of_month(year: int, month: int) -> int:
     """ Return the last day of the month for the datetime passed in

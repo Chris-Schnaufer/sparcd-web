@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from text_formatters.analysis import Analysis
-from text_formatters.coordinate_utils import DEFAULT_UTM_ZONE
+from analysis import Analysis
+from coordinate_utils import DEFAULT_UTM_ZONE
 
 # The default interval value
 DEFAULT_INTERVAL_MIN=0
@@ -86,7 +86,7 @@ class Results:
 
         try:
             cur_images, cur_locations, cur_years, cur_species = self._initialize(results, \
-                                                                        all_locations, all_species)
+                                                                        all_locations)
         except KeyError as ex:
             print('Invalid results specified', flush=True)
             print(ex, flush=True)
@@ -136,9 +136,9 @@ class Results:
 
     def have_results(self):
         """ Returns whether or not we have results """
-        return self._results != None and len(self._results) > 0
+        return self._results is not None and len(self._results) > 0
 
-    def _initialize(self, results: tuple, all_locations: tuple, all_species: tuple) -> tuple:
+    def _initialize(self, results: tuple, all_locations: tuple) -> tuple:
         """ Returns the image, locations, years, and species of the search results
         Arguments:
             results: the search results
@@ -172,7 +172,7 @@ class Results:
 
         sorted_locations = mapped_values
         if have_unknown:
-            sorted_locations.append({'nameProperty':'Unknown', 'idProperty':'unknown', 
+            sorted_locations.append({'nameProperty':'Unknown', 'idProperty':'unknown',
                                     'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0,
                                     'utm_code':DEFAULT_UTM_ZONE, 'utm_x':0.0, 'utm_y':0.0})
 
@@ -423,7 +423,7 @@ class Results:
                                                             one_loc['idProperty'] == location_id))
             # Check that it's not an unknown location
             if len(possible_loc) <= 0:
-                possible_loc = tuple(({'nameProperty':'Unknown', 'idProperty':location_id, 
+                possible_loc = tuple(({'nameProperty':'Unknown', 'idProperty':location_id,
                                 'latProperty':0.0, 'lngProperty':0.0, 'elevationProperty':0.0},))
 
             found_loc = next(iter(possible_loc))

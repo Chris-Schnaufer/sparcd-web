@@ -1,67 +1,22 @@
 """ Functions to help queries """
 
+import concurrent.futures
 import datetime
 import json
-from typing import Optional
+import traceback
+from typing import Callable, Optional
+
+from sparcd_db import SPARCdDatabase
+from s3_access import S3Connection
 
 from format_dr_sanderson import get_dr_sanderson_output, get_dr_sanderson_pictures
 from format_csv import get_csv_raw, get_csv_location, get_csv_species
 from format_image_downloads import get_image_downloads
 from text_formatters.results import Results
 
-def filter_elevation(uploads: tuple, elevation_filter: dict) -> list:
-    """ Returns the uploads that match the filter
-    Arguments:
-        uploads: the uploads to iterate through
-        elevation_filter: the elevation filtering information
-    Returns:
-        Returns uploads that match the elevation filtering criteria
-    Notes:
-        The elevation filter needs 'type', 'value', and 'units' fields
-        with ('=','<','>','<=','>='), elevation, and ('meters' or 'feet')
-    """
-    # Get the comparison value in meters
-    if elevation_filter['units'] == 'meters':
-        cur_elevation = elevation_filter['value']
-    else:
-        cur_elevation = elevation_filter['value'] * 0.3048
 
-    # Filter the uploads based upon the filter type
-    match(elevation_filter['type']):
-        case '=':
-            return [one_upload for one_upload in uploads if \
-                                float(one_upload['info']['elevation']) == cur_elevation]
-        case '<':
-            return [one_upload for one_upload in uploads if \
-                                float(one_upload['info']['elevation']) < cur_elevation]
-        case '>':
-            return [one_upload for one_upload in uploads if \
-                                float(one_upload['info']['elevation']) > cur_elevation]
-        case '<=':
-            return [one_upload for one_upload in uploads if \
-                                float(one_upload['info']['elevation']) <= cur_elevation]
-        case '>=':
-            return [one_upload for one_upload in uploads if \
-                                float(one_upload['info']['elevation']) >= cur_elevation]
-        case _:
-            raise ValueError('Invalid elevation filter comparison specified: ' \
-                             f'{elevation_filter["type"]}')
-
-
-def get_filter_dt(filter_name: str, filters: tuple) -> Optional[datetime.datetime]:
-    """ Returns the datetime of the associated filter
-    Arguments:
-        filter_name: the name of the filter to find
-        filterrs: the list of filters to search
-    Return:
-        The timestamp as a datetime object, or None if the filter or timestamp is 
-        missing or invalid
-    """
-    found_filter = [one_filter for one_filter in filters if one_filter[0] == filter_name]
-    if len(found_filter) > 0:
-        return datetime.datetime.fromisoformat(found_filter[0][1])
-
-    return None
+# Uploads table timeout length
+TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
 
 
 def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
@@ -170,6 +125,148 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
     return [cur_upload['info']|{'images':cur_images} for cur_upload,cur_images in matches]
 
 
+def list_uploads_thread(s3_url: str, user_name: str, user_secret: str, bucket: str) -> object:
+    """ Used to load upload information from an S3 instance
+    Arguments:
+        s3_url - the URL to connect to
+        user_name - the name of the user to connect with
+        user_secret - the secret used to connect
+        bucket - the bucket to look in
+    Return:
+        Returns an object with the loaded uploads
+    """
+    uploads_info = S3Connection.list_uploads(s3_url, \
+                                        user_name, \
+                                        user_secret, \
+                                        bucket)
+
+    return {'bucket': bucket, 'uploads_info': uploads_info}
+
+
+def filter_collections(db: SPARCdDatabase, cur_coll: tuple, s3_url: str, user_name: str, \
+                       fetch_password: Callable, filters: tuple) -> tuple:
+    """ Filters the collections in an efficient manner
+    Arguments:
+        db - connections to the current database
+        cur_coll - the list of applicable collections
+        s3_url - the URL to the S3 instance
+        user_name - the user's name for S3
+        fetch_password - returns the user's password
+        filters - the filters to apply to the data
+    Returns:
+        Returns the filtered results
+    """
+    all_results = []
+    s3_uploads = []
+
+    # Load all the DB data first
+    for one_coll in cur_coll:
+        cur_bucket = one_coll['json']['bucketProperty']
+        uploads_info = db.get_uploads(s3_url, cur_bucket, TIMEOUT_UPLOADS_SEC)
+        if uploads_info is not None and uploads_info:
+            uploads_info = [{'bucket':cur_bucket,       \
+                             'name':one_upload['name'],                     \
+                             'info':json.loads(one_upload['json'])}         \
+                                    for one_upload in uploads_info]
+        else:
+            s3_uploads.append(cur_bucket)
+            continue
+
+        # Filter on current DB uploads
+        if len(uploads_info) > 0:
+            cur_results = filter_uploads(uploads_info, filters)
+            if cur_results:
+                all_results = all_results + cur_results
+
+
+    # Load the S3 uploads in an aynchronous fashion
+    if len(s3_uploads) > 0:
+        user_secret = fetch_password()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            cur_futures = {executor.submit(list_uploads_thread, s3_url, user_name, \
+                                                                        user_secret, cur_bucket):
+                            cur_bucket for cur_bucket in s3_uploads}
+
+            for future in concurrent.futures.as_completed(cur_futures):
+                try:
+                    uploads_results = future.result()
+                    if 'uploads_info' in uploads_results and \
+                                                        len(uploads_results['uploads_info']) > 0:
+                        uploads_info = [{'bucket':uploads_results['bucket'],
+                                         'name':one_upload['name'],
+                                         'info':one_upload,
+                                         'json':json.dumps(one_upload)
+                                        } for one_upload in uploads_results['uploads_info']]
+                        db.save_uploads(s3_url, uploads_results['bucket'], uploads_info)
+
+                        # Filter on current DB uploads
+                        if len(uploads_info) > 0:
+                            cur_results = filter_uploads(uploads_info, filters)
+                            if cur_results:
+                                all_results = all_results + cur_results
+                # pylint: disable=broad-exception-caught
+                except Exception as ex:
+                    print(f'Generated exception: {ex}', flush=True)
+                    traceback.print_exception(ex)
+
+    return all_results
+
+
+def filter_elevation(uploads: tuple, elevation_filter: dict) -> list:
+    """ Returns the uploads that match the filter
+    Arguments:
+        uploads: the uploads to iterate through
+        elevation_filter: the elevation filtering information
+    Returns:
+        Returns uploads that match the elevation filtering criteria
+    Notes:
+        The elevation filter needs 'type', 'value', and 'units' fields
+        with ('=','<','>','<=','>='), elevation, and ('meters' or 'feet')
+    """
+    # Get the comparison value in meters
+    if elevation_filter['units'] == 'meters':
+        cur_elevation = elevation_filter['value']
+    else:
+        cur_elevation = elevation_filter['value'] * 0.3048
+
+    # Filter the uploads based upon the filter type
+    match(elevation_filter['type']):
+        case '=':
+            return [one_upload for one_upload in uploads if \
+                                float(one_upload['info']['elevation']) == cur_elevation]
+        case '<':
+            return [one_upload for one_upload in uploads if \
+                                float(one_upload['info']['elevation']) < cur_elevation]
+        case '>':
+            return [one_upload for one_upload in uploads if \
+                                float(one_upload['info']['elevation']) > cur_elevation]
+        case '<=':
+            return [one_upload for one_upload in uploads if \
+                                float(one_upload['info']['elevation']) <= cur_elevation]
+        case '>=':
+            return [one_upload for one_upload in uploads if \
+                                float(one_upload['info']['elevation']) >= cur_elevation]
+        case _:
+            raise ValueError('Invalid elevation filter comparison specified: ' \
+                             f'{elevation_filter["type"]}')
+
+
+def get_filter_dt(filter_name: str, filters: tuple) -> Optional[datetime.datetime]:
+    """ Returns the datetime of the associated filter
+    Arguments:
+        filter_name: the name of the filter to find
+        filterrs: the list of filters to search
+    Return:
+        The timestamp as a datetime object, or None if the filter or timestamp is 
+        missing or invalid
+    """
+    found_filter = [one_filter for one_filter in filters if one_filter[0] == filter_name]
+    if len(found_filter) > 0:
+        return datetime.datetime.fromisoformat(found_filter[0][1])
+
+    return None
+
+
 def query_output(results: Results, results_id: str) -> tuple:
     """ Formats the results into something that can be returned to the caller
     Arguments:
@@ -251,9 +348,9 @@ def query_output(results: Results, results_id: str) -> tuple:
                             'source': 'date',
                             'parent': None,
                             'settingsDate': results.user_settings['dateFormat'] if 'dateFormat' in \
-                                                                    results.user_settings else 'MDY',
+                                                                results.user_settings else 'MDY',
                             'settingsTime': results.user_settings['timeFormat'] if 'timeFormat' in \
-                                                                    results.user_settings else '24',
+                                                                results.user_settings else '24',
                            }],
                 'csvLocation':[{'type':'hasLocations',
                            'UTM':'UTM',

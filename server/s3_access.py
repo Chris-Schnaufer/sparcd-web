@@ -14,6 +14,8 @@ from typing import Optional, Callable
 import uuid
 from minio import Minio, S3Error
 
+from s3_utils import make_s3_path
+
 SPARCD_PREFIX='sparcd-'
 
 BUCKET_PREFIX = SPARCD_PREFIX
@@ -31,16 +33,6 @@ CAMTRAP_FILE_NAMES = [DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, OBSERVATION
 S3_UPLOADS_PATH_PART = 'Uploads/'
 
 S3_UPLOAD_META_JSON_FILE_NAME = 'UploadMeta.json'
-
-
-def make_s3_path(parts: tuple) -> str:
-    """ Makes the parts into an S3 path
-    Arguments:
-        parts: the path particles
-    Return:
-        The parts joined into an S3 path
-    """
-    return "/".join([one_part.rstrip('/').rstrip('\\') for one_part in parts])
 
 
 def get_s3_file(minio: Minio, bucket: str, file: str, dest_file: str):

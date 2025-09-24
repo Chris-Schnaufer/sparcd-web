@@ -5,8 +5,8 @@ import datetime
 import math
 import os
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 # Number of days (in seconds) for a datetime to be considered to be within a moon phase
 MOON_PHASE_DATE_DIFF_SEC = 5 * 24 * 60 * 60     # Five days in seconds
@@ -207,7 +207,8 @@ class LunarActivityFormatter:
 
         if lunar_activities:
             # Sort by descending difference
-            sorted_lunar_activities = sorted(lunar_activities, key=lambda activity: activity[1], reverse=True)
+            sorted_lunar_activities = sorted(lunar_activities, key=lambda activity: activity[1],
+                                                                                    reverse=True)
 
             result += 'SPECIES LUNAR ACTIVITY MOST DIFFERENT: '
             result += sorted_lunar_activities[0][0]['name'] + os.linesep

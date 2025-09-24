@@ -5,8 +5,8 @@ import math
 import os
 import sys
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -80,7 +80,7 @@ class ActivityPatternFormatter:
 
                     if activity != 0:
                         to_add += '{:6d} {:10.3f}'.format(activity, \
-                                            float(activity) / float(total_activities[one_month + 1]))
+                                        float(activity) / float(total_activities[one_month + 1]))
                     else:
                         to_add += '                 '
                     totals[one_month + 1] = totals[one_month + 1] + activity
@@ -181,7 +181,7 @@ class ActivityPatternFormatter:
                 activity_similarity = 0.0
 
                 if (len(species_images) >= 25 and len(other_species_images) >= 25 and \
-                                                species['scientificName'] != other_species['scientificName']):
+                                    species['scientificName'] != other_species['scientificName']):
                     # 24 hrs
                     for one_hour in range(0, 24):
                         species_image_hour = results.filter_hours(species_images, \
@@ -262,7 +262,8 @@ class ActivityPatternFormatter:
             if len(species_images) >= 25:
                 result += '{:<28s}'.format(species['name'])
                 for other_species in results.get_species_by_name():
-                    other_species_images = results.get_species_images(other_species['scientificName'])
+                    other_species_images = \
+                                        results.get_species_images(other_species['scientificName'])
 
                     activity_similarity = 0.0
 
@@ -346,7 +347,7 @@ class ActivityPatternFormatter:
                     month_value = 31 - first_day + 1
                 elif last_month == one_month:
                     month_value = last_day
-                elif first_month < one_month and last_month > one_month:
+                elif first_month < one_month > last_month:
                     month_value = 31
 
                 result += ' {:2d}    '.format(month_value)
@@ -375,7 +376,8 @@ class ActivityPatternFormatter:
             result += 'Number of pictures  '
             images_per_season = [0] * 4
             for one_season in range(0, 4):
-                species_season_images = results.filter_month_list(species_images, seasons[one_season])
+                species_season_images = results.filter_month_list(species_images,
+                                                                                seasons[one_season])
 
                 activity = Analysis.activity_for_image_list(species_season_images)
                 result += '{:7d}               '.format(activity)

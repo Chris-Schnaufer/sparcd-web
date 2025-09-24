@@ -4,7 +4,7 @@ import dataclasses
 import os
 import sys
 
-from .results import Results
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass

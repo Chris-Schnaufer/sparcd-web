@@ -3,8 +3,8 @@
 import dataclasses
 import os
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -55,7 +55,8 @@ class RichnessFormatter:
             species_images = results.get_species_images(species['scientificName'])
 
             for location in results.get_locations():
-                species_location_images = results.filter_location(species_images, location['idProperty'])
+                species_location_images = results.filter_location(species_images,
+                                                                            location['idProperty'])
                 richness = richness + (0 if len(species_location_images) == 0 else 1)
 
             result += '{:5d}  '.format(richness)

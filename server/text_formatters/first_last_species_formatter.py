@@ -3,8 +3,8 @@
 import dataclasses
 import os
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -29,7 +29,7 @@ class FirstLastSpeciesFormatter:
         return  "NUMBER OF DAYS IN CAMERA TRAP PROGRAM = " + \
                         str(Analysis.get_days_span(last_dt, first_dt)) + \
                         os.linesep + \
-                "First picture: Year = " + str(first_dt.year) + " Month = " + str(first_dt.month) + \
+                "First picture: Year = " + str(first_dt.year) + " Month = " + str(first_dt.month) +\
                         " Day = " + str(first_dt.day) + os.linesep + \
                 "Last picture: Year = " + str(last_dt.year) + " Month = " + str(last_dt.month) + \
                         " Day = " + str(last_dt.day) + os.linesep + \
@@ -58,7 +58,7 @@ class FirstLastSpeciesFormatter:
             if one_species['first_image']['loc'] != cur_location:
                 cur_location = one_species['first_image']['loc']
                 format_location = next(iter([one_loc for one_loc in results.get_locations() if \
-                                        one_loc['idProperty'] == one_species['first_image']['loc']]))
+                                    one_loc['idProperty'] == one_species['first_image']['loc']]))
                 if format_location:
                     format_location = format_location['nameProperty']
                 else:

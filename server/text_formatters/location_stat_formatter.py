@@ -4,9 +4,9 @@ import dataclasses
 import os
 import sys
 
-from .analysis import Analysis
-from .coordinate_utils import distance_between
-from .results import Results
+from analysis import Analysis
+from coordinate_utils import distance_between
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -144,7 +144,7 @@ class LocationStatFormatter:
                             effort = 31 - first_day + 1
                         elif last_month == one_month:
                             effort = last_day
-                        elif first_month < one_month and last_month > one_month:
+                        elif first_month < one_month > last_month:
                             effort = 31
 
                         result += '{:5d}  '.format(effort)
@@ -164,7 +164,7 @@ class LocationStatFormatter:
                             effort = 31 - first_day + 1
                         elif last_month == one_month:
                             effort = last_day
-                        elif first_month < one_month and last_month > one_month:
+                        elif first_month < one_month > last_month:
                             effort = 31
                         ratio = 0
                         if effort != 0:
@@ -242,7 +242,7 @@ class LocationStatFormatter:
                         effort = 31 - first_day + 1
                     elif last_month == one_month:
                         effort = last_day
-                    elif first_month < one_month and last_month > one_month:
+                    elif first_month < one_month > last_month:
                         effort = 31
 
                     result += '{:5d}  '.format(effort)
@@ -261,7 +261,7 @@ class LocationStatFormatter:
                         effort = 31 - first_day + 1
                     elif last_month == one_month:
                         effort = last_day
-                    elif first_month < one_month and last_month > one_month:
+                    elif first_month < one_month > last_month:
                         effort = 31
 
                     ratio = 0.0

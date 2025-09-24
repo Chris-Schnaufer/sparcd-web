@@ -10,6 +10,7 @@ def get_csv_raw(results: Results) -> str:
     Returns:
         A tuple of the csv fields in dict format
     """
+    # pylint: disable=too-many-locals
     csv_results = []
     for one_image in results.get_images():
         image_loc = results.get_image_location(one_image['loc'])
@@ -58,8 +59,10 @@ def get_csv_raw(results: Results) -> str:
 
 
         # Set the default user's date-time
-        date_format = results.user_settings['dateFormat'] if 'dateFormat' in results.user_settings else 'MDY'
-        time_format = results.user_settings['timeFormat'] if 'timeFormat' in results.user_settings else '24'
+        date_format = results.user_settings['dateFormat'] if 'dateFormat' in \
+                                                                    results.user_settings else 'MDY'
+        time_format = results.user_settings['timeFormat'] if 'timeFormat' in \
+                                                                    results.user_settings else '24'
         cur_image['dateDefault'] = cur_image['date'+date_format] + ' ' + \
                                    cur_image['time'+time_format]
 

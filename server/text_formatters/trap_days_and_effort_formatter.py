@@ -3,8 +3,8 @@
 import dataclasses
 import os
 
-from .analysis import Analysis
-from .results import Results
+from analysis import Analysis
+from results import Results
 
 # pylint: disable=consider-using-f-string
 @dataclasses.dataclass
@@ -88,22 +88,18 @@ class TrapDaysAndEffortFormatter:
                     year_loc_images = results.filter_location(year_images, one_loc['idProperty'])
                     first_cal = year_loc_images[0]['image_dt']
                     last_cal = year_loc_images[len(year_loc_images) - 1]['image_dt']
-                    first_month = first_cal.month
-                    last_month = last_cal.month
-                    first_day = first_cal.day
-                    last_day = last_cal.day
                     result += '{:<28s}'.format(one_loc['nameProperty'])
 
                     month_total = 0
                     for one_month in range(0, 12):
                         month_value = 0
-                        if first_month == last_month and first_month == one_month:
-                            month_value = last_day - first_day + 1
-                        elif first_month == one_month:
-                            month_value = 31 - first_day + 1
-                        elif last_month == one_month:
-                            month_value = last_day
-                        elif first_month < one_month and last_month > one_month:
+                        if first_cal.month == last_cal.month and first_cal.month == one_month:
+                            month_value = last_cal.day - first_cal.day + 1
+                        elif first_cal.month == one_month:
+                            month_value = 31 - first_cal.day + 1
+                        elif last_cal.month == one_month:
+                            month_value = last_cal.day
+                        elif first_cal.month < one_month > last_cal.month:
                             month_value = 31
 
                         result += ' {:2d}    '.format(month_value)
@@ -163,7 +159,7 @@ class TrapDaysAndEffortFormatter:
                     month_value = 31 - first_day + 1
                 elif last_month == one_month:
                     month_value = last_day
-                elif first_month < one_month and last_month > one_month:
+                elif first_month < one_month > last_month:
                     month_value = 31
 
                 result += ' {:2d}    '.format(month_value)
