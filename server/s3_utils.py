@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from cryptography.fernet import InvalidToken
 
 from sparcd_file_utils import load_timed_info, save_timed_info
-from s3_access import S3Connection, make_s3_path
+from s3_access import S3Connection
 
 
 def web_to_s3_url(url: str, decrypt: Callable) -> str:

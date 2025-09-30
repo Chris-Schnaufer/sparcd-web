@@ -1,5 +1,6 @@
 """ Utility functions for SPARCd server """
 
+import hashlib
 import json
 import math
 import os
@@ -666,3 +667,30 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
         shutil.rmtree(edit_folder)
 
     return success_files, failed_files
+
+
+def token_user_valid(db: SPARCdDatabase, request, token, session_expire_sec: int) -> tuple:
+    """ Checks that the token and user are valid
+    Arguments:
+        db: the database to access
+        request: the incoming request environment
+        session_expire_sec: the number of seconds before the session is considered expired
+    Return:
+        Returns a tuple with the first boolean value indicating if the token is valid, and the
+        second value containing the loaded user information. None is returned for each of these
+        values if there is an issue
+    """
+    if not db or not request or not token or not session_expire_sec:
+        return None, None
+
+    # Get the client IP and check against the user agent information to ensure the IP is well
+    # formed
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
+                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
+                                    ))
+    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+        return None, None
+
+    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
+    return token_is_valid(token, client_ip, user_agent_hash, db, session_expire_sec)

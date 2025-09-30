@@ -32,7 +32,7 @@ import query_utils
 from sparcd_db import SPARCdDatabase
 import sparcd_file_utils as sdfu
 import sparcd_utils as sdu
-from s3_access import S3Connection, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
+from s3_access import S3Connection, make_s3_path, DEPLOYMENT_CSV_FILE_NAME, MEDIA_CSV_FILE_NAME, \
                       OBSERVATIONS_CSV_FILE_NAME, CAMTRAP_FILE_NAMES, SPARCD_PREFIX, \
                       S3_UPLOADS_PATH_PART, SPECIES_JSON_FILE_NAME
 import s3_utils as s3u
@@ -72,6 +72,9 @@ TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
 TIMEOUT_UPLOADS_FILE_SEC = 15 * 60
 # Timeout for query results on disk
 QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
+
+# Convertion factor of feet to metes
+FEET_TO_METERS = 0.3048000097536
 
 # Name of temporary species file
 TEMP_SPECIES_FILE_NAME = SPARCD_PREFIX + 'species.json'
@@ -132,7 +135,7 @@ def index():
                                     request.environ.get('HTTP_REFERER',request.remote_addr) \
                                     ))
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_user_agent or client_user_agent == '-':
+    if not client_ip or client_ip is None or not client_user_agent or client_user_agent == '-':
         return 'Resource not found', 404
     return render_template(DEFAULT_TEMPLATE_PAGE)
 
@@ -364,24 +367,14 @@ def collections():
     Notes:
         If the token is invalid, or a problem occurs, a 404 error is returned
     """
-    print('COLLECTIONS', flush=True)
     db = SPARCdDatabase(DEFAULT_DB_PATH)
-
     token = request.args.get('t')
-    if not token:
-        return "Not Found", 404
+    print('COLLECTIONS', flush=True)
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        print('COLLECTIONS CLIENT', flush=True)
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -426,22 +419,13 @@ def sandbox():
         If the token is invalid, or a problem occurs, a 404 error is returned
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
     print('SANDBOX', request, flush=True)
 
-    token = request.args.get('t')
-    if not token:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -474,22 +458,13 @@ def locations():
         If the token is invalid, or a problem occurs, a 404 error is returned
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
-
     token = request.args.get('t')
-    if not token:
-        return "Not Found", 404
-
     print('LOCATIONS', request, flush=True)
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -513,22 +488,13 @@ def species():
         If the token is invalid, or a problem occurs, a 404 error is returned
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
-
     token = request.args.get('t')
-    if not token:
-        return "Not Found", 404
-
     print('SPECIES', request, flush=True)
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -590,28 +556,24 @@ def upload():
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
-
     token = request.args.get('t')
+    print('UPLOAD', request, flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
     collection_id = request.args.get('id')
     collection_upload = request.args.get('up')
 
-    if not token or not collection_id or not collection_upload:
-        return "Not Found", 404
+    if not collection_id or not collection_upload:
+        return "Not Found", 406
 
-    print('UPLOAD', request, flush=True)
     app.config['SERVER_NAME'] = request.host
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Save path
     save_path = os.path.join(tempfile.gettempdir(), SPARCD_PREFIX + collection_id + '_' + \
@@ -718,19 +680,8 @@ def image():
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
 
-    try:
-        image_req = json.loads(crypt.do_decrypt(WORKING_PASSCODE, request.args.get('i')))
-    except json.JSONDecodeError:
-        image_req = None
-
-    # Check what we have from the requestor
-    if not token or not image_req or not isinstance(image_req, dict) or \
-                not all(one_key in image_req.keys() for one_key in ('k','p')):
-        return "Not Found", 404
-
-    image_key = image_req['k']
-    image_store_path = image_req['p']
-
+    # Check the credentials
+    # We aren't concerned with the requestors origin IP
     client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
     if not client_user_agent or client_user_agent is None:
         return "Not Found", 404
@@ -742,14 +693,28 @@ def image():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
+    # Check the rest of the parameters
+    try:
+        image_req = json.loads(crypt.do_decrypt(WORKING_PASSCODE, request.args.get('i')))
+    except json.JSONDecodeError:
+        image_req = None
+
+    # Check what we have from the requestor
+    if not image_req or not isinstance(image_req, dict) or \
+                not all(one_key in image_req.keys() for one_key in ('k','p')):
+        return "Not Found", 406
+
+    image_key = image_req['k']
+    image_store_path = image_req['p']
+
     # Load the image data
     image_data = sdfu.load_timed_info(image_store_path)
     if image_data is None or not isinstance(image_data, dict):
-        return "Not Found", 404
+        return "Not Found", 422
 
     # Get the url from the key
     if not image_key in image_data:
-        return "Not Found", 404
+        return "Not Found", 422
 
     # Not to be confused with Flask's request
     res = requests.get(image_data[image_key]['s3_url'],
@@ -776,16 +741,16 @@ def query():
     """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-
     print('QUERY', request)
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
     have_error = False
     filters = []
     for key, value in request.form.items(multi=True):
@@ -806,25 +771,12 @@ def query():
                 have_error = True
 
     # Check what we have from the requestor
-    if not token or have_error:
-        print('INVALID TOKEN OR QUERY:',token,have_error)
-        return "Not Found", 404
+    if have_error:
+        print('INVALID QUERY:',token,have_error)
+        return "Not Found", 406
     if not filters:
         print('NO FILTERS SPECIFIED')
-        return "Not Found", 404
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.remote_addr))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-
-    # Restrict requests
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
+        return "Not Found", 406
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
@@ -894,26 +846,22 @@ def query_dl():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-    tab = request.args.get('q')
-    target = request.args.get('d')
     print('QUERY DOWNLOAD', request, flush=True)
 
-    # Check what we have from the requestor
-    if not token or not tab:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Check the rest of the request parameters
+    tab = request.args.get('q')
+    target = request.args.get('d')
+
+    # Check what we have from the requestor
+    if not tab:
+        return "Not Found", 406
 
     # Get the query information
     query_info_path, _ = db.get_query(token)
@@ -922,7 +870,7 @@ def query_dl():
     # Try and load the query results
     query_results = sdfu.load_timed_info(query_info_path, QUERY_RESULTS_TIMEOUT_SEC)
     if not query_results:
-        return "Not Found", 404
+        return "Not Found", 422
 
     match(tab):
         case 'DrSandersonOutput':
@@ -1010,6 +958,14 @@ def set_settings():
     token = request.args.get('t')
     print('SET SETTINGS', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
     new_settings = {
         'autonext': request.form.get('autonext', None),
         'dateFormat': request.form.get('dateFormat', None),
@@ -1020,23 +976,6 @@ def set_settings():
         'coordinatesDisplay': request.form.get('coordinatesDisplay', None)
     }
     new_email = request.form.get('email', None)
-
-    # Check what we have from the requestor
-    if not token:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Update any settings that have changed
     modified = False
@@ -1073,6 +1012,14 @@ def location_info():
     token = request.args.get('t')
     print('LOCATION INFO', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
     loc_id = request.form.get('id', None)
     loc_name = request.form.get('name', None)
     loc_lat = request.form.get('lat', None)
@@ -1091,19 +1038,6 @@ def location_info():
     # Check what we have from the requestor
     if not all(item for item in [token, loc_id, loc_name, loc_lat, loc_lon, loc_ele]):
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
@@ -1134,10 +1068,16 @@ def sandbox_prev():
     token = request.args.get('t')
     print('SANDBOX PREV', flush=True)
 
-    rel_path = request.form.get('path', None)
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
 
-    # Check what we have from the requestor
-    if not token or not rel_path:
+    # Check the rest of the request parameters
+    rel_path = request.form.get('path', None)
+    if not rel_path:
         return "Not Found", 406
 
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
@@ -1179,6 +1119,14 @@ def sandbox_new():
     token = request.args.get('t')
     print('SANDBOX NEW', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Check the rest of the request parameters
     location_id = request.form.get('location', None)
     collection_id = request.form.get('collection', None)
     comment = request.form.get('comment', None)
@@ -1188,22 +1136,9 @@ def sandbox_new():
     timezone = request.form.get('tz', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [token, location_id, collection_id, comment, rel_path, all_files, \
+    if not all(item for item in [location_id, collection_id, comment, rel_path, all_files, \
                                                                             timestamp, timezone]):
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN',
-                                    request.environ.get('HTTP_REFERER',request.remote_addr)
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get all the file names
     try:
@@ -1281,24 +1216,19 @@ def sandbox_file():
     token = request.args.get('t')
     print('SANDBOX FILES', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     upload_id = request.form.get('id', None)
 
     # Check what we have from the requestor
-    if not token or not upload_id or len(request.files) <= 0:
+    if not upload_id or len(request.files) <= 0:
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get the location to upload to
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -1361,25 +1291,19 @@ def sandbox_counts():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-    upload_id = request.args.get('i')
     print('SANDBOX COUNTS', flush=True)
 
-    # Check what we have from the requestor
-    if not token or not upload_id:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Check what we have from the requestor
+    upload_id = request.args.get('i')
+    if not upload_id:
+        return "Not Found", 406
 
     # Mark the upload as completed
     counts = db.sandbox_upload_counts(user_info.name, upload_id)
@@ -1402,25 +1326,18 @@ def sandbox_reset():
     token = request.args.get('t')
     print('SANDBOX RESET', flush=True)
 
-    upload_id = request.form.get('id', None)
-    all_files = request.form.get('files', None)
-
-    # Check what we have from the requestor
-    if not token or not upload_id or not all_files:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    upload_id = request.form.get('id', None)
+    all_files = request.form.get('files', None)
+    if not upload_id or not all_files:
+        return "Not Found", 406
 
     # Get all the file names
     try:
@@ -1450,24 +1367,17 @@ def sandbox_completed():
     token = request.args.get('t')
     print('SANDBOX COMPLETED', flush=True)
 
-    upload_id = request.form.get('id', None)
-
-    # Check what we have from the requestor
-    if not token or not upload_id:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    upload_id = request.form.get('id', None)
+    if not upload_id:
+        return "Not Found", 406
 
     # Get the sandbox information
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -1486,7 +1396,7 @@ def sandbox_completed():
         S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                          get_password(token, db),
                                          s3_bucket,
-                                         s3u.make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),
+                                         make_s3_path((s3_path, MEDIA_CSV_FILE_NAME)),
                                          (media_info[one_key] for one_key in media_info.keys()) )
 
     # Update the OBSERVATIONS with species information
@@ -1507,7 +1417,7 @@ def sandbox_completed():
         S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                     get_password(token, db),
                                     s3_bucket,
-                                    s3u.make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                    make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                     [one_row for one_set in row_groups for one_row in one_set] )
 
         num_files_with_species = len(obs_info)
@@ -1560,6 +1470,14 @@ def image_location():
     token = request.args.get('t')
     print('IMAGE LOCATION', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     timestamp = request.form.get('timestamp', None)
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
@@ -1572,19 +1490,6 @@ def image_location():
     # Check what we have from the requestor
     if not all (item for item in [token, coll_id, upload_id, loc_id, loc_name, loc_ele, timestamp]):
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN',
-                                    request.environ.get('HTTP_REFERER',request.remote_addr)
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     bucket = SPARCD_PREFIX + coll_id
     upload_path = f'Collections/{coll_id}/{S3_UPLOADS_PATH_PART}{upload_id}'
@@ -1616,7 +1521,7 @@ def image_location():
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                         get_password(token, db),
                         bucket,
-                        s3u.make_s3_path((upload_path, DEPLOYMENT_CSV_FILE_NAME)),
+                        make_s3_path((upload_path, DEPLOYMENT_CSV_FILE_NAME)),
                         deployment_info )
 
     # Get and update the Media information
@@ -1627,7 +1532,7 @@ def image_location():
 
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
-                                bucket, s3u.make_s3_path((upload_path, MEDIA_CSV_FILE_NAME)),
+                                bucket, make_s3_path((upload_path, MEDIA_CSV_FILE_NAME)),
                                 media_info )
 
     # Get and update the Observation information
@@ -1640,7 +1545,7 @@ def image_location():
 
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
-                                bucket, s3u.make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                bucket, make_s3_path((upload_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 obs_info )
 
     # Get and update the Observation information
@@ -1678,6 +1583,14 @@ def image_species():
     token = request.args.get('t')
     print('IMAGE SPECIES', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     timestamp = request.form.get('timestamp', None)
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
@@ -1694,19 +1607,6 @@ def image_species():
     path = crypt.do_decrypt(WORKING_PASSCODE, path)
     if upload_id not in path or coll_id not in path:
         return "Not Found", 404
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     bucket = SPARCD_PREFIX + coll_id
 
@@ -1731,6 +1631,14 @@ def image_edit_complete():
     token = request.args.get('t')
     print('IMAGE EDIT COMPLETE', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
     path = request.form.get('path', None) # Image path on S3 under bucket
@@ -1741,20 +1649,7 @@ def image_edit_complete():
 
     path = crypt.do_decrypt(WORKING_PASSCODE, path)
     if upload_id not in path or coll_id not in path:
-        return "Not Found", 404
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
+        return "Not Found", 406
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
@@ -1806,26 +1701,21 @@ def images_all_edited():
     token = request.args.get('t')
     print('IMAGES ALL FINISHED', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     coll_id = request.form.get('collection', None)
     upload_id = request.form.get('upload', None)
     timestamp = request.form.get('timestamp', datetime.datetime.now().isoformat())
 
     # Check what we have from the requestor
-    if not all(item for item in [token, coll_id, upload_id]):
+    if not all(item for item in [coll_id, upload_id]):
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
 
@@ -1842,7 +1732,7 @@ def images_all_edited():
                                                                 for one_file in edited_files_info]
 
     s3_bucket = SPARCD_PREFIX + coll_id
-    s3_path = s3u.make_s3_path(('Collections', coll_id, S3_UPLOADS_PATH_PART, upload_id))
+    s3_path = make_s3_path(('Collections', coll_id, S3_UPLOADS_PATH_PART, upload_id))
 
     deployment_info = ctu.load_camtrap_deployments(s3_url, user_info.name,
                                                                 lambda: get_password(token, db),
@@ -1865,7 +1755,7 @@ def images_all_edited():
     row_groups = (obs_info[one_key] for one_key in obs_info)
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
-                                s3_bucket, s3u.make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
+                                s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
                                 [one_row for one_set in row_groups for one_row in one_set] )
 
     db.finish_image_edits(user_info.name, edited_files_info)
@@ -1896,26 +1786,22 @@ def species_keybind():
     token = request.args.get('t')
     print('IMAGE SPECIES', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+
     common = request.form.get('common', None) # Species name
     scientific = request.form.get('scientific', None) # Species scientific name
     new_key = request.form.get('key', None)
 
     # Check what we have from the requestor
-    if not token or not common or not scientific or not new_key:
+    if not common or not scientific or not new_key:
         return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
-        return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get the species
     if user_info.species:
@@ -1958,20 +1844,10 @@ def admin_check():
     token = request.args.get('t')
     print('ADMIN CHECK', flush=True)
 
-    # Check what we have from the requestor
-    if not token:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
@@ -1992,22 +1868,16 @@ def admin_check_changes():
     token = request.args.get('t')
     print('ADMIN CHECK', flush=True)
 
-    # Check what we have from the requestor
-    if not token:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Check for changes in the db
     changed = db.have_admin_changes(user_info.url, user_info.name)
@@ -2031,24 +1901,21 @@ def settings_admin():
     token = request.args.get('t')
     print('ADMIN CHECK', flush=True)
 
-    pw = request.form.get('value', None)
-
-    # Check what we have from the requestor
-    if not token or not pw:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    pw = request.form.get('value', None)
+    if not pw:
+        return "Not Found", 406
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Log onto S3 to make sure the information is correct
     pw_ok = False
@@ -2079,22 +1946,16 @@ def admin_users():
     token = request.args.get('t')
     print('ADMIN USERS', flush=True)
 
-    # Check what we have from the requestor
-    if not token:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Get the users and fill in the collection information
     all_users = db.get_admin_edit_users()
@@ -2148,22 +2009,16 @@ def admin_species():
     token = request.args.get('t')
     print('ADMIN SPECIES', flush=True)
 
-    # Check what we have from the requestor
-    if not token:
-        return "Not Found", 406
-
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Get the species
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2187,25 +2042,24 @@ def admin_user_update():
     token = request.args.get('t')
     print('ADMIN USER UDPATE', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     old_name = request.form.get('oldName', None)
     new_email = request.form.get('newEmail', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [token, old_name, new_email]):
+    if not all(item for item in [old_name, new_email]):
         return "Not Found", 406
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Make sure this user is an admin
+    if user_info.admin != 1:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     if not user_info.name == old_name:
         return {'success': False, 'message': f'User "{old_name}" not found'}
@@ -2228,6 +2082,14 @@ def admin_species_update():
     token = request.args.get('t')
     print('ADMIN SPECIES UDPATE', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     new_name = request.form.get('newName', None)
     old_scientific = request.form.get('oldScientific', None)
     new_scientific = request.form.get('newScientific', None)
@@ -2235,21 +2097,12 @@ def admin_species_update():
     icon_url = request.form.get('iconURL', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [token, new_name, new_scientific, icon_url]):
+    if not all(item for item in [new_name, new_scientific, icon_url]):
         return "Not Found", 406
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Make sure this user is an admin
+    if user_info.admin != 1:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get the species
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2292,6 +2145,14 @@ def admin_location_update():
     token = request.args.get('t')
     print('ADMIN LOCATION UDPATE', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     loc_name = request.form.get('name', None)
     loc_id = request.form.get('id', None)
     loc_active = request.form.get('active', None)
@@ -2308,7 +2169,7 @@ def admin_location_update():
     utm_y = request.form.get('utm_y', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [token, loc_name, loc_id, loc_active, measure, coordinate]):
+    if not all(item for item in [loc_name, loc_id, loc_active, measure, coordinate]):
         return "Not Found", 406
     if measure not in ['feet', 'meters'] or coordinate not in ['UTM', 'LATLON']:
         return "Not Found", 406
@@ -2326,18 +2187,9 @@ def admin_location_update():
     if loc_old_lng:
         loc_old_lng = float(loc_old_lng)
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Make sure this user is an admin
+    if user_info.admin != 1:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get the location
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2367,7 +2219,7 @@ def admin_location_update():
 
     # Convert elevation to meters if needed
     if measure.lower() == 'feet':
-        loc_ele = round((loc_ele * 0.3048000097536) * 100) / 100
+        loc_ele = round((loc_ele * FEET_TO_METERS) * 100) / 100
 
     # Convert UTM to Lat/Lon if needed
     if coordinate == 'UTM':
@@ -2409,6 +2261,14 @@ def admin_collection_update():
     token = request.args.get('t')
     print('ADMIN COLLECTION UDPATE', flush=True)
 
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
     col_id = request.form.get('id', None)
     col_name = request.form.get('name', None)
     col_desc = request.form.get('description', None)
@@ -2417,7 +2277,7 @@ def admin_collection_update():
     col_all_perms = request.form.get('allPermissions', None)
 
     # Check what we have from the requestor
-    if not all(item for item in [token, col_id, col_name, col_all_perms]):
+    if not all(item for item in [col_id, col_name, col_all_perms]):
         return "Not Found", 406
 
     if col_desc is None:
@@ -2429,19 +2289,9 @@ def admin_collection_update():
 
     col_all_perms = json.loads(col_all_perms)
 
-    # Check the rest of what we got
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Make sure this user is an admin
+    if user_info.admin != 1:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
-    if not token_valid or not user_info:
-        return "Unauthorized", 401
 
     # Get existing collection information and permissions
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2505,23 +2355,16 @@ def admin_complete_changes():
     token = request.args.get('t')
     print('ADMIN COMPLETE THE CHANGES', flush=True)
 
-    # Check what we have from the requestor
-    if token is None:
-        return "Not Found", 406
-
-    # Check the rest of what we got
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN',
-                                    request.environ.get('HTTP_REFERER',request.remote_addr)
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Get the locations and species changes logged in the database
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -2568,23 +2411,16 @@ def admin_abandon_changes():
     token = request.args.get('t')
     print('ADMIN ABANDON THE CHANGES', flush=True)
 
-    # Check what we have from the requestor
-    if token is None:
-        return "Not Found", 406
-
-    # Check the rest of what we got
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('HTTP_ORIGIN', \
-                                    request.environ.get('HTTP_REFERER',request.remote_addr) \
-                                    ))
-    client_user_agent =  request.environ.get('HTTP_USER_AGENT', None)
-    if not client_ip or client_ip is None or not client_user_agent or client_user_agent is None:
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
         return "Not Found", 404
-
-    user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
-    token_valid, user_info = sdu.token_is_valid(token, client_ip, user_agent_hash, db,
-                                                                            SESSION_EXPIRE_SECONDS)
     if not token_valid or not user_info:
         return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
 
     # Mark the locations as done in the DB
     db.clear_admin_location_changes(user_info.url, user_info.name)
