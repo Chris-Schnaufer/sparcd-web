@@ -14,6 +14,7 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
@@ -39,7 +40,7 @@ import FilterYear from './FilterYear';
  * @param {function} onQuery Handler for running the query
  * @returns {object} The UI for generating query filters
  */
-export default function QueryFilters({workingWidth, workingHeight, filters, filterChanged, filterRemove, filterAdd, onQuery}) {
+export default function QueryFilters({workingWidth, workingHeight, filters, filterChanged, filterRemove, filterAdd, queryInterval, intervalChanged, onQuery}) {
   const [filterSelected, setFilterSelected] = React.useState(false); // Indicates a new filter is selected
 
   // The names of the available filters
@@ -200,19 +201,29 @@ export default function QueryFilters({workingWidth, workingHeight, filters, filt
             ) 
           }
           <Grid>
-            <Grid id="queries-actions" container direction="column" alignItems="center" justifyContent="center"
+            <Grid id="queries-actions" container direction="column" alignItems="center" justifyContent="space-between"
                   sx={{ position:'relative', minHeight:'310px',minWidth:'250px', border:'solid 1px grey', borderRadius:'10px',
-                        backgroundColor:'seashell' }}>
-              <Grid>
-                <Tooltip title="Click to add a new filter">
-                  <IconButton onClick={handleNewFilter}>
-                    <AddCircleOutlineOutlinedIcon sx={{fontSize: 55, color:'grey'}} />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-              <Grid>
-                <Button disabled={filters.length > 0 ? false:true} onClick={onQuery}>Perform Query</Button>
-              </Grid>
+                        padding: '15px 0', backgroundColor:'seashell' }}>
+              <Tooltip title="Click to add a new filter">
+                <IconButton onClick={handleNewFilter}>
+                  <AddCircleOutlineOutlinedIcon sx={{fontSize: 55, color:'grey'}} />
+                </IconButton>
+              </Tooltip>
+              <TextField
+                    id='query-interval'
+                    label="Query Interval (minutes)"
+                    defaultValue={queryInterval}
+                    size='small'
+                    sx={{padding:'10px', width:'100%'}}
+                    onChange={(ev) => intervalChanged(ev.target.value)}
+                    inputProps={{style: {fontSize: 12}}}
+                    slotProps={{
+                      inputLabel: {
+                        shrink: true,
+                      },
+                    }}
+                    />
+              <Button disabled={filters.length > 0 ? false:true} onClick={onQuery}>Perform Query</Button>
             </Grid>
           </Grid>
         </Grid>

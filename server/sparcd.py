@@ -750,6 +750,15 @@ def query():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
+    interval = request.args.get('i');
+    try:
+        interval = int(interval)
+    except ValueError:
+        interval = DEFAULT_QUERY_INTERVAL
+    finally:
+        if not interval:
+            interval = DEFAULT_QUERY_INTERVAL
+
     # Check the rest of the request parameters
     have_error = False
     filters = []
@@ -814,7 +823,7 @@ def query():
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info.name, get_password(token, db),
-                        user_info.settings, 60)
+                        user_info.settings, interval)
 
     # Format and return the results
     results_id = uuid.uuid4().hex

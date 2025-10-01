@@ -45,6 +45,7 @@ export default function Queries({loadingCollections}) {
   const apiRef = useGridApiRef(); // TODO: Auto size columns of grids using this api
   const dividerRef = React.useRef();   // Used for sizeing
   const expandCollapseRef = React.useRef();   // Used for sizeing
+  const queryInterval = React.useRef(60);   // The current interval value
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const locationItems = React.useContext(LocationsInfoContext); // Locations
   const queryToken = React.useContext(TokenContext);  // Login token
@@ -57,8 +58,8 @@ export default function Queries({loadingCollections}) {
   const [filters, setFilters] = React.useState([]); // Stores filter information
   const [filterHeight, setFilterHeight] = React.useState(240); // Used to force redraw when new filter added
   const [isExpanded, setIsExpanded] = React.useState(false); // Used to indicate the filters are expanded
-  const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
   const [queryCancelled, setQueryCancelled] = React.useState(false); // Used to indicate the user cancelled the query
+  const [queryRedraw, setQueryRedraw] = React.useState(null); // Used to force redraw when new filter added
   const [queryResults, setQueryResults] = React.useState(null); // Used to store query results
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [totalHeight, setTotalHeight] = React.useState(null);  // Default value is recalculated at display time
@@ -248,7 +249,7 @@ export default function Queries({loadingCollections}) {
    * @function
    */
   function handleQuery() {
-    const queryUrl = serverURL + '/query?t=' + encodeURIComponent(queryToken)
+    const queryUrl = serverURL + '/query?t=' + encodeURIComponent(queryToken) + "&i=" + "60";
     const formData = getQueryFormData(filters);
     const queryId = Date.now();
 
@@ -651,6 +652,7 @@ export default function Queries({loadingCollections}) {
     <Box id='queries-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
       <QueryFilters workingWidth={workspaceWidth} workingHeight={curHeight} filters={filters}
                     filterChanged={handleFilterChange} filterRemove={removeFilter} filterAdd={handleFilterAccepted}
+                    queryInterval={queryInterval.current} intervalChanged={(val) => queryInterval.current = val}
                     onQuery={handleQuery} />
       <Grid id="queries-workspace-divider" ref={dividerRef} container direction="row" sx={{justifyContent:'start', alignItems:'center', spacing:2, paddingLeft:'10px'}} >
         <span style={{border:'1px solid lightgrey',height:'0px',minWidth:'40px',width:((workspaceWidth - expandCollapseWidth) / 2.0) - 10 + 'px'}} />
