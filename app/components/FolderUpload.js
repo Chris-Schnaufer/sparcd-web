@@ -59,6 +59,7 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
   const [continueUploadInfo, setContinueUploadInfo] = React.useState(null); // Used when continuing a previous upload
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
   const [filesSelected, setFilesSelected] = React.useState(0);
+  const [finishingUpload, setFinishingUpload] = React.useState(false); // Used when finishing up an upload
   const [forceRedraw, setForceRedraw] = React.useState(0);
   const [inputSize, setInputSize] = React.useState({'width':252,'height':21}); // Updated when UI rendered
   const [locationSelection, setLocationSelection] = React.useState(null);
@@ -478,10 +479,14 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
    */
   function doneUpload() {
     const curUploadId = workingUploadId;
-    serverUploadCompleted(curUploadId,
-      () => { // Success
-        onCompleted();
-      });
+    setFinishingUpload(true);
+    window.setTimeout(() => {
+      serverUploadCompleted(curUploadId,
+                            () => { // Success
+                              setFinishingUpload(false);
+                              onCompleted();
+                            });
+    }, 10);
   }
 
   /**
@@ -1115,6 +1120,20 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
         </Grid>
       </Box>
    }
+    { finishingUpload && 
+      <Grid id="query-running-query-wrapper" container direction="row" alignItems="center" justifyContent="center" 
+            sx={{...theme.palette.screen_overlay, backgroundColor:'rgb(0,0,0,0.5)', zIndex:11111}}
+      >
+        <div style={{backgroundColor:'rgb(0,0,0,0.8)', border:'1px solid grey', borderRadius:'15px', padding:'25px 10px'}}>
+          <Grid container direction="column" alignItems="center" justifyContent="center" >
+              <Typography gutterBottom variant="body2" color="lightgrey">
+                Please wait while the upload finishes up ...
+              </Typography>
+              <CircularProgress variant="indeterminate" />
+          </Grid>
+        </div>
+      </Grid>
+    }
     </React.Fragment>
   );
 }
