@@ -76,6 +76,9 @@ QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
 # Convertion factor of feet to metes
 FEET_TO_METERS = 0.3048000097536
 
+# Default query interval
+DEFAULT_QUERY_INTERVAL = 60
+
 # Name of temporary species file
 TEMP_SPECIES_FILE_NAME = SPARCD_PREFIX + 'species.json'
 
