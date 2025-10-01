@@ -10,6 +10,7 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
+import CircularProgress from '@mui/material/CircularProgress';
 import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
@@ -28,6 +29,7 @@ import { AddMessageContext, AllowedImageMime, BaseURLContext, CollectionsInfoCon
 const MAX_FILE_SIZE = 80 * 1000 * 1024; // Number of bytes before a file is too large
 const MIN_COMMENT_LEN = 10; // Minimum allowable number of characters for a comment
 const MAX_CHUNKS = 8; // Maximum number of chunks to break file uploads into
+const MAX_FILES_UPLOAD_SPLIT = 5; // Maximum number of files to upload at one time
 
 const prevUploadCheckState = {
   noCheck: null,
@@ -38,11 +40,12 @@ const prevUploadCheckState = {
 /**
  * Renders the UI for uploading a folder of images
  * @function
+ * @param {boolean} loadingCollections Flag indicating collections are being loaded and not available
  * @param {function} onCompleted The function to call when an upload is completed
  * @param {function} onCancel The function to call when the user cancels the upload
  * @returns {object} The rendered UI
  */
-export default function FolderUpload({onCompleted, onCancel}) {
+export default function FolderUpload({loadingCollections, onCompleted, onCancel}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
@@ -75,8 +78,6 @@ export default function FolderUpload({onCompleted, onCancel}) {
   let disableUploadPrev = false; // Used to lock out multiple clicks
   let disableUploadCheck = false; // Used to lock out multiple clicks
 
-  const getTooltipInfoOpen = getTooltipInfo.bind(FolderUpload);
-
   let displayCoordSystem = 'LATLON';
   if (userSettings['coordinatesDisplay']) {
     displayCoordSystem = userSettings['coordinatesDisplay'];
@@ -87,7 +88,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    * @param {int} locIdx The index of the location to get the details for
    */
-  function getTooltipInfo(locIdx) {
+  const getTooltipInfo = React.useCallback((locIdx) => {
     if (curLocationFetchIdx != locIdx) {
       curLocationFetchIdx = locIdx;
       const cur_loc = locationItems[curLocationFetchIdx];
@@ -127,7 +128,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
         console.log('Location tooltip Unknown Error: ',err);
       }
     }
-  }
+  }, [curLocationFetchIdx, locationItems, serverURL, setTooltipData, uploadToken]);
 
   /**
    * Clears tooltip information when no longer needed. Ensures only the working tooltip is cleared
@@ -292,16 +293,17 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @function
    * @param {object} fileChunk The array of files to upload
    * @param {string} uploadId The ID of the upload
+   * @param {number} numFiles The number of images to send
    * @param {number} attempts The remaining number of attempts to try
    */
-  function uploadChunk(fileChunk, uploadId, attempts = 3) {
+  function uploadChunk(fileChunk, uploadId, numFiles = 1, attempts = 3) {
     const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
     const maxAttempts = attempts;
-    const NUM_FILES_UPLOAD = 5;
+    const startTs = Date.now();
 
     formData.append('id', uploadId);
-    for (let idx = 0; idx < NUM_FILES_UPLOAD && idx < fileChunk.length; idx++) {
+    for (let idx = 0; idx < numFiles && idx < fileChunk.length; idx++) {
       formData.append(fileChunk[idx].name, fileChunk[idx]);
     }
 
@@ -318,9 +320,12 @@ export default function FolderUpload({onCompleted, onCancel}) {
           })
         .then((respData) => {
             // Process the results
-            const nextChunk = fileChunk.slice(NUM_FILES_UPLOAD);
+            const nextChunk = fileChunk.slice(numFiles);
             if (nextChunk.length > 0) {
-              window.setTimeout(() => uploadChunk(nextChunk, uploadId), 10);
+              let curUploadCount = MAX_FILES_UPLOAD_SPLIT;
+              const perFileSec = ((Date.now() - startTs) / 1000.0) / numFiles;
+              curUploadCount = Math.max(1, MAX_FILES_UPLOAD_SPLIT - Math.round(perFileSec / 7.0));
+              window.setTimeout(() => uploadChunk(nextChunk, uploadId, curUploadCount), 10);
             }
         })
         .catch(function(err) {
@@ -329,7 +334,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
           }
           attempts--;
           if (attempts > 0) {
-            window.setTimeout(uploadChunk(fileChunk, uploadId, attempts), 5000 * (maxAttempts - attempts));
+            window.setTimeout(uploadChunk(fileChunk, uploadId, numFiles, attempts), 5000 * (maxAttempts - attempts));
           } else {
             // TODO: Make this a single instance
             addMessage(Level.Error, 'A problem ocurred while uploading images');
@@ -844,6 +849,21 @@ export default function FolderUpload({onCompleted, onCancel}) {
    * @return {object} The UI to render
    */
   function renderUploadDetails() {
+    // Let the user know collections are still being loaded
+    if (loadingCollections === true) {
+      return (
+        <Grid id='folder-upload-details-wrapper' container direction="column" alignItems="center" justifyContent="start" gap={2}>
+          <Typography gutterBottom variant="body2">
+            Loading collections, please wait...
+          </Typography>
+          <CircularProgress variant="indeterminate" />
+          <Typography gutterBottom variant="body2">
+            This may take a while
+          </Typography>
+        </Grid>
+      );
+    }
+
     return (
       <Grid id='folder-upload-details-wrapper' container direction="column" alignItems="center" justifyContent="start" gap={2}>
         <FormControl fullWidth>
@@ -897,7 +917,7 @@ export default function FolderUpload({onCompleted, onCancel}) {
                                   lng={displayCoordSystem === 'LATLON' ? loc.lngProperty: loc.utm_y} 
                                   elevation={userSettings['measurementFormat'] === 'feet' ? meters2feet(loc.elevationProperty) + 'ft' : loc.elevationProperty}
                                   coordType={displayCoordSystem === 'LATLON' ? undefined : loc.utm_code}
-                                  onTTOpen={getTooltipInfoOpen} onTTClose={clearTooltipInfo}
+                                  onTTOpen={getTooltipInfo} onTTClose={clearTooltipInfo}
                                   dataTT={tooltipData} propsTT={props}
                      />
                   </MenuItem> 

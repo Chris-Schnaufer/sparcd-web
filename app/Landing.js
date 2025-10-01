@@ -115,7 +115,7 @@ export default function Landing({loadingCollections, loadingSandbox, onUserActio
           </Grid>
         </Grid>
       </Box>
-      { haveNewUpload && <FolderUpload onCompleted={() => {setHaveNewUpload(false);onSandboxRefresh();}} onCancel={() => setHaveNewUpload(false)}/>
+      { haveNewUpload && <FolderUpload loadingCollections={loadingCollections} onCompleted={() => {setHaveNewUpload(false);onSandboxRefresh();}} onCancel={() => setHaveNewUpload(false)}/>
       }
     </React.Fragment>
   );

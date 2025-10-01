@@ -1269,11 +1269,19 @@ def sandbox_file():
         file_id = db.sandbox_file_uploaded(user_info.name, upload_id,
                                 request.files[one_file].filename, request.files[one_file].mimetype)
 
+        if file_id is None:
+            print(f'INFO: file {request.files[one_file].filename} with upload ID {upload_id} was ' \
+                   'uploaded but not not found in the database - database not updated')
+            if os.path.exists(temp_file[1]):
+                os.unlink(temp_file[1])
+            continue
+
         # Check if we need to store the species and locations in camtrap
         if (cur_species and cur_timestamp) or cur_location:
             db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat())
 
-    os.unlink(temp_file[1])
+    if os.path.exists(temp_file[1]):
+        os.unlink(temp_file[1])
 
     return json.dumps({'success': True})
 
