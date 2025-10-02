@@ -9,7 +9,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 
@@ -46,7 +45,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const uiSizes = React.useContext(SizeContext);
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [changesMade, setChangesMade] = React.useState(false); // Used to see if there have been changes made
-  const [completedImageCount, setCompletedImageCount] = React.useState(null);  // The number of completed images (have species)
   const [curEditState, setCurEditState] = React.useState(editingStates.none); // Working page state
   const [curImageEdit, setCurImageEdit] = React.useState(null);         // The image to edit
   const [curLocationInfo, setCurLocationInfo] = React.useState(null);   // Working location when fetching tooltip
@@ -81,20 +79,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let workingTileCount = 40;
-
-  // Check if we need to count the number of images that hace species for completeness count
-  React.useLayoutEffect(() => {
-    if (completedImageCount === null) {
-      let counted = 0;
-      for (let idx in curUpload.images) {
-        if (curUpload.images[idx].species && curUpload.images[idx].species.length > 0) {
-          counted++;
-        }
-      }
-
-      setCompletedImageCount(counted);
-    }
-  }, [completedImageCount, curUpload, setCompletedImageCount]);
 
   /**
    * Calculates the total available height for the workspace
@@ -153,13 +137,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return;
     }
 
-    // Check if all species have been removed and adjust the completeness count
-    if (speciesCount === 0) {
-      if (curUpload.images[curImageIdx].species.length <= 1) {
-        setCompletedImageCount(Mat.max(0, completedImageCount - 1));
-      }
-    }
-
     const speciesUrl = serverURL + '/imageSpecies?t=' + encodeURIComponent(editToken);
     const formData = new FormData();
 
@@ -213,7 +190,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     } else {
       workingSpecies = {scientificName:speciesAdd.scientificName, name:speciesAdd.name, count:1};
       curImageEdit.species.push(workingSpecies);
-      setCompletedImageCount(completedImageCount + 1);
       window.setTimeout(() => {
         setSpeciesRedraw(curImageEdit.name+workingSpecies.name+'1');
       }, 100);
@@ -856,7 +832,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                       onKeybind={(event, speciesItem) => {onKeybindClick(event, speciesItem.name, speciesItem.keyBinding);event.preventDefault();}}
                       onZoom={(event, speciesItem) => {setSpeciesZoomName(speciesItem.name);setSpeciesKeybindName(null);event.preventDefault();}}
       />
-      <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent="center" rows='1' 
+      <Grid id='top-sidebar' ref={sidebarTopRef} container direction='row' alignItems='center' justifyContent='center' rows='1'
           style={{ ...theme.palette.top_sidebar, top:curStart+'px', minWidth:(workspaceWidth-workplaceStartX)+'px', maxWidth:(workspaceWidth-workplaceStartX)+'px',
                    position:'sticky', marginLeft:workplaceStartX, verticalAlignment:'middle', visibility:topbarVisiblity }} >
         <Grid>
