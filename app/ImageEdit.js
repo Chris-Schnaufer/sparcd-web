@@ -63,10 +63,6 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   // Working species
   let curSpecies = species != undefined ? species : [];
 
-  // Binding functions
-  handleInputChange = handleInputChange.bind(ImageEdit);
-  handleBlur = handleBlur.bind(ImageEdit);
-
   /**
    * Sets the image size based upon the rendered image
    * @function
@@ -187,7 +183,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
    * @param {object} event The triggering event
    * @param {string} speciesName The name of the species whose count is changing
    */
-  function handleInputChange(event, speciesName) {
+  const handleInputChange = React.useCallback((event, speciesName) => {
     const newValue = event.target.value === '' ? 0 : Number(event.target.value);
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
@@ -206,7 +202,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     workingSpecies[speciesIdx].count = newValue;
     curSpecies = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
-  };
+  }, [curSpecies, onSpeciesChange, setSpeciesRedraw]);
 
   /**
    * Handler for when a species input field no longer has focus
@@ -214,7 +210,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
    * @param {object} event The triggering event
    * @param {string} speciesName The name of the species associated with the event
    */
-  function handleBlur(event, speciesName) {
+  const handleBlur = React.useCallback((event, speciesName) => {
     let workingSpecies = curSpecies;
     const speciesIdx = workingSpecies.findIndex((item) => item.name === speciesName);
     if (speciesIdx == -1) {
@@ -231,7 +227,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     workingSpecies[speciesIdx].count = newValue;
     curSpecies = workingSpecies;
     setSpeciesRedraw(workingSpecies[speciesIdx].name+workingSpecies[speciesIdx].count);
-  }
+  }, [curSpecies, onSpeciesChange, setSpeciesRedraw]);
 
   /**
    * Handles deleting a species from the image
@@ -290,11 +286,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
             <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
               <Grid size="grow" sx={{position:'relative', marginRight:'auto'}}>
                 <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.onPrev()}
-                          sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
               <Grid container alignItems="right" justifyContent="right" size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
                 <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.onNext()}
-                          sx={{backgroundColor:'rgba(255,255,255,0,3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
             </Grid>
             : null

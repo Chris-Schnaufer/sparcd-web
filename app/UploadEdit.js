@@ -69,14 +69,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   // Some local variables
   const curUploadLocation = React.useMemo(() => locationItems.find((item) => item.idProperty === curUpload.location), [curUpload, locationItems]);
 
-  // Bind functions to ensure scope
-  const getTooltipInfoOpen = getTooltipInfo.bind(UploadEdit);
-  const handleImageSearch = searchImages.bind(UploadEdit);
-  const handleEditLocation = editLocation.bind(UploadEdit);
-  const handleEditingImage = editingImage.bind(UploadEdit);
-  const handleNextImage = nextImage.bind(UploadEdit);
-  const handlePrevImage = prevImage.bind(UploadEdit);
-
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let workingTileCount = 40;
 
@@ -302,6 +294,27 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       document.removeEventListener("keydown", onKeypress);
     }
   }, [curEditState, curImageEdit, editingStates, handleSpeciesAdd, speciesItems]);
+
+  /**
+   * Searches for images that meet the search criteria and scrolls it into view
+   * @function
+   * @param {string} searchTerm The term to search an image name for
+   */
+  const handleImageSearch = React.useCallback((searchTerm) => {
+    const lcSearchTerm = searchTerm.toLowerCase();
+    const foundImage = curUpload.images.find((item) => item.name.toLowerCase().includes(lcSearchTerm));
+    if (!foundImage) {
+      return false;
+    }
+    const foundEl = document.getElementById(foundImage.name);
+    if (!foundEl) {
+      return false;
+    }
+
+    foundEl.scrollIntoView();
+    return true;
+  }, [curUpload]);
+
   /**
    * Updates the server with a new location for the upload
    * @function
@@ -465,7 +478,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * Shows the next image for editing
    * @function
    */
-  function nextImage() {
+  const handleNextImage = React.useCallback(() => {
     finishImageEdits();
 
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
@@ -482,13 +495,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
       setNavigationRedraw('redraw-image-'+newImage.name);
     }
-  }
+  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**
    * Shows the previous image for editing
    * @function
    */
-  function prevImage() {
+  const handlePrevImage = React.useCallback(() => {
     finishImageEdits();
 
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
@@ -505,7 +518,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
       setNavigationRedraw('redraw-image-'+newImage.name);
     }
-  }
+  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**
    * Updates the currently edited image with any changes made
@@ -677,7 +690,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * @function
    * @param {int} locIdx The index of the location to get the details for
    */
-  function getTooltipInfo(locIdx) {
+  const getTooltipInfoOpen = React.useCallback((locIdx) => {
     if (curLocationFetchIdx != locIdx) {
       curLocationFetchIdx = locIdx;
       const cur_loc = locationItems[curLocationFetchIdx];
@@ -717,7 +730,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
         console.log('Location tooltip Unknown Error: ',err);
       }
     }
-  }
+  }, [curLocationFetchIdx, editToken, locationItems, serverURL, setTooltipData]);
 
   /**
    * Clears tooltip information when no longer needed. Ensures only the working tooltip is cleared
@@ -732,43 +745,23 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   }
 
   /**
-   * Searches for images that meet the search criteria and scrolls it into view
-   * @function
-   * @param {string} searchTerm The term to search an image name for
-   */
-  function searchImages(searchTerm) {
-    const lcSearchTerm = searchTerm.toLowerCase();
-    const foundImage = curUpload.images.find((item) => item.name.toLowerCase().includes(lcSearchTerm));
-    if (!foundImage) {
-      return false;
-    }
-    const foundEl = document.getElementById(foundImage.name);
-    if (!foundEl) {
-      return false;
-    }
-
-    foundEl.scrollIntoView();
-    return true;
-  }
-
-  /**
    * Sets the flag indicating the user wants to edit the upload location
    * @function
    */
-  function editLocation() {
+  const handleEditLocation = React.useCallback(() => {
     setEditingLocation(true);
-  }
+  }, [setEditingLocation]);
 
   /**
    * Called set the page state to a specific image for editing and performs setup functions
    * @function
    * @param {string} imageName The name of the image to edit
    */
-  function editingImage(imageName) {
+  const handleEditingImage = React.useCallback((imageName) => {
     setCurEditState(editingStates.editImage);
     setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
     searchSetup();
-  }
+  }, [curUpload, editingStates, searchSetup, setCurEditState, setCurImageEdit]);
 
   // Variables to help with generating the UI
   const curHeight = totalHeight;
