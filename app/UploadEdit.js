@@ -616,7 +616,8 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                 if (numTries < 4) {
                   window.setTimeout(() => submitAllImageEdited(collectionId, uploadName, timestamp, numTries), 1000 * numTries);
                 } else {
-                  addMessage(Level.Error, "Unable to finish all image editing changes " + imagePath);
+                  setPendingMessage(null);
+                  addMessage(Level.Error, "Unable to finish all image editing changes ");
                 }
               }
             }

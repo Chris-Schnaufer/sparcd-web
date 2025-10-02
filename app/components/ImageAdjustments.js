@@ -36,7 +36,7 @@ export default function ImageAdjustments({isVisible, adjustments, onBrightnessCh
   const adjustmentDropProps = showAdjustments ? {writingMode:'vertical-lr', transform:'rotate(-180deg)', paddingTop:'5px',paddingBottom:'5px',color:'black', backgroundColor:'rgba(255,255,255,0.7)'} : 
                                                 {paddingLeft:'5px',paddingRight:'5px'};
   return (
-    <div style={{visibility:(isVisible ? 'visible':'hidden') }}>
+    <div style={{visibility:(isVisible ? 'visible':'hidden'), pointerEvents:"auto" }}>
       <Grid id="image-edit-adjustments" container direction="column" alignItems="start" justifyContent="start"
             sx={{position:'absolute',left:'0px',top:'1.3em',
                  visibility:(showAdjustments ? 'visible' : 'hidden')}} >

@@ -3,6 +3,7 @@
 /** @module ImageEdit */
 
 import * as React from 'react';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import ArrowBackIosOutlinedIcon from '@mui/icons-material/ArrowBackIosOutlined';
 import ArrowForwardIosOutlinedIcon from '@mui/icons-material/ArrowForwardIosOutlined';
 import Box from '@mui/material/Box';
@@ -10,10 +11,12 @@ import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import HighlightOffOutlinedIcon from '@mui/icons-material/HighlightOffOutlined';
 import MuiInput from '@mui/material/Input';
+import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
 import { styled } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { v4 as uuidv4 } from 'uuid';
 
 import { SpeciesInfoContext, UserSettingsContext } from './serverInfo';
@@ -44,6 +47,7 @@ const Input = styled(MuiInput)`
  */
 export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
                                    navigation, species, onSpeciesChange}) {
+  const imageTransformWrapperRef = React.useRef(null);
   const navigationMaskTimeoutId = React.useRef(null);         // Holds the timeout ID for removing the navigation mask
   const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
   const userSettings = React.useContext(UserSettingsContext); // User display settings
@@ -255,28 +259,36 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     }
     navigationLocked = true;
 
-    // Check if we have a pending timeout and cancel it
-    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
-    if (curNavMaskTimeoutId) {
-      navigationMaskTimeoutId.current = null;
-      window.clearTimeout(curNavMaskTimeoutId);
+    // Reset the image zoom/pan control
+    if (imageTransformWrapperRef.current) {
+      imageTransformWrapperRef.current.resetTransform();
     }
 
-    // Show the mask after a timeout
-    navigationMaskTimeoutId.current = window.setTimeout(() => {
-          // Clear our timer ID and show the mask
-          navigationMaskTimeoutId.current = null;
-          showNavigationMask();
-      }, NAVIGATION_MASK_TIMEOUT);
+    // Set a timer to allow the pan/zoom control to reset
+    window.setTimeout( () => {
+      // Check if we have a pending timeout and cancel it
+      const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+      if (curNavMaskTimeoutId) {
+        navigationMaskTimeoutId.current = null;
+        window.clearTimeout(curNavMaskTimeoutId);
+      }
 
-    // Reset image-specific values 
-    setBrightness(50);
-    setContrast(50);
-    setHue(50);
-    setSaturation(50);
+      // Show the mask after a timeout
+      navigationMaskTimeoutId.current = window.setTimeout(() => {
+            // Clear our timer ID and show the mask
+            navigationMaskTimeoutId.current = null;
+            showNavigationMask();
+        }, NAVIGATION_MASK_TIMEOUT);
 
-    // Perform the navigation
-    navigation.onNext();
+      // Reset image-specific values 
+      setBrightness(50);
+      setContrast(50);
+      setHue(50);
+      setSaturation(50);
+
+      // Perform the navigation
+      navigation.onNext();
+    }, 100);
   }, [navigation]);
 
   /**
@@ -290,28 +302,36 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     }
     navigationLocked = true;
 
-    // Check if we have a pending timeout and cancel it
-    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
-    if (curNavMaskTimeoutId) {
-      navigationMaskTimeoutId.current = null;
-      window.clearTimeout(curNavMaskTimeoutId);
+    // Reset the image zoom/pan control
+    if (imageTransformWrapperRef.current) {
+      imageTransformWrapperRef.current.resetTransform();
     }
 
-    // Show the mask after a timeout
-    navigationMaskTimeoutId.current = window.setTimeout(() => {
-          // Clear our timer ID and show the mask
-          navigationMaskTimeoutId.current = null;
-          showNavigationMask();
-      }, NAVIGATION_MASK_TIMEOUT);
+    // Set a timer to allow the pan/zoom control to reset
+    window.setTimeout( () => {
+      // Check if we have a pending timeout and cancel it
+      const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+      if (curNavMaskTimeoutId) {
+        navigationMaskTimeoutId.current = null;
+        window.clearTimeout(curNavMaskTimeoutId);
+      }
 
-    // Reset image-specific values 
-    setBrightness(50);
-    setContrast(50);
-    setHue(50);
-    setSaturation(50);
+      // Show the mask after a timeout
+      navigationMaskTimeoutId.current = window.setTimeout(() => {
+            // Clear our timer ID and show the mask
+            navigationMaskTimeoutId.current = null;
+            showNavigationMask();
+        }, NAVIGATION_MASK_TIMEOUT);
 
-    // Perform the navigation
-    navigation.onPrev()
+      // Reset image-specific values 
+      setBrightness(50);
+      setContrast(50);
+      setHue(50);
+      setSaturation(50);
+
+      // Perform the navigation
+      navigation.onPrev()
+    }, 100);
   }, [navigation]);
 
   /**
@@ -380,53 +400,65 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   return (
     <React.Fragment>
       <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px 8px', position:'relative'}} {...dropExtras} >
-        <img id={imageId} src={url} alt={name} onLoad={onImageLoad}
-             style={{maxWidth:maxWidth, maxHeight:maxHeight, 
-                     filter:'brightness('+getBrightness()+'%) contrast('+getContrast()+'%) hue-rotate('+getHue()+'deg) saturate('+getSaturation()+'%)'}} 
-        />
-        <Stack style={{ position:'absolute', top:(10)+'px', left:10+'px', minWidth:imageSize.width+'px',
+        <TransformWrapper ref={imageTransformWrapperRef}>
+          <TransformComponent>
+            <img id={imageId} src={url} alt={name} onLoad={onImageLoad}
+                 style={{maxWidth:maxWidth, maxHeight:maxHeight, 
+                         filter:'brightness('+getBrightness()+'%) contrast('+getContrast()+'%) hue-rotate('+getHue()+'deg) saturate('+getSaturation()+'%)'}} 
+            />
+          </TransformComponent>
+        </TransformWrapper>
+        <Stack id="edit-image-controls" style={{ position:'absolute', top:(10)+'px', left:10+'px', minWidth:imageSize.width+'px',
                        maxWidth:imageSize.width+'px', width:imageSize.width+'px', minHeight:maxHeight, maxHeight:maxHeight, 
+                       pointerEvents:"none"
                     }}
         >
-          <Grid container direction="row" alignItems="start" justifyContent="start" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
-            <Grid size={{ xs: 4, sm: 4, md:4 }} sx={{position:'relative'}}>
+          <Grid id='edit-image-top-row' container direction="row" alignItems="start" justifyContent="space-between" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
+            <Grid size={{ xs: 4, sm: 4}} sx={{position:'relative'}}>
               <ImageAdjustments isVisible={!!adjustments} adjustments={{brightness:brightness, contrast:contrast, hue:hue, saturation:saturation}}
                                 onBrightnessChange={setBrightness} 
                                 onContrastChange={setContrast} onHueChange={setHue} onSaturationChange={setSaturation} />
             </Grid>
-            <Grid container alignItems="center" justifyContent="center" size={{ xs: 4, sm: 4, md:4 }} sx={{marginLeft:'auto', cursor:'default'}}>
+            <Grid container size={{ xs: 4, sm: 4}} alignItems="center" justifyContent="center" sx={{cursor:'default', pointerEvents:"auto"}}>
               <Typography variant="body" sx={{textTransform:'uppercase',color:'grey',textShadow:'1px 1px black','&:hover':{color:'white'} }}>
                 {name}
               </Typography>
             </Grid>
-            <Grid container alignItems="right" justifyContent="right" size={{ xs: 4, sm: 4, md:4 }} style={{marginLeft:'auto', cursor:'default'}}>
-              <div id="image-edit-close" sx={{height:'20px', flex:'1'}} onClick={() => onClose()}>
+            <Grid container direction="column" alignItems="right" justifyContent="right" sx={{marginLeft:'auto', cursor:'default'}}>
+              <div id="image-edit-close" onClick={onClose} style={{height:'20px', display:'block', textAlign:'right', pointerEvents:"auto"}} >
                 <Typography variant="body3" sx={{textTransform:'uppercase',color:'black',backgroundColor:'rgba(255,255,255,0.3)',
                                                  padding:'3px 3px 3px 3px',borderRadius:'3px','&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}
                                                }}>
                   X
                 </Typography>
               </div>
+              <Grid container direction="column" alignItems="center" justifyContent="center" sx={{marginTop:'30px', marginRight:'5px', pointerEvents:"auto"}}>
+                <AddOutlinedIcon fontSize="small" onClick={() => {if (imageTransformWrapperRef.current) imageTransformWrapperRef.current.zoomIn();} }
+                                  sx={{border:'1px solid black', backgroundColor:'rgb(255,255,255,0.3)',
+                                       '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}, padding:'3px 0px 3px 0px', minHeight:'1.25em' }}/>
+                <RemoveOutlinedIcon fontSize="small" onClick={() => {if (imageTransformWrapperRef.current) imageTransformWrapperRef.current.zoomOut();} } 
+                                  sx={{border:'1px solid black', backgroundColor:'rgb(255,255,255,0.3)',
+                                        '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}, padding:'3px 0px 3px 0px', minHeight:'1.25em' }} />
+              </Grid>
             </Grid>
           </Grid>
           { navigation ?
-            <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
+            <Grid id='edit-image-mid-row' container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
               <Grid size="grow" sx={{position:'relative', marginRight:'auto'}}>
                 <ArrowBackIosOutlinedIcon fontSize="large" onClick={handleNavigationPrev}
-                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}, pointerEvents:"auto" }} />
               </Grid>
               <Grid container alignItems="right" justifyContent="right" size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
                 <ArrowForwardIosOutlinedIcon fontSize="large" onClick={handleNavigationNext}
-                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
+                          sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'}, pointerEvents:"auto" }} />
               </Grid>
             </Grid>
             : null
           }
-          <Grid container id="image-edit-species" direction="row" alignItems="end" justifyContent="end"
+          <Grid id='edit-image-top-row' container direction="row" alignItems="end" justifyContent="end"
                 sx={{minHeight:rowHeight,maxHeight:rowHeight}}
           >
-            <Grid size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto',
-                  visibility:(curSpecies ? 'visible' : 'hidden')}}>
+            <Grid id="image-edit-species" size={{ xs:6, sm:6, md:6 }} sx={{position:'relative', marginRight:'auto', visibility:(curSpecies ? 'visible' : 'hidden'), pointerEvents:"auto"}}>
               {curSpecies.map((curItem) =>
                 <ImageEditSpecies key={name+curItem.name} name={curItem.name?curItem.name:curItem.scientificName} count={curItem.count} onDelete={handleSpeciesDelete}
                                   onChange={handleInputChange} onBlur={handleBlur} />
