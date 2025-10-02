@@ -44,8 +44,9 @@ const Input = styled(MuiInput)`
  */
 export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onClose, adjustments, dropable,
                                    navigation, species, onSpeciesChange}) {
+  const navigationMaskTimeoutId = React.useRef(null);         // Holds the timeout ID for removing the navigation mask
   const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
-  const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const userSettings = React.useContext(UserSettingsContext); // User display settings
   const [brightness, setBrightness] = React.useState(100);    // Image brightness
   const [contrast, setContrast] = React.useState(100);        // Image contrast
   const [hue, setHue] = React.useState(0);    // From 360 to -360
@@ -59,6 +60,9 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   const contrastRange = {'default':100, 'min':0, 'max':200};
   const hueRange = {'default':0, 'min':-720, 'max':720};
   const saturationRange = {'default':100, 'min':0, 'max':200};
+
+  const NAVIGATION_MASK_TIMEOUT = 500; // The timeout value for showing a navigation mask
+  const NAVIGATION_MASK_CLEAR_TIMEOUT = 300; // The timeout value for ensuring the navigation mask is cleared
 
   // Working species
   let curSpecies = species != undefined ? species : [];
@@ -75,7 +79,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       const elSize = el.getBoundingClientRect();
       setImageSize({'left':elSize.left, 'top':elSize.top, 'width':elSize.width, 'height':elSize.height, 'right':elSize.right });
     }
-  }, [imageId])
+  }, [imageId, setImageSize])
 
   // Window resize handler
   React.useLayoutEffect(() => {
@@ -248,13 +252,107 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     setSpeciesRedraw(removedSpecies.name+'-deleted');
   }
 
+  /**
+   * Shows the navigation mask
+   * @function
+   */
+  function showNavigationMask() {
+    // Show the mask
+    const el = document.getElementById("image-edit-navigate-mask");
+    if (el) {
+      el.style.display = "initial";
+      el.style.visibility = "visible";
+    }
+  }
+
+  /**
+   * Hides the navigation mask
+   * @function
+   */
+  function hideNavigationMask() {
+    // Hide the mask
+    const el = document.getElementById("image-edit-navigate-mask");
+    if (el) {
+      el.style.display = "none";
+      el.style.visibility = "hidden";
+    }
+  }
+
+  /**
+   * Handles the click of the prev image button
+   * @function
+   */
+  const handleNavigationPrev = React.useCallback(() => {
+    // Check if we have a pending timeout and cancel it
+    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    if (curNavMaskTimeoutId) {
+      navigationMaskTimeoutId.current = null;
+      window.clearTimeout(curNavMaskTimeoutId);
+    }
+
+    // Show the mask after a timeout
+    navigationMaskTimeoutId.current = window.setTimeout(() => {
+          // Clear our timer ID and show the mask
+          navigationMaskTimeoutId.current = null;
+          showNavigationMask();
+      }, NAVIGATION_MASK_TIMEOUT);
+
+    // Perform the navigation
+    navigation.onPrev()
+  }, [navigation]);
+
+  /**
+   * Handles the click of the next image button
+   * @function
+   */
+  const handleNavigationNext = React.useCallback(() => {
+    // Check if we have a pending timeout and cancel it
+    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    if (curNavMaskTimeoutId) {
+      navigationMaskTimeoutId.current = null;
+      window.clearTimeout(curNavMaskTimeoutId);
+    }
+
+    // Show the mask after a timeout
+    navigationMaskTimeoutId.current = window.setTimeout(() => {
+          // Clear our timer ID and show the mask
+          navigationMaskTimeoutId.current = null;
+          showNavigationMask();
+      }, NAVIGATION_MASK_TIMEOUT);
+
+    // Perform the navigation
+    navigation.onNext();
+  }, [navigation]);
+
+  /**
+   * Handles when the image loads
+   * @function
+   */
+  const onImageLoad = React.useCallback(() => {
+    // Hide the navigation mask
+    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    if (curNavMaskTimeoutId) {
+      navigationMaskTimeoutId.current = null;
+      window.clearTimeout(curNavMaskTimeoutId);
+
+      // Clear the mask and set a timer to ensure the mask is cleared in case there's timeout overlaps
+      hideNavigationMask();
+      window.setTimeout(() => hideNavigationMask(), NAVIGATION_MASK_CLEAR_TIMEOUT);
+    } else {
+      hideNavigationMask();
+    }
+
+    // Get the image dimensions    
+    getImageSize();
+  }, [getImageSize]);
+
   // Return the rendered UI
   const rowHeight = imageSize.height / 3.0; // Use for the overlays on the image
   const dropExtras = dropable ? {onDrop:dropHandler,onDragOver:dragoverHandler} : {};
   return (
     <React.Fragment>
       <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px', position:'relative'}} {...dropExtras} >
-        <img id={imageId} src={url} alt={name} onLoad={() => getImageSize()}
+        <img id={imageId} src={url} alt={name} onLoad={onImageLoad}
              style={{maxWidth:maxWidth, maxHeight:maxHeight, 
                      filter:'brightness('+brightness+'%) contrast('+contrast+'%) hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)'}} 
         />
@@ -285,11 +383,11 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           { navigation ?
             <Grid container direction="row" alignItems="center" justifyContent="center" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
               <Grid size="grow" sx={{position:'relative', marginRight:'auto'}}>
-                <ArrowBackIosOutlinedIcon fontSize="large" onClick={() => navigation.onPrev()}
+                <ArrowBackIosOutlinedIcon fontSize="large" onClick={handleNavigationPrev}
                           sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
               <Grid container alignItems="right" justifyContent="right" size={{ xs: 6, sm: 6, md:6 }} sx={{position:'relative', marginLeft:'auto'}}>
-                <ArrowForwardIosOutlinedIcon fontSize="large" onClick={() => navigation.onNext()}
+                <ArrowForwardIosOutlinedIcon fontSize="large" onClick={handleNavigationNext}
                           sx={{backgroundColor:'rgba(255,255,255,0.3)', '&:hover':{backgroundColor:'rgba(255,255,255,0.7)'} }} />
               </Grid>
             </Grid>
@@ -306,6 +404,10 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
               )}
             </Grid>
           </Grid>
+          { navigation &&
+            <Box id="image-edit-navigate-mask" sx={{position:"absolute", left:"0px", top:"0px", minWidth:imageSize.width, minHeight:imageSize.height,
+                    backgroundColor:"rgb(255, 255, 255, 0.8)", display:"none"}} />
+          }
         </Stack>
       </Box>
     </React.Fragment>

@@ -51,6 +51,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const [editingLocation, setEditingLocation] = React.useState(true);   // Changing collection locations flag
   const [maxTilesDisplay, setMaxTilesDisplay] = React.useState(40);     // Set the maximum number of tiles to display
   const [navigationRedraw, setNavigationRedraw] = React.useState(null); // Forcing redraw on navigation
+  const [nextImageEdit, setNextImageEdit] = React.useState(null);       // The next image in array for editing
   const [observerActive, setObserverActive] = React.useState(false);    // Used to indicate that we've set the observer
   const [pendingMessage, setPendingMessage] = React.useState(null);     // Used to display a pending message on the UI
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
@@ -293,7 +294,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     return () => {
       document.removeEventListener("keydown", onKeypress);
     }
-  }, [curEditState, curImageEdit, editingStates, handleSpeciesAdd, speciesItems]);
+  }, []);
 
   /**
    * Searches for images that meet the search criteria and scrolls it into view
@@ -493,6 +494,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       if (imageEl) {
         imageEl.scrollIntoView();
       }
+      setNextImageEdit(curImageIdx < curUpload.images.length - 2 ? curUpload.images[curImageIdx+2] : null);
       setNavigationRedraw('redraw-image-'+newImage.name);
     }
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
@@ -516,6 +518,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       if (imageEl) {
         imageEl.scrollIntoView();
       }
+      setNextImageEdit(curImageIdx > 1 ? curUpload.images[curImageIdx-2] : null);
       setNavigationRedraw('redraw-image-'+newImage.name);
     }
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
@@ -534,7 +537,9 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       return;
     }
 
-    submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path, cbSuccess, cbFailure);
+    if (changesMade) {
+      submitImageEditComplete(curUpload.collectionId, curUpload.upload, curUpload.images[curImageIdx].s3_path, cbSuccess, cbFailure);
+    }
   }
 
   /**
@@ -759,8 +764,14 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    */
   const handleEditingImage = React.useCallback((imageName) => {
     setCurEditState(editingStates.editImage);
-    setCurImageEdit(curUpload.images.find((item) => item.name === imageName));
-    searchSetup();
+    const imageIdx = curUpload.images.findIndex((item) => item.name === imageName);
+    if (imageIdx >= 0) {
+      setCurImageEdit(curUpload.images[imageIdx]);
+      searchSetup();
+      setNextImageEdit(imageIdx < curUpload.images.length - 1 ? curUpload.images[imageIdx+1] : null);
+    } else {
+      console.log('WARNING: attempting to edit a non-existant image', imageName);
+    }
   }, [curUpload, editingStates, searchSetup, setCurEditState, setCurImageEdit]);
 
   // Variables to help with generating the UI
@@ -882,6 +893,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        species={curImageEdit.species}
                        onSpeciesChange={(speciesName, speciesCount) => handleSpeciesChange(curImageEdit.name, speciesName, speciesCount)}
             />
+            {nextImageEdit && <img id="next-image-preload" src={nextImageEdit.url} style={{display:"none", visibility:"hidden"}} />}
           </Grid>
         </Grid>
         : null
