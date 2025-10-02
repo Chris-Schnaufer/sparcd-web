@@ -351,7 +351,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   const dropExtras = dropable ? {onDrop:dropHandler,onDragOver:dragoverHandler} : {};
   return (
     <React.Fragment>
-      <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px', position:'relative'}} {...dropExtras} >
+      <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px 8px', position:'relative'}} {...dropExtras} >
         <img id={imageId} src={url} alt={name} onLoad={onImageLoad}
              style={{maxWidth:maxWidth, maxHeight:maxHeight, 
                      filter:'brightness('+brightness+'%) contrast('+contrast+'%) hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)'}} 

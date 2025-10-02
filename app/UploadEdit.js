@@ -33,8 +33,9 @@ import * as utils from './utils';
  */
 export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   const theme = useTheme();
-  const sidebarSpeciesRef = React.useRef(null);  // Used for sizeing
-  const sidebarTopRef = React.useRef(null);   // Used for sizeing
+  const sidebarSpeciesRef = React.useRef(null); // Used for sizeing
+  const sidebarTopRef = React.useRef(null);     // Used for sizeing
+  const navigationIndicatorTimerId = React.useRef(null); // Used to manage navigation indicator timeout IDs
   const editingStates = React.useMemo(() => {return({'none':0, 'listImages':2, 'editImage': 3}) }, []); // Different states of this page
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const curUpload = React.useContext(UploadEditContext);
@@ -496,6 +497,22 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
       setNextImageEdit(curImageIdx < curUpload.images.length - 2 ? curUpload.images[curImageIdx+2] : null);
       setNavigationRedraw('redraw-image-'+newImage.name);
+
+      // Set the navigation indicator
+      const el = document.getElementById('image-edit-edit-wrapper');
+      if (el) {
+        el.style.borderRight = '2px solid MediumSeaGreen';
+        el.style.borderLeft = '2px solid white';
+        const prevTimeoutId = navigationIndicatorTimerId.current;
+        if (prevTimeoutId) {
+          navigationIndicatorTimerId.current = null;
+          window.clearTimeout(prevTimeoutId);
+        }
+        navigationIndicatorTimerId.current = window.setTimeout(() => {
+            navigationIndicatorTimerId.current = null;
+            el.style.borderRight = '2px solid white';
+        }, 5000)
+      }
     }
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
@@ -520,6 +537,22 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
       }
       setNextImageEdit(curImageIdx > 1 ? curUpload.images[curImageIdx-2] : null);
       setNavigationRedraw('redraw-image-'+newImage.name);
+
+      // Set the navigation indicator
+      const el = document.getElementById('image-edit-edit-wrapper');
+      if (el) {
+        el.style.borderLeft = '2px solid MediumSeaGreen';
+        el.style.borderRight = '2px solid white';
+        const prevTimeoutId = navigationIndicatorTimerId.current;
+        if (prevTimeoutId) {
+          navigationIndicatorTimerId.current = null;
+          window.clearTimeout(prevTimeoutId);
+        }
+        navigationIndicatorTimerId.current = window.setTimeout(() => {
+            navigationIndicatorTimerId.current = null;
+            el.style.borderLeft = '2px solid white';
+        }, 5000)
+      }
     }
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
@@ -880,7 +913,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
                        'maxWidth':(workspaceWidth-sidebarWidthLeft)+'px',
                        'width':(workspaceWidth-sidebarWidthLeft)+'px', 
                        'position':'absolute', 'visibility':imageVisibility, backgroundColor:'rgb(0,0,0,0.7)' }}>
-          <Grid >
+          <Grid id='image-edit-edit-wrapper' sx={{borderLeft:'2px solid white', borderRight:'2px solid white'}} >
             <ImageEdit url={curImageEdit.url}
                        name={curImageEdit.name}
                        parentId='image-edit-edit'
