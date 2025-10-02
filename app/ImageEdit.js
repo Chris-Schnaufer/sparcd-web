@@ -47,25 +47,28 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   const navigationMaskTimeoutId = React.useRef(null);         // Holds the timeout ID for removing the navigation mask
   const speciesItems = React.useContext(SpeciesInfoContext);  // All the species
   const userSettings = React.useContext(UserSettingsContext); // User display settings
-  const [brightness, setBrightness] = React.useState(100);    // Image brightness
-  const [contrast, setContrast] = React.useState(100);        // Image contrast
-  const [hue, setHue] = React.useState(0);    // From 360 to -360
+  const [brightness, setBrightness] = React.useState(50);    // Image brightness
+  const [contrast, setContrast] = React.useState(50);        // Image contrast
+  const [hue, setHue] = React.useState(50);    // From 360 to -360
   const [imageSize, setImageSize] = React.useState({width:40,height:40,top:0,left:0,right:40}); // Adjusted when loaded
   const [showAdjustments, setShowAdjustments] = React.useState(false);  // Show image brightness, etc
-  const [saturation, setSaturation] = React.useState(100);              // Image saturation
+  const [saturation, setSaturation] = React.useState(50);              // Image saturation
   const [speciesRedraw, setSpeciesRedraw] = React.useState(null);       // Forces redraw due to species change
   const [imageId, setImageId] =  React.useState('image-edit-image-'+uuidv4()); // Unique image ID
 
-  const brightnessRange = {'default':100, 'min':0, 'max':200};
-  const contrastRange = {'default':100, 'min':0, 'max':200};
-  const hueRange = {'default':0, 'min':-720, 'max':720};
-  const saturationRange = {'default':100, 'min':0, 'max':200};
+  const brightnessRange = {'min':0, 'max':200}; // Can go higher than 200 and that's adjusted below
+  const contrastRange = {'min':0, 'max':200};
+  const hueRange = {'min':-180, 'max':180};
+  const saturationRange = {'min':0, 'max':200};
 
   const NAVIGATION_MASK_TIMEOUT = 500; // The timeout value for showing a navigation mask
   const NAVIGATION_MASK_CLEAR_TIMEOUT = 300; // The timeout value for ensuring the navigation mask is cleared
 
   // Working species
   let curSpecies = species != undefined ? species : [];
+
+  // Used to prevent multiple clicks during navigation
+  let navigationLocked = false;
 
   /**
    * Sets the image size based upon the rendered image
@@ -117,7 +120,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     if (speciesKeyItem) {
       handleSpeciesAdd(speciesKeyItem);
       if (userSettings.autonext) {
-        navigation.onNext();
+        handleNavigationNext();
       }
     }
   }
@@ -142,43 +145,6 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       }, 100);
       onSpeciesChange(speciesAdd.name, 1);
     }
-  }
-
-  /**
-   * Called when the user adjusts the brightness value
-   * @function
-   * @param {int} value The new value
-   */
-  function adjustBrightness(value) {
-    setBrightness((brightnessRange.max-brightnessRange.min) * (value / 100.0));
-  }
-
-  /**
-   * Called when the user adjusts the contrast value
-   * @function
-   * @param {int} value The new value
-   */
-  function adjustContrast(value) {
-    setContrast((contrastRange.max-contrastRange.min) * (value / 100.0));
-  }
-
-  /**
-   * Called when the user adjusts the hue value
-   * @function
-   * @param {int} value The new value
-   */
-  function adjustHue(value) {
-    const newValue = value < 50 ? (hueRange.min * (1.0 - (value / 50.0))) : (hueRange.max * ((value - 50.0) / 50.0));
-    setHue(newValue);
-  }
-
-  /**
-   * Called when the user adjusts the saturation value
-   * @function
-   * @param {int} value The new value
-   */
-  function adjustSaturation(value) {
-    setSaturation((saturationRange.max-saturationRange.min) * (value / 100.0));
   }
 
   /**
@@ -279,33 +245,16 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
   }
 
   /**
-   * Handles the click of the prev image button
-   * @function
-   */
-  const handleNavigationPrev = React.useCallback(() => {
-    // Check if we have a pending timeout and cancel it
-    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
-    if (curNavMaskTimeoutId) {
-      navigationMaskTimeoutId.current = null;
-      window.clearTimeout(curNavMaskTimeoutId);
-    }
-
-    // Show the mask after a timeout
-    navigationMaskTimeoutId.current = window.setTimeout(() => {
-          // Clear our timer ID and show the mask
-          navigationMaskTimeoutId.current = null;
-          showNavigationMask();
-      }, NAVIGATION_MASK_TIMEOUT);
-
-    // Perform the navigation
-    navigation.onPrev()
-  }, [navigation]);
-
-  /**
    * Handles the click of the next image button
    * @function
    */
   const handleNavigationNext = React.useCallback(() => {
+    // Prevent multiple navigation attempts through fast clicking before the control is reloaded
+    if (navigationLocked === true) {
+      return;
+    }
+    navigationLocked = true;
+
     // Check if we have a pending timeout and cancel it
     const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
     if (curNavMaskTimeoutId) {
@@ -320,8 +269,49 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
           showNavigationMask();
       }, NAVIGATION_MASK_TIMEOUT);
 
+    // Reset image-specific values 
+    setBrightness(50);
+    setContrast(50);
+    setHue(50);
+    setSaturation(50);
+
     // Perform the navigation
     navigation.onNext();
+  }, [navigation]);
+
+  /**
+   * Handles the click of the prev image button
+   * @function
+   */
+  const handleNavigationPrev = React.useCallback(() => {
+    // Prevent multiple navigation attempts through fast clicking before the control is reloaded
+    if (navigationLocked === true) {
+      return;
+    }
+    navigationLocked = true;
+
+    // Check if we have a pending timeout and cancel it
+    const curNavMaskTimeoutId = navigationMaskTimeoutId.current;
+    if (curNavMaskTimeoutId) {
+      navigationMaskTimeoutId.current = null;
+      window.clearTimeout(curNavMaskTimeoutId);
+    }
+
+    // Show the mask after a timeout
+    navigationMaskTimeoutId.current = window.setTimeout(() => {
+          // Clear our timer ID and show the mask
+          navigationMaskTimeoutId.current = null;
+          showNavigationMask();
+      }, NAVIGATION_MASK_TIMEOUT);
+
+    // Reset image-specific values 
+    setBrightness(50);
+    setContrast(50);
+    setHue(50);
+    setSaturation(50);
+
+    // Perform the navigation
+    navigation.onPrev()
   }, [navigation]);
 
   /**
@@ -346,6 +336,44 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
     getImageSize();
   }, [getImageSize]);
 
+  /**
+   * Returns the adjusted value for brightness
+   * @function
+   */
+  function getBrightness() {
+    // Less than 50% we return linearly
+    if (brightness <= 50) {
+      return brightnessRange.min + (brightness / 100.0) * (brightnessRange.max - brightnessRange.min);
+    }
+
+    // Greater than 50% we return on a curve
+    return 100 + (((brightness - 50.0) / 50.0) * 300);
+  }
+
+  /**
+   * Returns the adjusted value for contrast
+   * @function
+   */
+  function getContrast() {
+    return contrastRange.min + (contrast / 100.0) * (contrastRange.max - contrastRange.min);
+  }
+
+  /**
+   * Returns the adjusted value for hue
+   * @function
+   */
+  function getHue() {
+    return hueRange.min + (hue / 100.0) * (hueRange.max - hueRange.min);
+  }
+
+  /**
+   * Returns the adjusted value for saturation
+   * @function
+   */
+  function getSaturation() {
+    return saturationRange.min + (saturation / 100.0) * (saturationRange.max - saturationRange.min);
+  }
+
   // Return the rendered UI
   const rowHeight = imageSize.height / 3.0; // Use for the overlays on the image
   const dropExtras = dropable ? {onDrop:dropHandler,onDragOver:dragoverHandler} : {};
@@ -354,7 +382,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       <Box id="edit-image-frame" sx={{backgroundColor:'white', padding:'10px 8px', position:'relative'}} {...dropExtras} >
         <img id={imageId} src={url} alt={name} onLoad={onImageLoad}
              style={{maxWidth:maxWidth, maxHeight:maxHeight, 
-                     filter:'brightness('+brightness+'%) contrast('+contrast+'%) hue-rotate(' + hue + 'deg) saturate(' + saturation + '%)'}} 
+                     filter:'brightness('+getBrightness()+'%) contrast('+getContrast()+'%) hue-rotate('+getHue()+'deg) saturate('+getSaturation()+'%)'}} 
         />
         <Stack style={{ position:'absolute', top:(10)+'px', left:10+'px', minWidth:imageSize.width+'px',
                        maxWidth:imageSize.width+'px', width:imageSize.width+'px', minHeight:maxHeight, maxHeight:maxHeight, 
@@ -362,8 +390,9 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
         >
           <Grid container direction="row" alignItems="start" justifyContent="start" sx={{minHeight:rowHeight,maxHeight:rowHeight}}>
             <Grid size={{ xs: 4, sm: 4, md:4 }} sx={{position:'relative'}}>
-              <ImageAdjustments isVisible={!!adjustments} onBrightnessChange={adjustBrightness} 
-                                onContrastChange={adjustContrast} onHueChange={adjustHue} onSaturationChange={adjustSaturation} />
+              <ImageAdjustments isVisible={!!adjustments} adjustments={{brightness:brightness, contrast:contrast, hue:hue, saturation:saturation}}
+                                onBrightnessChange={setBrightness} 
+                                onContrastChange={setContrast} onHueChange={setHue} onSaturationChange={setSaturation} />
             </Grid>
             <Grid container alignItems="center" justifyContent="center" size={{ xs: 4, sm: 4, md:4 }} sx={{marginLeft:'auto', cursor:'default'}}>
               <Typography variant="body" sx={{textTransform:'uppercase',color:'grey',textShadow:'1px 1px black','&:hover':{color:'white'} }}>
