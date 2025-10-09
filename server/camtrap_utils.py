@@ -200,13 +200,13 @@ def create_observation_data(ct: camtrap.CamTrap, deployment_id: str, s3_base_pat
     return result
 
 
-def update_observations(s3_path: str, observations: tuple, \
+def update_observations(s3_path: str, observations: dict, \
                                                 file_species: tuple, deployment_id: str) -> tuple:
     """ Updates the observation information with that's found in the file species parameter
     Arguments:
         bucket: the S3 bucket of interest
         s3_path: the path on S3 to the upload folder
-        observations: the current set of CamTrap Observations
+        observations: the current set of CamTrap Observations with the filename as key
         file_species: a tuple of dict containing file information and their species changes
         deployment_id: the ID of the deployment when a new observation is added
     Return:
@@ -231,8 +231,8 @@ def update_observations(s3_path: str, observations: tuple, \
                     one_row[camtrap.CAMTRAP_OBSERVATION_COMMENT_IDX] = \
                                                         f'[COMMONNAME:{one_species["common"]}]'
 
-                    if not one_row[CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX]:
-                        one_row[CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX] = 'FALSE'
+                    if not one_row[camtrap.CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX]:
+                        one_row[camtrap.CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX] = 'FALSE'
                     if not one_row[camtrap.CAMTRAP_OBSERVATION_CLASSIFICATION_CONFIDENCE_IDX]:
                         one_row[camtrap.CAMTRAP_OBSERVATION_CLASSIFICATION_CONFIDENCE_IDX] ='1.0000'
 
@@ -267,5 +267,10 @@ def update_observations(s3_path: str, observations: tuple, \
                 '1.0000',                                            # Classification confidence
                 f'[COMMONNAME:{one_species["common"]}]'              # Comment
                 ))
+
+    # Filter out species with a zero count
+    for one_filename in observations.keys():
+        observations[one_filename] = [one_row for one_row in observations[one_filename] \
+                                        if int(one_row[camtrap.CAMTRAP_OBSERVATION_COUNT_IDX]) > 0]
 
     return observations

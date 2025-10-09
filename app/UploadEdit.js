@@ -479,6 +479,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   /**
    * Shows the next image for editing
    * @function
+   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
    */
   const handleNextImage = React.useCallback(() => {
     finishImageEdits();
@@ -486,7 +487,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
     if (curImageIdx === -1) {
       console.log("Error: unable to find current image before advancing to next image");
-      return;
+      return false;
     }
     if (curImageIdx < curUpload.images.length - 1) {
       const newImage = curUpload.images[curImageIdx+1];
@@ -513,12 +514,17 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             el.style.borderRight = '2px solid white';
         }, 5000)
       }
+
+      return true;
     }
+
+    return false;
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**
    * Shows the previous image for editing
    * @function
+   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
    */
   const handlePrevImage = React.useCallback(() => {
     finishImageEdits();
@@ -526,7 +532,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
     if (curImageIdx === -1) {
       console.log("Error: unable to find current image before advancing to previous image");
-      return;
+      return false;
     }
     if (curImageIdx > 0) {
       const newImage = curUpload.images[curImageIdx-1];
@@ -553,7 +559,11 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             el.style.borderLeft = '2px solid white';
         }, 5000)
       }
+
+      return true;
     }
+
+    return false;
   }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**

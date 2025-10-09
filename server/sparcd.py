@@ -1648,7 +1648,7 @@ def image_species():
 @app.route('/imageEditComplete', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def image_edit_complete():
-    """ Handles updating the image with the changes made
+    """ Handles updating one image with the changes made
     Arguments: (GET)
         t - the session token
     Return:
@@ -1718,7 +1718,7 @@ def image_edit_complete():
 @app.route('/imagesAllEdited', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def images_all_edited():
-    """ Handles completing changes after images have been edited
+    """ Handles completing changes after all images have been edited
     Arguments: (GET)
         t - the session token
     Return:
@@ -1782,6 +1782,7 @@ def images_all_edited():
     # tuple. We flatten further on the call so we're left with a single tuple containing all
     # rows
     row_groups = (obs_info[one_key] for one_key in obs_info)
+    # TODO: Remove any species that have a count of zero
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
                                 s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),

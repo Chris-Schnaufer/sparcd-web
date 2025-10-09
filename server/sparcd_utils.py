@@ -583,7 +583,7 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
     try: # We have this "try" for the "finally" clause to remove the temporary folder
         # All species and locations in case we have to look something up
         cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, species_timed_file, \
-                                                                s3_url, username, fetch_password())
+                                                                s3_url, username, fetch_password)
 
         # Loop through the files
         for idx, one_file in enumerate(update_files):
@@ -630,6 +630,10 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
 
                 if changed:
                     save_species = cur_species
+
+                # Get rid of species that have a count of zero
+                save_species = [one_species for one_species in save_species \
+                                                                if int(one_species['count']) > 0]
 
             # Location: if the location is different from what's in the file, write the data out
             save_location = None

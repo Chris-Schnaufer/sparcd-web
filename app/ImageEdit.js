@@ -273,13 +273,6 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
         window.clearTimeout(curNavMaskTimeoutId);
       }
 
-      // Show the mask after a timeout
-      navigationMaskTimeoutId.current = window.setTimeout(() => {
-            // Clear our timer ID and show the mask
-            navigationMaskTimeoutId.current = null;
-            showNavigationMask();
-        }, NAVIGATION_MASK_TIMEOUT);
-
       // Reset image-specific values 
       setBrightness(50);
       setContrast(50);
@@ -287,8 +280,18 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       setSaturation(50);
 
       // Perform the navigation
-      navigation.onNext();
+      if (navigation.onNext()) {
+        // Show the mask after a timeout if we have navigation
+        navigationMaskTimeoutId.current = window.setTimeout(() => {
+              // Clear our timer ID and show the mask
+              navigationMaskTimeoutId.current = null;
+              showNavigationMask();
+          }, NAVIGATION_MASK_TIMEOUT);
+      }
     }, 100);
+
+    navigationLocked = false;
+
   }, [navigation]);
 
   /**
@@ -316,13 +319,6 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
         window.clearTimeout(curNavMaskTimeoutId);
       }
 
-      // Show the mask after a timeout
-      navigationMaskTimeoutId.current = window.setTimeout(() => {
-            // Clear our timer ID and show the mask
-            navigationMaskTimeoutId.current = null;
-            showNavigationMask();
-        }, NAVIGATION_MASK_TIMEOUT);
-
       // Reset image-specific values 
       setBrightness(50);
       setContrast(50);
@@ -330,8 +326,18 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
       setSaturation(50);
 
       // Perform the navigation
-      navigation.onPrev()
+      if (navigation.onPrev()) {
+        // Show the mask after a timeout if we have navigation
+        navigationMaskTimeoutId.current = window.setTimeout(() => {
+              // Clear our timer ID and show the mask
+              navigationMaskTimeoutId.current = null;
+              showNavigationMask();
+          }, NAVIGATION_MASK_TIMEOUT);
+      }
     }, 100);
+
+    navigationLocked = false;
+
   }, [navigation]);
 
   /**

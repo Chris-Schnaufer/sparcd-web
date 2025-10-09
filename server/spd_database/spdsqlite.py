@@ -1379,7 +1379,7 @@ class SPDSQLite:
                                     'AND updated=? ' + \
                                     ('AND s3_file_path=? ' if s3_path is not None else '') + \
                                     ('AND s3_file_path LIKE ? ' if upload_id is not None else '') +\
-                                    'ORDER BY obs_scientific ASC, id ASC'
+                                    'ORDER BY obs_scientific ASC, edit_timestamp ASC'
         if upload_id is not None:
             upload_id = '%' + upload_id + '%'
         query_data = tuple(val for val in [s3_url, username, updated_value, s3_path, upload_id] \

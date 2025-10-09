@@ -163,7 +163,7 @@ def get_embedded_image_info(image_path: str) -> Optional[tuple]:
     del res
 
     # Check for formatting of date string
-    if not '-' in date_string and ' ' in date_string:
+    if '-' not in date_string and ' ' in date_string:
         parts = date_string.split(' ')
         parts[0] = parts[0].replace(':', '-')
         date_string = ' '.join(parts)
