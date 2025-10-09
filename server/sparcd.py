@@ -753,7 +753,7 @@ def query():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
-    interval = request.args.get('i');
+    interval = request.args.get('i')
     try:
         interval = int(interval)
     except ValueError:
@@ -1237,10 +1237,14 @@ def sandbox_file():
 
     # Get the rest of the request parameters
     upload_id = request.form.get('id', None)
+    tz_offset = request.form.get('tz_off', None)
 
     # Check what we have from the requestor
     if not upload_id or len(request.files) <= 0:
         return "Not Found", 406
+
+    # Normalize the timestamp into offset hours. If invalid, uses local timezone
+    tz_offset = sdu.get_ts_offset(tz_offset)
 
     # Get the location to upload to
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
@@ -1253,6 +1257,11 @@ def sandbox_file():
         request.files[one_file].save(temp_file[1])
 
         cur_species, cur_location, cur_timestamp = image_utils.get_embedded_image_info(temp_file[1])
+
+        # Check if we need to apply the timezone to timestamp. Refer to link below
+        # https://docs.python.org/3/library/datetime.html#determining-if-an-object-is-aware-or-naive
+        if cur_timestamp.tzinfo is None or cur_timestamp.tzinfo.utcoffset(cur_timestamp) is None:
+            cur_timestamp = cur_timestamp.replace(tzinfo=dateutil.tz.tzoffset(None,tz_offset*60*60))
 
         # Check if we need to update the location in the file
         sb_location = db.sandbox_get_location(user_info.name, upload_id)

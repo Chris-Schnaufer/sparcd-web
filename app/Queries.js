@@ -70,12 +70,6 @@ export default function Queries({loadingCollections}) {
 
   let activeQuery = null;
 
-  cancelQuery = cancelQuery.bind(this);
-  handleFilterChange = handleFilterChange.bind(Queries);
-  removeFilter = removeFilter.bind(Queries);
-  handleFilterAccepted = handleFilterAccepted.bind(Queries);
-  handleQuery = handleQuery.bind(Queries);
-
   /**
    * Updates fields when a new tab is selected for display
    * @function
@@ -144,12 +138,12 @@ export default function Queries({loadingCollections}) {
    * @function
    * @param {string} filterId The unique ID of the filter to remove
    */
-  function removeFilter(filterId) {
+  const removeFilter = React.useCallback((filterId) => {
     const remainingFilters = filters.filter((item) => item.id != filterId);
     setFilters(remainingFilters);
 
     setQueryRedraw(uuidv4());
-  }
+  }, [filters, setFilters, setQueryRedraw]);
 
   /**
    * Called when the data for a filter is changed
@@ -157,21 +151,21 @@ export default function Queries({loadingCollections}) {
    * @param {string} filterId The ID of the filter to update
    * @param {object} filterData The new filter data to save
    */
-  function handleFilterChange(filterId, filterData) {
+  const handleFilterChange = React.useCallback((filterId, filterData) => {
     const filterIdx = filters.findIndex((item) => item.id === filterId);
     if (filterIdx > -1) {
       const curFilters = filters;
       curFilters[filterIdx].data = filterData;
       setFilters(curFilters);
     }
-  }
+  }, [filters, setFilters]);
 
   /**
    * Handles adding a new filter when a filter is double-clicked
    * @function
    * @param {string} filterChoice The filter name that is to be added
    */
-  function handleFilterAccepted(filterChoice) {
+  const handleFilterAccepted = React.useCallback((filterChoice) => {
     let elFilter = document.getElementById('query-filter-selection-wrapper');
     // Show the wait spinner
     let elFilterWait = document.getElementById("query-filter-selection-waiting");
@@ -186,7 +180,7 @@ export default function Queries({loadingCollections}) {
                                 elFilterWait.style.visibility = 'hidden';
                               }
                             }, 100);
-  }
+  }, [addFilter]);
 
   /**
    * Handles the expansion and collapse of the filter and results areas
@@ -248,7 +242,7 @@ export default function Queries({loadingCollections}) {
    * Makes the call to get the query data and saves the results
    * @function
    */
-  function handleQuery() {
+  const handleQuery = React.useCallback(() => {
     const queryUrl = serverURL + '/query?t=' + encodeURIComponent(queryToken) + "&i=" + "60";
     const formData = getQueryFormData(filters);
     const queryId = Date.now();
@@ -309,16 +303,17 @@ export default function Queries({loadingCollections}) {
         addMessage(Level.Error, 'An error ocurred while executing the query', 'Query Error');
       }
     }
-  }
+  }, [activeQuery, addMessage, getQueryFormData, queryToken, serverURL, setIsExpanded, setQueryRedraw, setQueryResults,
+                                                                    setWaitingOnQuery, waitingOnQuery, QUERY_RESULTS_SHOW_DELAY_SEC]);
 
   /**
    * Handles cancelling a query
    * @function
    */
-  function cancelQuery() {
+  const cancelQuery = React.useCallback(() => {
     setWaitingOnQuery(null);
     setQueryCancelled(true);
-  }
+  }, [setQueryCancelled, setWaitingOnQuery]);
 
   /**
    * Internal TabPanel element type

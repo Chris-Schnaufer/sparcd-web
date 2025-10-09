@@ -15,8 +15,11 @@ import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
+
+import { allTimezones, useTimezoneSelect } from "react-timezone-select"
 
 import { Level } from './Messages';
 import LocationItem from './LocationItem'
@@ -72,6 +75,9 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
   const [uploadingFiles, setUploadingFiles] = React.useState(false);
   const [uploadingFileCounts, setUploadingFileCounts] = React.useState({total:0, uploaded:0});
   const [workingUploadId, setWorkingUploadId] = React.useState(null); // The active upload ID
+
+  const { options, parseTimezone } = useTimezoneSelect({ labelStyle:'altName', allTimezones });
+  const [selectedTimezone, setSelectedTimezone] = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   let curLocationFetchIdx = -1; // Working index of location data to fetch
   let cancelUploadCountCheck = false; // Used to stop the checks for upload counts (which would go until the counts match)
@@ -301,9 +307,11 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
     const sandboxFileUrl = serverURL + '/sandboxFile?t=' + encodeURIComponent(uploadToken);
     const formData = new FormData();
     const maxAttempts = attempts;
+    const tzinfo = options.find((item) => item.value === selectedTimezone);
     const startTs = Date.now();
 
     formData.append('id', uploadId);
+    formData.append('tz_off', tzinfo ? tzinfo.offset : selectedTimezone);
     for (let idx = 0; idx < numFiles && idx < fileChunk.length; idx++) {
       formData.append(fileChunk[idx].name, fileChunk[idx]);
     }
@@ -955,6 +963,22 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
             <TextField required fullWidth id="folder-upload-comment" label="Comment" onChange={handleCommentChange} />
           </Grid>
         </FormControl>
+        <FormControl fullWidth={true}>
+          <Grid container direction="row" alignItems="center" justifyContent="space-between" sx={{paddingTop:"10px"}} >
+            <Typography gutterBottom variant="body">
+              Timezone of images
+            </Typography>
+            <Select id="landing-page-upload-timezone" value={selectedTimezone} onChange={(event) => setSelectedTimezone(parseTimezone(event.target.value))}>
+              {options.map((option) => 
+                <MenuItem key={option.value} value={option.value} selected={selectedTimezone === option.value} >
+                  <Typography gutterBottom variant="body2">
+                    {option.label}
+                  </Typography>
+                </MenuItem>
+              )}
+            </Select>
+          </Grid>
+        </FormControl>
       </Grid>
     );
   }
@@ -983,7 +1007,7 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
                subheader={
                 <React.Fragment>
                   <Typography gutterBottom variant="body">
-                    Select folder to upload
+                    {!uploadingFiles ? "Select folder to upload" : !uploadCompleted ? "Uploading selected files" : "Upload complete"}
                   </Typography>
                   <br />
                   <Typography gutterBottom variant="body2">

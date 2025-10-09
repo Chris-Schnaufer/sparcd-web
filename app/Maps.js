@@ -31,7 +31,7 @@ export default function Maps() {
   const mapChoices = [
     {provider:'esri', name:'Esri World Street Map', value:'streets-vector', config:{mapName:'streets-vector'}},
     {provider:'esri', name:'Esri World Topo Map', value:'topo-vector', config:{mapName:'topo-vector'}},
-    {provider:'esri', name:'Esri World Imagery', value:'satelliteå', config:{mapName:'satellite'}},
+    {provider:'esri', name:'Esri World Imagery', value:'satellite', config:{mapName:'satellite'}},
   ];
 
 /*
@@ -89,10 +89,10 @@ export default function Maps() {
    * @function
    * @param {string} newMapValue The value associated with the new map
    */
-  function handleMapChanged(newMapValue) {
+  const handleMapChanged = React.useCallback((newMapValue) => {
     const newChoice = mapChoices.find((item) => item.value === newMapValue);
     setCurMapChoice(newChoice);
-  }
+  }, [mapChoices, setCurMapChoice]);
 
   // Set the map to the default if one isn't specified
   if (!curMapChoice) {
@@ -104,7 +104,7 @@ export default function Maps() {
   return (
     <Box id='maps-workspace-wrapper' sx={{ flexGrow: 1, 'width': '100vw', position:'relative'}} >
       {curMapChoice && curMapChoice.provider === 'esri' 
-          && <MapsEsriLazyload center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
+          && <MapsEsriLazyload id={"map-" + curMapChoice.value} key={"map-" + curMapChoice.value} center={center} top={workingTop} width={workspaceWidth} height={totalHeight}
                                mapChoices={mapChoices} {...curMapChoice.config} onChange={handleMapChanged}
               />
       }

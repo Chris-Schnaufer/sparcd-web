@@ -23,6 +23,7 @@
     "next": "^15.3.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-timezone-select": "^3.2.8",
     "react-zoom-pan-pinch": "^3.7.0",
     "uuid": "^11.1.0"
   },

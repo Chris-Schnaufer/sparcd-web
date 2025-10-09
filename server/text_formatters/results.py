@@ -156,6 +156,7 @@ class Results:
                 # Add the images, with location, to the list of all images
                 sorted_images.extend([{'loc':one_result['loc']} | one_image for one_image in \
                                                                             one_result['images']])
+
         sorted_images = sorted(sorted_images, key=lambda cur_img: cur_img['image_dt'])
 
         # Get all the locations and check for an unknown

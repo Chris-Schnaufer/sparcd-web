@@ -1,13 +1,16 @@
 """ Utility functions for SPARCd server """
 
+from datetime import datetime
 import hashlib
 import json
 import math
 import os
 import shutil
 import tempfile
+import time
 from typing import Callable, Optional
 import uuid
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import image_utils
 import spd_crypt as crypt
@@ -694,3 +697,33 @@ def token_user_valid(db: SPARCdDatabase, request, token, session_expire_sec: int
 
     user_agent_hash = hashlib.sha256(client_user_agent.encode('utf-8')).hexdigest()
     return token_is_valid(token, client_ip, user_agent_hash, db, session_expire_sec)
+
+
+def get_ts_offset(tz_offset: str) -> int:
+    """ Converts a timezone offset or name to a numeric value. If the passed in parameter can't
+        be converted, the local offset is used
+    Arguments:
+        tz_offset: the number offset of the timezone in hours, or the timezone name
+        (eg: "America/Phoenix")
+    """
+    # Normalize our timestamp
+    if tz_offset is not None:
+        try:
+            tz_offset = int(tz_offset)
+        except ValueError:
+            pass
+        # Convert string to numeric offset
+        if not isinstance(tz_offset, int):
+            try:
+                # We use an arbitrary date and time since we just want the offset
+                tz_offset = datetime(2025, 10, 9, 0, 0, 0, 0, ZoneInfo(tz_offset)).strftime('%z')
+                tz_offset = int(tz_offset) / 100.0
+            except (ZoneInfoNotFoundError, ValueError):
+                # Unknown timezone name specified or bad return
+                tz_offset = None
+
+    # Get local timezone offset (from zeconds to hours) if we don't have anything else
+    if tz_offset is None:
+        tz_offset = time.localtime().tm_gmtoff / (60.0*60.0)
+
+    return tz_offset

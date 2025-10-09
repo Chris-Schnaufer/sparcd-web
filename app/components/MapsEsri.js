@@ -18,7 +18,8 @@ import ValuePicker from "@arcgis/core/widgets/ValuePicker";
 import ValuePickerCombobox from "@arcgis/core/widgets/ValuePicker/ValuePickerCombobox";
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 
-import { LocationsInfoContext } from '../serverInfo';
+import { LocationsInfoContext, UserSettingsContext } from '../serverInfo';
+import { meters2feet } from '../utils';
 
 /**
  * Returns the UI for displaying an ESRI map
@@ -33,8 +34,80 @@ import { LocationsInfoContext } from '../serverInfo';
  */
 export default function MapsEsri({center, mapName, mapChoices, onChange, top, width, height}) {
   const locationItems = React.useContext(LocationsInfoContext);
+  const userSettings = React.useContext(UserSettingsContext);  // User display settings
   const [layerCollection, setLayerCollection] = React.useState(null); // The array of layers to display
   const [generatedMap, setGeneratedMap] = React.useState(false);
+
+  /**
+   * Handle converting the locations for use with the maps
+   * @function
+   * @param {object} Array of locations
+   * @param {string} measurementFormat A measurement format of 'feet' or 'meters'
+   */
+  function configureLocations(locationItems, measurementFormat) {
+    if (measurementFormat === 'meters') {
+      return locationItems;
+    }
+
+    let newLocations = JSON.parse(JSON.stringify(locationItems));
+
+    return newLocations.map((item) => {
+        item.elevationProperty = Math.trunc(meters2feet(item.elevationProperty)) + 'ft';
+        return item;}
+    );
+  }
+
+  const displayLocations = React.useMemo(() => configureLocations(locationItems, userSettings['measurementFormat']), [locationItems, userSettings['measurementFormat']]);
+
+  let popupFields = userSettings['coordinatesDisplay'] === 'LATLON' ?
+                [ {
+                    fieldName: 'nameProperty',
+                    label: 'Name',
+                    visible: true,
+                  },
+                  {
+                    fieldName: 'latProperty',
+                    label: 'Latitude',
+                    visible: true,
+                  },
+                  {
+                    fieldName: 'lngProperty',
+                    label: 'Longitude',
+                    visible: true,
+                  },
+                  {
+                    fieldName: 'elevationProperty',
+                    label: 'Elevation',
+                    visible: true,
+                  }
+                ]
+              : [ {
+                  fieldName: 'nameProperty',
+                  label: 'Name',
+                  visible: true,
+                },
+                {
+                  fieldName: 'utm_code',
+                  label: 'UTM Code',
+                  visible: true,
+                },
+                {
+                  fieldName: 'utm_x',
+                  label: 'UTM X',
+                  visible: true,
+                },
+                {
+                  fieldName: 'utm_y',
+                  label: 'UTM Y',
+                  visible: true,
+                },
+                {
+                  fieldName: 'elevationProperty',
+                  label: 'Elevation',
+                  visible: true,
+                }
+              ]
+
 
   /**
    * Generates the locations layer for display
@@ -44,8 +117,8 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
     let curCollection = layerCollection || [];
     if (!layerCollection) {
       let startIdx = 0;
-      while (startIdx * 100 < locationItems.length) {
-        let features = locationItems.slice(startIdx * 100,(startIdx+1)*100).map((item, idx) => 
+      while (startIdx * 100 < displayLocations.length) {
+        let features = displayLocations.slice(startIdx * 100,(startIdx+1)*100).map((item, idx) => 
           new Graphic({
                   geometry: new Point({x:parseFloat(item.lngProperty),
                                        y:parseFloat(item.latProperty), 
@@ -65,28 +138,7 @@ export default function MapsEsri({center, mapName, mapChoices, onChange, top, wi
                     title: item.idProperty,
                     content: [{
                         type: 'fields',
-                        fieldInfos: [
-                          {
-                            fieldName: 'nameProperty',
-                            label: 'Name',
-                            visible: true,
-                          },
-                          {
-                            fieldName: 'latProperty',
-                            label: 'Latitude',
-                            visible: true,
-                          },
-                          {
-                            fieldName: 'lngProperty',
-                            label: 'Longitude',
-                            visible: true,
-                          },
-                          {
-                            fieldName: 'elevationProperty',
-                            label: 'Elevation',
-                            visible: true,
-                          }
-                        ]
+                        fieldInfos: popupFields
                       }]
                   }
                 })
