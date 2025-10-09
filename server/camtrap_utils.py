@@ -193,6 +193,7 @@ def create_observation_data(ct: camtrap.CamTrap, deployment_id: str, s3_base_pat
         obs = ct.observation(os.path.basename(one_file))
         obs.deployment_id = deployment_id
         obs.media_id = media_id
+        obs.camera_setup = 'FALSE'
 
         result.append(ct.from_observation(obs))
 
@@ -230,6 +231,8 @@ def update_observations(s3_path: str, observations: tuple, \
                     one_row[camtrap.CAMTRAP_OBSERVATION_COMMENT_IDX] = \
                                                         f'[COMMONNAME:{one_species["common"]}]'
 
+                    if not one_row[CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX]:
+                        one_row[CAMTRAP_OBSERVATION_CAMERA_SETUP_IDX] = 'FALSE'
                     if not one_row[camtrap.CAMTRAP_OBSERVATION_CLASSIFICATION_CONFIDENCE_IDX]:
                         one_row[camtrap.CAMTRAP_OBSERVATION_CLASSIFICATION_CONFIDENCE_IDX] ='1.0000'
 
@@ -243,7 +246,7 @@ def update_observations(s3_path: str, observations: tuple, \
         if not added:
 
             observations[one_species['filename']].append((
-                '',                                                  # Observation ID
+                os.path.basename(one_species['filename']),           # Observation ID
                 deployment_id,                                       # Deployment ID
                 '',                                                  # Sequence ID
                 make_s3_path((s3_path,one_species['filename'])),     # Media ID
