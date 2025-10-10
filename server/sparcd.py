@@ -1963,11 +1963,11 @@ def settings_admin():
 @app.route('/adminCollectionDetails', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_collection_details():
-    """ Returns user information for admin editing
+    """ Returns detailed collection information for admin editing
     Arguments: (GET)
         t - the session token
     Return:
-        Returns the list of registered users and their information
+        Returns the collection details for admin purposes
     Notes:
          If the token is invalid, or a problem occurs, a 404 error is returned
    """
@@ -2011,6 +2011,51 @@ def admin_collection_details():
 
     return json.dumps(collection)
 
+
+@app.route('/adminLocationDetails', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_location_details():
+    """ Returns detailed location for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the location details for admin purposes
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN USERS', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
+
+    loc_id = request.form.get('id', None)
+    if loc_id is None:
+        return "Not Found", 404
+
+    # Get the location information
+    location = None
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),True)
+
+    if cur_locations:
+        found_locs = [one_loc for one_loc in cur_locations if one_loc['idProperty'] == loc_id]
+        if found_locs:
+            location = found_locs[0]
+
+    if not location:
+        return "Not Found", 404
+
+    return json.dumps(location)
 
 @app.route('/adminUsers', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)

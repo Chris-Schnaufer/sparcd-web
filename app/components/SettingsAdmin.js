@@ -610,7 +610,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             if (resp.ok) {
               return resp.json();
             } else {
-              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+              throw new Error(`Failed to get collection details information: ${resp.status}`, {cause:resp});
             }
           })
         .then((respData) => {
@@ -618,11 +618,11 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             setEditingState({type:EditingStates.Collection, data:respData});
         })
         .catch(function(err) {
-          console.log('Admin Collections Details Error: ',err);
+          console.log('Admin Collection Details Error: ',err);
           addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
       });
     } catch (error) {
-      console.log('Admin Collections Details Unknown Error: ',err);
+      console.log('Admin Collection Details Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
     }
 
@@ -647,8 +647,36 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    */
   const handleLocationEdit = React.useCallback((event, location) => {
     event.stopPropagation();
-    setEditingState({type:EditingStates.Location, data:location});
-  }, [setEditingState]);
+    const adminLocationnUrl = serverURL + '/adminLocationDetails?t=' + encodeURIComponent(settingsToken);
+    const formData = new FormData();
+
+    formData.append('id', location.idProperty);
+
+    try {
+      const resp = fetch(adminLocationnUrl, {
+        method: 'POST',
+        body: formData,
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to get location details information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Handle the result
+            setEditingState({type:EditingStates.Location, data:respData});
+        })
+        .catch(function(err) {
+          console.log('Admin Location Details Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to get location details');
+      });
+    } catch (error) {
+      console.log('Admin Location Details Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get location details');
+    }
+
+  }, [addMessage, serverURL, setEditingState, settingsToken]);
 
   /**
    * Handles the user search button press

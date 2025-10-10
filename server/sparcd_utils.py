@@ -127,12 +127,13 @@ def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
                     print(ex)
 
 
-def load_locations(s3_url: str, user_name: str, fetch_password: Callable) -> tuple:
+def load_locations(s3_url: str, user_name: str, fetch_password: Callable, for_admin: bool=False) -> tuple:
     """ Loads locations and converts lat-lon to UTM
     Arguments:
         s3_url - the URL to the S3 instance
         user_name - the user's name for S3
         fetch_password: returns the user's password
+        for_admin: when set to True, location details are not obscured
     Return:
         Returns the locations along with the converted coordinates
     """
@@ -141,16 +142,23 @@ def load_locations(s3_url: str, user_name: str, fetch_password: Callable) -> tup
     if not cur_locations:
         return cur_locations
 
+    # TODO: Store this information somewhere for easy fetching
     for one_loc in cur_locations:
         if 'utm_code' not in one_loc or 'utm_x' not in one_loc or 'utm_y' not in one_loc:
             if 'latProperty' in one_loc and 'lngProperty' in one_loc:
+                # Clip the lat-lon location values for non-admin purposes
+                if not for_admin:
+                    one_loc['latProperty'] = str(round(float(one_loc['latProperty']), 3))
+                    one_loc['lngProperty'] = str(round(float(one_loc['lngProperty']), 3))
+
+                # Calculate the UTM information
                 utm_x, utm_y = deg2utm(float(one_loc['latProperty']), float(one_loc['lngProperty']))
                 one_loc['utm_code'] = ''.join([str(one_res) for one_res in \
                                                     deg2utm_code(float(one_loc['latProperty']), \
                                                                  float(one_loc['lngProperty']))
                                               ])
-                one_loc['utm_x'] = round(utm_x, 2)
-                one_loc['utm_y'] = round(utm_y, 2)
+                one_loc['utm_x'] = int(utm_x)
+                one_loc['utm_y'] = int(utm_y)
 
     return cur_locations
 
