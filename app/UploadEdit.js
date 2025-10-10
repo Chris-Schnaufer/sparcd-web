@@ -23,6 +23,8 @@ import SpeciesSidebar from './components/SpeciesSidebar';
 import SpeciesSidebarItem from './components/SpeciesSidebarItem';
 import * as utils from './utils';
 
+import styles from './page.module.css'
+
 /**
  * Handles editing an upload from a collection
  * @function
@@ -314,6 +316,13 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     }
 
     foundEl.scrollIntoView();
+    foundEl.focus();
+
+    window.setTimeout(() => 
+        {
+            foundEl.classList.add(styles.blink);
+            window.setTimeout(() => foundEl.classList.remove(styles.blink), 1500);
+        }, 200);
     return true;
   }, [curUpload]);
 

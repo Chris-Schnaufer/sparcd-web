@@ -48,8 +48,6 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
   const [workingTop, setWorkingTop] = React.useState(null);    // Default value is recalculated at display time
   const [workspaceWidth, setWorkspaceWidth] = React.useState(640);  // Default value is recalculated at display time
 
-  const handleCollectionSearch = searchCollections.bind(CollectionsManage);
-
   // Setup search
   React.useLayoutEffect(() => {
     if (!searchIsSetup) {
@@ -89,19 +87,24 @@ export default function CollectionsManage({loadingCollections, selectedCollectio
    * @function
    * @param {string} searchTerm The term to search in a collection
    */
-  function searchCollections(searchTerm) {
+  const handleCollectionSearch =  React.useCallback((searchTerm) => {
     const ucSearchTerm = searchTerm.toUpperCase();
     const foundCollections = collectionsItems.filter((item) => item.name.toUpperCase().includes(ucSearchTerm) ||
                                                                item.description.toUpperCase().includes(ucSearchTerm));
-
+    // Scroll finding into view
     if (foundCollections) {
       const elCollection = document.getElementById("collection-"+foundCollections[0].name);
       if (elCollection) {
         elCollection.scrollIntoView();
+        elCollection.focus();
+        setSelectionIndex(collectionsItems.findIndex((item) => item.name === foundCollections[0].name));
         searchSetup('Collection Name', handleCollectionSearch);
+        return true;
       }
     }
-  }
+
+    return false;
+  }, [collectionsItems, searchSetup]);
 
   /**
    * Returns a function that will set the expanded panel name for Accordian panels

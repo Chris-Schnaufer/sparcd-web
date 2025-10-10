@@ -160,14 +160,6 @@ export default function Home() {
   let settingsRequestId = 0;        // Used to prevent sending multiple requests to server
   let curLoggedIn = loggedIn;
 
-  handleSearch = handleSearch.bind(Home);
-  setupSearch = setupSearch.bind(Home);
-  restoreBreadcrumb = restoreBreadcrumb.bind(Home);
-  updateUserSettings = updateUserSettings.bind(Home);
-
-  // TODO: load locations dynamically
-  // TODO: load species dynamically
-
   // TODO: change dependencies to Theme & use @media to adjust
   // Sets the narrow flag when the window is less than 600 pixels
   React.useEffect(() => setIsNarrow(window.innerWidth <= 640), []);
@@ -269,19 +261,18 @@ export default function Home() {
    * @function
    * @param {object} breadcrumb The breadcrumb to restore
    */
-  function restoreBreadcrumb(breadcrumb) {
+  const restoreBreadcrumb = React.useCallback((breadcrumb) => {
     const curCrumbs = breadcrumbs;
     let curRestore = null;
     do {
       curRestore = curCrumbs.pop();
-      if (curRestore && curRestore.name !== breadcrumb.name) {
-      }
     } while (curRestore && curRestore.name !== breadcrumb.name);
     setCurAction(breadcrumb.action);
     setCurActionData(breadcrumb.actionData);
     setEditing(breadcrumb.editing);
     setBreadcrumbs(curCrumbs);
-  }
+    clearSearch();
+  }, [breadcrumbs, clearSearch, setBreadcrumbs, setCurAction, setCurActionData, setEditing]);
 
   /**
    * Sets the current action based upon the users selection
@@ -685,9 +676,9 @@ export default function Home() {
    * @function
    * @param {string} searchTerm The search term to pass to the callback
    */
-  function handleSearch(searchTerm) {
+  const handleSearch = React.useCallback((searchTerm) => {
     return curSearchHandler(searchTerm);
-  }
+  }, [curSearchHandler]);
 
   /**
    * Clears the search and the controls
@@ -704,7 +695,7 @@ export default function Home() {
    * @param {string} searchLabel The label of the search
    * @param {function} searchHandler Function to call when the user wants to search
    */
-  function setupSearch(searchLabel, searchHandler) {
+  const setupSearch = React.useCallback((searchLabel, searchHandler) => {
     if (searchLabel == undefined && searchHandler == undefined) {
       clearSearch();
       return;
@@ -716,7 +707,7 @@ export default function Home() {
 
     setCurSearchTitle(searchLabel);
     setCurSearchHandler(() => searchHandler);
-  }
+  }, [clearSearch, setCurSearchTitle, setCurSearchHandler]);
 
   /**
    * Fetches the user's settings from the server
@@ -790,7 +781,7 @@ export default function Home() {
    * @function
    * @param {object} newSettings The settings to save on the server for the user
    */
-  function updateUserSettings(newSettings) {
+  const updateUserSettings = React.useCallback((newSettings) => {
     const setSettingsUrl = serverURL + '/settings?t=' + encodeURIComponent(lastToken);
     console.log('HACK:USERSETTINGS',newSettings);
 
@@ -838,7 +829,7 @@ export default function Home() {
       console.log('Settings Unknown Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while saving your settings');
     }
-  }
+  }, [addMessage, lastToken, serverURL, setUserSettings, userSettings]);
 
   /**
    * Sets the remember login information flag to true or false (is it truthy, or not?)
@@ -1002,7 +993,7 @@ export default function Home() {
         <NarrowWindowContext.Provider value={narrowWindow}>
             <TokenContext.Provider value={lastToken}>
             <AddMessageContext.Provider value={addMessage}>
-              <TitleBar search_title={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
+              <TitleBar searchTitle={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                         breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings}/>
             </AddMessageContext.Provider>

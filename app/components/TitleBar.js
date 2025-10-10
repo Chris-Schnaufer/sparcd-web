@@ -20,7 +20,7 @@ import { AddMessageContext, UserSettingsContext } from '../serverInfo';
 /**
  * Renders the title bar
  * @function
- * @param {string} [search_title] The optional title of the search field
+ * @param {string} [searchTitle] The optional title of the search field
  * @param {array} [breadcrumbs] An optional list of breadcrumbs to display
  * @param {string} [size] Optionally one of "small" or "full"
  * @param {function} [onSearch] The function to call to perform a search
@@ -29,7 +29,8 @@ import { AddMessageContext, UserSettingsContext } from '../serverInfo';
  * @param {function} onLogout The handler for the user wanting to logout
  * @returns {object} The rendered UI
  */
-export default function TitleBar({search_title, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings}) {
+export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings}) {
+  const searchId = React.useMemo(() => "search-" + (searchTitle ? searchTitle.toLowerCase().replaceAll(' ', '-') : "sparcd"), [searchTitle]);
   const [showSettings, setShowSettings] = React.useState(false);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
@@ -38,7 +39,7 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
    * @function
    */
   function clickHandler() {
-    const searchEl = document.getElementById("search");
+    const searchEl = document.getElementById(searchId);
     if (searchEl && searchEl.value) {
       if (onSearch(searchEl.value)) {
         searchEl.value = null;
@@ -100,8 +101,8 @@ export default function TitleBar({search_title, breadcrumbs, size, onSearch, onB
             </Grid>
             <Grid id='sparcd-header-search-wrapper' sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
               <Grid id='sparcd-header-search' container direction="row">
-                { search_title &&
-                  <TextField id="search" label={search_title} placehoder={search_title} size="small" variant="outlined" style={extraInputSX}
+                { searchTitle &&
+                  <TextField id={searchId} label={searchTitle} placehoder={searchTitle} size="small" variant="outlined" style={extraInputSX}
                             onKeyPress={handleSearchChange}
                             slotProps={{
                               input: {

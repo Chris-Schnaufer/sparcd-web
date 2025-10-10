@@ -69,3 +69,14 @@
     height: 78vh;
   }
 }
+
+.blink {
+  animation: blinker 1s ease-in infinite;
+}
+
+@keyframes blinker {
+  50% {
+    opacity: 0;
+  }
+}
+

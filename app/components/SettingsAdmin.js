@@ -1141,7 +1141,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
                   {activeTabInfo.newName && activeTabInfo.newFunc && <Button id="admin-settings-add-new" size="small" onClick={activeTabInfo.newFunc}>{activeTabInfo.newName}</Button>}
                 </Grid>
                 <Grid>
-                  <TextField id="search" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
+                  <TextField id="search-admin" label={'Search'} placehoder={'Search'} size="small" variant="outlined"
                             onChange={activeTabInfo.searchFunc}
                             slotProps={{
                               input: {
