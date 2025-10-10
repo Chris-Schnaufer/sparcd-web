@@ -730,7 +730,7 @@ def image():
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def query():
     """ Returns a token representing the login. No checks are made on the parameters
-    Arguments: (POST or GET)
+    Arguments: POST
         url - the S3 database URL
         user - the user name
         password - the user credentials
@@ -1782,7 +1782,6 @@ def images_all_edited():
     # tuple. We flatten further on the call so we're left with a single tuple containing all
     # rows
     row_groups = (obs_info[one_key] for one_key in obs_info)
-    # TODO: Remove any species that have a count of zero
     S3Connection.upload_camtrap_data(s3_url, user_info.name,
                                 get_password(token, db),
                                 s3_bucket, make_s3_path((s3_path, OBSERVATIONS_CSV_FILE_NAME)),
@@ -1961,6 +1960,58 @@ def settings_admin():
     return json.dumps({'success': pw_ok})
 
 
+@app.route('/adminCollectionDetails', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def admin_collection_details():
+    """ Returns user information for admin editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the list of registered users and their information
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN USERS', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Make sure this user is an admin
+    if user_info.admin != 1:
+        return "Not Found", 404
+
+    bucket = request.form.get('bucket', None)
+    if bucket is None:
+        return "Not Found", 404
+
+    # Get the collection information
+    collection = None
+    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+    if return_colls:
+        found_colls = [one_coll for one_coll in return_colls if one_coll['bucket'] == bucket]
+        if found_colls:
+            collection = found_colls[0]
+
+    if not collection:
+        s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+        collection = S3Connection.get_collection_info(s3_url, user_info.name, \
+                                                        get_password(token, db),
+                                                        bucket)
+        if collection:
+            collection = sdu.normalize_collection(collection)
+
+    if not collection:
+        return "Not Found", 404
+
+    return json.dumps(collection)
+
+
 @app.route('/adminUsers', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_users():
@@ -1996,7 +2047,7 @@ def admin_users():
     # Organize the collection permissions by user
     # TODO: Combine load_timed_temp_colls with S3Connection.get_collections? See /collections
     #       here and elsewhere
-    all_collections = sdu.load_timed_temp_colls(user_info.name, True)
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
     user_collections = {}
     if all_collections:
         for one_coll in all_collections:
@@ -2327,7 +2378,7 @@ def admin_collection_update():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     s3_bucket = SPARCD_PREFIX + col_id
 
-    all_collections = sdu.load_timed_temp_colls(user_info.name, True)
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
 
     # Update the entry to what we need
     found_coll = None
@@ -2359,7 +2410,7 @@ def admin_collection_update():
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = sdu.load_timed_temp_colls(user_info.name, True)
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]

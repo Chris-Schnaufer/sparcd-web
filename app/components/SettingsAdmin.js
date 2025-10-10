@@ -584,10 +584,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} event The triggering event
    * @param {object} {location} The user object to edit or falsy if a new user is wanted
    */
-  function handleUserEdit(event, user) {
+  const handleUserEdit = React.useCallback((event, user) => {
     event.stopPropagation();
     setEditingState({type:EditingStates.User, data:user});
-  }
+  }, [setEditingState]);
 
   /**
    * Handles the new collection button press
@@ -595,10 +595,38 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} event The triggering event
    * @param {object} {location} The collection object to edit or falsy if a new collection is wanted
    */
-  function handleCollectionEdit(event, collection) {
+  const handleCollectionEdit = React.useCallback((event, collection) => {
     event.stopPropagation();
-    setEditingState({type:EditingStates.Collection, data:collection});
-  }
+    const adminCollectionUrl = serverURL + '/adminCollectionDetails?t=' + encodeURIComponent(settingsToken);
+    const formData = new FormData();
+
+    formData.append('bucket', collection.bucket);
+
+    try {
+      const resp = fetch(adminCollectionUrl, {
+        method: 'POST',
+        body: formData,
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to abandon changed settings information: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Handle the result
+            setEditingState({type:EditingStates.Collection, data:respData});
+        })
+        .catch(function(err) {
+          console.log('Admin Collections Details Error: ',err);
+          addMessage(Level.Warning, 'An error ocurred when attempting to get collection details');
+      });
+    } catch (error) {
+      console.log('Admin Collections Details Unknown Error: ',err);
+      addMessage(Level.Warning, 'An unknown error ocurred when attempting to get collection details');
+    }
+
+  }, [addMessage, serverURL, setEditingState, settingsToken]);
 
   /**
    * Handles the new species button press
@@ -606,10 +634,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} event The triggering event
    * @param {object} {location} The species object to edit or falsy if a new species is wanted
    */
-  function handleSpeciesEdit(event, species) {
+  const handleSpeciesEdit = React.useCallback((event, species) => {
     event.stopPropagation();
     setEditingState({type:EditingStates.Species, data:species});
-  }
+  }, [setEditingState]);
 
   /**
    * Handles the new location button press
@@ -617,10 +645,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {object} event The triggering event
    * @param {object} {location} The location object to edit or falsy if a new location is wanted
    */
-  function handleLocationEdit(event, location) {
+  const handleLocationEdit = React.useCallback((event, location) => {
     event.stopPropagation();
     setEditingState({type:EditingStates.Location, data:location});
-  }
+  }, [setEditingState]);
 
   /**
    * Handles the user search button press

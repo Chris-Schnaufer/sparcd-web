@@ -46,7 +46,6 @@ export default function SpeciesKeybind({keybind, name, parentId, onClose, onChan
   React.useEffect(() => {
     function onKeypress(event) {
       if (event.key !== 'Meta') {
-        console.log('HACK',event);
         setCurKeybind(event.key.toUpperCase());
         event.preventDefault();
       }
