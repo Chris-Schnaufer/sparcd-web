@@ -37,7 +37,8 @@ const MAX_FILES_UPLOAD_SPLIT = 5; // Maximum number of files to upload at one ti
 const prevUploadCheckState = {
   noCheck: null,
   checkReset: 1,
-  checkNew: 2
+  checkNew: 2,
+  checkAbandon: 3,
 };
 
 /**
@@ -83,7 +84,7 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
   let cancelUploadCountCheck = false; // Used to stop the checks for upload counts (which would go until the counts match)
   let disableUploadDetails = false; // Used to lock out multiple clicks
   let disableUploadPrev = false; // Used to lock out multiple clicks
-  let disableUploadCheck = false; // Used to lock out multiple clicks
+  let disableUploadCheck = false; // Used to lock out multiple clicks (resets next time page is redrawn)
 
   let displayCoordSystem = 'LATLON';
   if (userSettings['coordinatesDisplay']) {
@@ -623,6 +624,20 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
   }
 
   /**
+   * Restarts a folder upload
+   * @function
+   */
+  function prevUploadAbandon() {
+    // Used to prevent multiple clicks
+    if (disableUploadPrev === true) {
+      return;
+    }
+    disableUploadPrev = true;
+
+    setPrevUploadCheck(prevUploadCheckState.abandon);
+  }
+
+  /**
    * Handles restarting an upload from the beginning
    * @function
    */
@@ -667,6 +682,55 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
     } catch (error) {
       console.log('Reset Upload Unknown Error: ',err);
       addMessage(Level.Error, 'An unkown problem ocurred while preparing for reset sandbox upload');
+    }
+  }
+
+  /**
+   * Handles abandoning an upload
+   * @function
+   */
+  function prevUploadAbandonContinue() {
+    // Used to prevent multiple clicks
+    if (disableUploadCheck === true) {
+      return;
+    }
+
+    // Reset the upload on the server and then restart the upload
+    const sandboxAbandonUrl = serverURL + '/sandboxAbandon?t=' + encodeURIComponent(uploadToken);
+    const formData = new FormData();
+
+    formData.append('id', continueUploadInfo.id);
+
+    try {
+      const resp = fetch(sandboxAbandonUrl, {
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to abandoning sandbox upload: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Process the results
+            setUploadingFileCounts({total:uploadFiles.length, uploaded:0});
+            setPrevUploadCheck(prevUploadCheckState.noCheck);
+            setContinueUploadInfo(null);
+            setCollectionSelection(null);
+            setLocationSelection(null);
+            setComment(null);
+            setNewUpload(false);
+            onCompleted();
+            addMessage(Level.Warning, 'Unable to complete removal of previously started upload from the storage server. Please contact your administrator to complete removal');
+        })
+        .catch(function(err) {
+          console.log('Abandon Sandbox Error: ',err);
+          addMessage(Level.Error, 'A problem ocurred while preparing for abandoning sandbox upload');
+      });
+    } catch (error) {
+      console.log('Abandon Upload Unknown Error: ',err);
+      addMessage(Level.Error, 'An unkown problem ocurred while preparing for abandoning sandbox upload');
     }
   }
 
@@ -1020,7 +1084,7 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
               {renderInputControls()}
             </CardContent>
             <CardActions>
-            { !uploadingFiles &&
+            { !uploadingFiles && continueUploadInfo === null && 
               <React.Fragment>
                 <Button id="folder_upload" sx={{'flex':'1'}} size="small" onClick={uploadFiles}
                         disabled={filesSelected > 0 ? false : true}>Upload</Button>
@@ -1100,6 +1164,7 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
             <Button id="sandbox-upload-continue-continue" sx={{'flex':'1'}} size="small" onClick={prevUploadContinue}>Continue Upload</Button>
             <Button id="sandbox-upload-continue-restart" sx={{'flex':'1'}} size="small" onClick={prevUploadRestart}>Restart Upload</Button>
             <Button id="sandbox-upload-continue-create" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNew}>Create New Upload</Button>
+            <Button id="sandbox-upload-continue-abandon" sx={{'flex':'1'}} size="small" onClick={prevUploadAbandon}>Abandon Upload</Button>
             <Button id="sandbox-upload-continue-cancel" sx={{'flex':'1'}} size="small" onClick={prevUploadCancel}>Cancel</Button>
           </CardActions>
         </Card>
@@ -1122,13 +1187,15 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
                 <Typography gutterBottom variant="h6" component="h4">
                   {prevUploadCheck === prevUploadCheckState.checkReset && "Restart Upload"}
                   {prevUploadCheck === prevUploadCheckState.checkNew && "Create New Upload"}
+                  {prevUploadCheck === prevUploadCheckState.abandon && "Abandon Upload"}
                 </Typography>
                }
               />
             <CardContent>
               <Typography gutterBottom variant="body">
                 {prevUploadCheck === prevUploadCheckState.checkReset && "Are you sure you want to delete the previous uploaded files and restart?"}
-                {prevUploadCheck === prevUploadCheckState.checkNew && "Are you sure you want to abandon the previous uploaded?"}
+                {prevUploadCheck === prevUploadCheckState.checkNew && "Are you sure you want to abandon the previous uploaded and create a new one?"}
+                {prevUploadCheck === prevUploadCheckState.abandon && "Are you sure you want to abandon the previous uploaded?"}
               </Typography>
             </CardContent>
             <CardActions>
@@ -1137,6 +1204,9 @@ export default function FolderUpload({loadingCollections, onCompleted, onCancel}
               }
               {prevUploadCheck === prevUploadCheckState.checkNew &&
                 <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadCreateNewContinue}>Yes</Button>
+              }
+              {prevUploadCheck === prevUploadCheckState.abandon &&
+                <Button id="sandbox-upload-continue-yes" sx={{'flex':'1'}} size="small" onClick={prevUploadAbandonContinue}>Yes</Button>
               }
               <Button id="sandbox-upload-continue-no" sx={{'flex':'1'}} size="small" onClick={prevUploadResetCreateCancel}>No</Button>
             </CardActions>

@@ -1382,6 +1382,50 @@ def sandbox_reset():
     return json.dumps({'id': upload_id})
 
 
+@app.route('/sandboxAbandon', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def sandbox_abandon():
+    """ Removes the sandbox and any uploaded files
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the ID of the abandoned upload
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('SANDBOX ABANDON', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    upload_id = request.form.get('id', None)
+    if not upload_id:
+        return "Not Found", 406
+
+    # Get the upload path
+    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
+
+    # Remove the upload from the DB
+    completed_count = db.sandbox_upload_counts(user_info.name, upload_id)
+    db.sandbox_upload_complete(user_info.name, upload_id)
+
+    # We don't do this because it's not recoverable
+    # Remove the files from S3
+    #if upload_info:
+    #    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    #    S3Connection.remove_upload(s3_url, user_info.name, get_password(token, db), s3_bucket, \
+    #                                                                                       s3_path)
+
+    return json.dumps({'id': upload_id, 'completed': completed_count})
+
+
 @app.route('/sandboxCompleted', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def sandbox_completed():

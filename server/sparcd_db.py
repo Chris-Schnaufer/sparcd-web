@@ -384,6 +384,32 @@ class SPARCdDatabase:
         """
         self._db.sandbox_upload_complete(username, upload_id)
 
+    def sandbox_abandon_upload(self, s3_url: str, username: str, upload_id: str) -> Optional[int]:
+        """ Marks the upload as abandoned
+        Arguments:
+            s3_url: the URL to the s3 instance the upload is for
+            username: the name of the person starting the upload
+            upload_id: the ID of the upload
+        Return:
+            Returns the count of completed file uploads or None if the upload can't be found
+        """
+        res = self._db.sandbox_get_upload(s3_url, username, path)
+
+        if not res or len(res) < 3:
+            return None
+
+        sandbox_id = res[0]
+
+        res = self._db.sandbox_uploaded_files(username, sandbox_id)
+
+        if not res or len(res) < 1:
+            return None
+
+        self._db.sandbox_abandon_upload(s3_url, username, upload_id)
+        
+        return int(res[0]) if res[0] is not None else None
+
+
     def sandbox_file_uploaded(self, username: str, upload_id: str, filename: str, \
                                                                     mimetype: str) -> Optional[str]:
         """ Marks the file as upload as uploaded

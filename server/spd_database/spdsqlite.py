@@ -388,7 +388,6 @@ class SPDSQLite:
 
         return res
 
-
     def save_uploads(self, s3_url: str, bucket: str, uploads: tuple) -> bool:
         """ Save the upload information into the table
         Arguments:
@@ -571,6 +570,27 @@ class SPDSQLite:
                                                                         (s3_url, username, path))
 
         res = cursor.fetchone()
+        cursor.close()
+
+        return res
+
+    def sandbox_uploaded_files(self, sandbox_id: str) -> Optional[tuple]:
+        """ Queries the database for the number of files already uploaded for this ID
+        Arguments:
+            upload_id: the ID of the upload
+        Return:
+            The result of the query
+        """
+        if self._conn is None:
+            raise RuntimeError('Attempting to get sandbox upload path from the database before ' \
+                                                                                    'connecting')
+
+        # Get the number of uploaded files
+        cursor = self._conn.cursor()
+        cursor.execute('SELECT count(1) FROM sandbox_files WHERE sandbox_id=? AND ' \
+                                                                    'uploaded=TRUE', (sandbox_id,))
+        res = cursor.fetchone()
+
         cursor.close()
 
         return res
