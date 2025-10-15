@@ -22,7 +22,7 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
-import { geographicCoordinates, TokenContext } from '../serverInfo';
+import { CollectionsInfoContext, geographicCoordinates, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
@@ -68,6 +68,7 @@ function ensure_settings(settings) {
  */
 export default function Settings({curSettings, onChange, onClose, onLogout, onAdminSettings}) {
   const theme = useTheme();
+  const collectionsItems = React.useContext(CollectionsInfoContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const passwordRef = React.useRef();
   const email1Ref = React.useRef();
@@ -76,6 +77,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const [changedValue, setChangedValue] = React.useState(null); // Use to force redraw when settings change
   const [emailMessage, setEmailMessage] = React.useState(null); // The working email message
   const [isAdmin, setIsAdmin] = React.useState(false); // Used in case the user is an admin
+  const [isOwner, setIsOwner] = React.useState(false); // Used in case the user has owner permissions on a collection
   const [getPassword, setGetPassword] = React.useState(false); // Used to signal that we need the user's password
   const [serverURL, setServerURL] = React.useState(utils.getServer());  // The server URL to use
   const [showPassword, setShowPassword] = React.useState(false);  // Show the password?
@@ -203,6 +205,32 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   }, [settingsToken, setIsAdmin])
 
   /**
+   * Determines if the user has owner permissions on any collections
+   * @function
+   */
+  function checkIfOwner() {
+    if (!collectionsItems) {
+      return;
+    }
+
+    // We just need to find one owner permissions
+    let isOwner = false;
+    for (let coll of collectionsItems) {
+      if (coll.permissions) {
+        if (coll.permissions.ownerProperty && coll.permissions.ownerProperty === true) {
+          isOwner = true;
+        }
+      }
+
+      if (isOwner) {
+        break;
+      }
+    }
+
+    setIsOwner(isOwner);
+  }
+
+  /**
    * Calculate our sizes and positions
    * @function
    */
@@ -240,6 +268,14 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   }
 
   /**
+   * Handler for Owner manage request
+   * @function
+   */
+  function handleOwner() {
+    setGetPassword(true);
+  }
+
+  /**
    * Handles the user logging in for admin
    * @function
    */
@@ -247,7 +283,11 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
     const el = document.getElementById('password-entry');
     if (el && typeof(onAdminSettings) === 'function') {
       const newPw = el.value;
-      onAdminSettings(newPw);
+      if (isAdmin) {
+        onAdminSettings(newPw);
+      } else if (isOwner) {
+        // TODO:
+      }
       setGetPassword(false);
     }
   }
@@ -319,6 +359,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   // Admin check
   React.useLayoutEffect(() => {
     checkIfAdmin();
+    checkIfOwner();
   }, []);
 
   // Return the UI
@@ -436,6 +477,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
           >
             <Button variant="contained" onClick={() => onClose()}>Close</Button>
             {isAdmin && <Button variant="contained" onClick={() => handleAdmin()} disabled={getPassword}>Admin</Button>}
+            {isOwner && !isAdmin && <Button variant="contained" onClick={() => handleOwner()} disabled={getPassword}>Manage</Button>}
             <Button variant="contained" onClick={() => onLogout()}>Logout</Button>
           </Grid>
         </CardActions>

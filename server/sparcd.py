@@ -1260,7 +1260,8 @@ def sandbox_file():
 
         # Check if we need to apply the timezone to timestamp. Refer to link below
         # https://docs.python.org/3/library/datetime.html#determining-if-an-object-is-aware-or-naive
-        if cur_timestamp.tzinfo is None or cur_timestamp.tzinfo.utcoffset(cur_timestamp) is None:
+        if cur_timestamp and (cur_timestamp.tzinfo is None or \
+                                            cur_timestamp.tzinfo.utcoffset(cur_timestamp) is None):
             cur_timestamp = cur_timestamp.replace(tzinfo=dateutil.tz.tzoffset(None,tz_offset*60*60))
 
         # Check if we need to update the location in the file
@@ -1299,7 +1300,7 @@ def sandbox_file():
 
         # Check if we need to store the species and locations in camtrap
         if (cur_species and cur_timestamp) or cur_location:
-            db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat())
+            db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat() if cur_timestamp else None)
 
     if os.path.exists(temp_file[1]):
         os.unlink(temp_file[1])

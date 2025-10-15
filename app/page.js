@@ -993,9 +993,11 @@ export default function Home() {
         <NarrowWindowContext.Provider value={narrowWindow}>
             <TokenContext.Provider value={lastToken}>
             <AddMessageContext.Provider value={addMessage}>
+            <CollectionsInfoContext.Provider value={collectionInfo}>
               <TitleBar searchTitle={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
                         breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings}/>
+            </CollectionsInfoContext.Provider>
             </AddMessageContext.Provider>
             </TokenContext.Provider>
             {!curLoggedIn ? 

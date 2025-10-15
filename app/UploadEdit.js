@@ -235,6 +235,51 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     }
   });
 
+  /**
+   * Shows the next image for editing
+   * @function
+   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
+   */
+  const handleNextImage = React.useCallback(() => {
+    finishImageEdits();
+
+    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
+    if (curImageIdx === -1) {
+      console.log("Error: unable to find current image before advancing to next image");
+      return false;
+    }
+    if (curImageIdx < curUpload.images.length - 1) {
+      const newImage = curUpload.images[curImageIdx+1];
+      const imageEl = document.getElementById(newImage.name);
+      setCurImageEdit(newImage);
+      if (imageEl) {
+        imageEl.scrollIntoView();
+      }
+      setNextImageEdit(curImageIdx < curUpload.images.length - 2 ? curUpload.images[curImageIdx+2] : null);
+      setNavigationRedraw('redraw-image-'+newImage.name);
+
+      // Set the navigation indicator
+      const el = document.getElementById('image-edit-edit-wrapper');
+      if (el) {
+        el.style.borderRight = '2px solid MediumSeaGreen';
+        el.style.borderLeft = '2px solid white';
+        const prevTimeoutId = navigationIndicatorTimerId.current;
+        if (prevTimeoutId) {
+          navigationIndicatorTimerId.current = null;
+          window.clearTimeout(prevTimeoutId);
+        }
+        navigationIndicatorTimerId.current = window.setTimeout(() => {
+            navigationIndicatorTimerId.current = null;
+            el.style.borderRight = '2px solid white';
+        }, 5000)
+      }
+
+      return true;
+    }
+
+    return false;
+  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
+
   // Render time width and height measurements
   React.useLayoutEffect(() => {
     setWorkspaceWidth(uiSizes.workspace.width);
@@ -297,7 +342,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     return () => {
       document.removeEventListener("keydown", onKeypress);
     }
-  }, []);
+  }, [curEditState, editingStates, handleNextImage, handleSpeciesAdd, speciesItems, userSettings]);
 
   /**
    * Searches for images that meet the search criteria and scrolls it into view
@@ -484,51 +529,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
 
     speciesItems[newKeySpeciesIdx].keyBinding = newKey;
   }
-
-  /**
-   * Shows the next image for editing
-   * @function
-   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
-   */
-  const handleNextImage = React.useCallback(() => {
-    finishImageEdits();
-
-    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
-    if (curImageIdx === -1) {
-      console.log("Error: unable to find current image before advancing to next image");
-      return false;
-    }
-    if (curImageIdx < curUpload.images.length - 1) {
-      const newImage = curUpload.images[curImageIdx+1];
-      const imageEl = document.getElementById(newImage.name);
-      setCurImageEdit(newImage);
-      if (imageEl) {
-        imageEl.scrollIntoView();
-      }
-      setNextImageEdit(curImageIdx < curUpload.images.length - 2 ? curUpload.images[curImageIdx+2] : null);
-      setNavigationRedraw('redraw-image-'+newImage.name);
-
-      // Set the navigation indicator
-      const el = document.getElementById('image-edit-edit-wrapper');
-      if (el) {
-        el.style.borderRight = '2px solid MediumSeaGreen';
-        el.style.borderLeft = '2px solid white';
-        const prevTimeoutId = navigationIndicatorTimerId.current;
-        if (prevTimeoutId) {
-          navigationIndicatorTimerId.current = null;
-          window.clearTimeout(prevTimeoutId);
-        }
-        navigationIndicatorTimerId.current = window.setTimeout(() => {
-            navigationIndicatorTimerId.current = null;
-            el.style.borderRight = '2px solid white';
-        }, 5000)
-      }
-
-      return true;
-    }
-
-    return false;
-  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**
    * Shows the previous image for editing
