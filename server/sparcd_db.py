@@ -105,7 +105,7 @@ class SPARCdDatabase:
 
             return user_info, res[9]
 
-        return None
+        return None, None
 
     def get_user(self, username: str) -> Optional[UserInfo]:
         """ Looks up the specified user

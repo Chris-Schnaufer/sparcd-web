@@ -486,7 +486,7 @@ def token_is_valid(token: str, client_ip: str, user_agent: str, db: SPARCdDataba
     # Get the user information using the token
     db.reconnect()
     login_info, elapsed_sec = db.get_token_user_info(token)
-    if login_info is not None:
+    if login_info is not None and elapsed_sec is not None:
         if login_info.settings:
             login_info.settings = json.loads(login_info.settings)
         if login_info.species:
