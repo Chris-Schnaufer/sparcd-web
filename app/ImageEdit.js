@@ -292,7 +292,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
 
     navigationLocked = false;
 
-  }, [navigation]);
+  }, [imageTransformWrapperRef, navigation, navigationLocked, NAVIGATION_MASK_TIMEOUT, navigationMaskTimeoutId, setBrightness, setContrast, setHue, setSaturation]);
 
   /**
    * Handles the click of the prev image button
@@ -338,7 +338,7 @@ export default function ImageEdit({url, name, parentId, maxWidth, maxHeight, onC
 
     navigationLocked = false;
 
-  }, [navigation]);
+  }, [imageTransformWrapperRef, navigation, navigationLocked, NAVIGATION_MASK_TIMEOUT, navigationMaskTimeoutId, setBrightness, setContrast, setHue, setSaturation]);
 
   /**
    * Handles when the image loads

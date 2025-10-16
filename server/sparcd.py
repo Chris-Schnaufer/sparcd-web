@@ -19,8 +19,8 @@ from PIL import Image
 import requests
 from minio import Minio
 from minio.error import MinioException
-from flask import Flask, render_template, request, Response, send_file, send_from_directory,\
-                  url_for
+from flask import Flask, make_response, render_template, request, Response, send_file, \
+                  send_from_directory, url_for
 from flask_cors import cross_origin
 
 import spd_crypt as crypt
@@ -72,6 +72,9 @@ TIMEOUT_COLLECTIONS_SEC = 12 * 60 * 60
 TIMEOUT_UPLOADS_FILE_SEC = 15 * 60
 # Timeout for query results on disk
 QUERY_RESULTS_TIMEOUT_SEC = 24 * 60 * 60
+
+# Timeout for image browser cache
+IMAGE_BROWSER_CACHE_TIMEOUT_SEC = 10800
 
 # Convertion factor of feet to metes
 FEET_TO_METERS = 0.3048000097536
@@ -723,7 +726,13 @@ def image():
     res = requests.get(image_data[image_key]['s3_url'],
                        timeout=DEFAULT_IMAGE_FETCH_TIMEOUT_SEC,
                        allow_redirects=False)
-    return res.content
+
+    response = make_response(res.content)
+    #response.headers.set('Content-Type', 'image/jpeg')
+    response.headers.set('Cache-Control', IMAGE_BROWSER_CACHE_TIMEOUT_SEC)
+    return response
+
+    #return res.content
 
 
 @app.route('/query', methods = ['POST'])
@@ -766,18 +775,19 @@ def query():
     have_error = False
     filters = []
     for key, value in request.form.items(multi=True):
+        print('HACK:FORMATITEM:', key, value, flush=True)
         match key:
             case 'collections' | 'dayofweek' | 'elevations' | 'hour' | 'locations' | \
                  'month' | 'species' | 'years':
                 try:
+                    print('HACK: ',key,value,flush=True)
                     filters.append((key, json.loads(value)))
                 except json.JSONDecodeError:
                     print(f'Error: bad query data for key: {key}')
                     have_error = True
-                    break
             case 'endDate' | 'startDate':
+                print('HACK: ',key, value,datetime.datetime.fromisoformat(value),flush=True)
                 filters.append((key, datetime.datetime.fromisoformat(value)))
-                break
             case _:
                 print(f'Error: unknown query key detected: {key}')
                 have_error = True
@@ -807,17 +817,24 @@ def query():
                                                             for one_coll in coll_info]
 
     # Filter collections
-    cur_coll = coll_info
+    filter_colls = []
     for one_filter in filters:
         if one_filter[0] == 'collections':
-            cur_coll = [coll for coll in cur_coll if coll['name'] in one_filter[1]]
+            filter_colls = filter_colls + \
+                                    [coll for coll in coll_info if coll['name'] in one_filter[1]]
+    if not filter_colls:
+        filter_colls = coll_info
+    print('HACK: FILTERCOLLS:',len(filter_colls),flush=True)
 
     # Get uploads information to further filter images
-    all_results = query_helpers.filter_collections(db, cur_coll,
+    # TODO: resolve: this call needs both encrypted (for the DB) and plain text URL (for S3 access)
+    #                [maybe make the S3URL parameter a tuple?]
+    all_results = query_helpers.filter_collections(db, filter_colls,
                                             crypt.do_decrypt(WORKING_PASSCODE, user_info.url),
                                             user_info.name,
                                             lambda: get_password(token, db),
                                             filters)
+    print('HACK: ALLRESULTS:',all_results, flush=True)
 
     # Get the species and locations
     cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
@@ -1300,7 +1317,8 @@ def sandbox_file():
 
         # Check if we need to store the species and locations in camtrap
         if (cur_species and cur_timestamp) or cur_location:
-            db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat() if cur_timestamp else None)
+            db.sandbox_add_file_info(file_id, cur_species, cur_location, cur_timestamp.isoformat() \
+                                                                        if cur_timestamp else None)
 
     if os.path.exists(temp_file[1]):
         os.unlink(temp_file[1])
@@ -1410,7 +1428,8 @@ def sandbox_abandon():
         return "Not Found", 406
 
     # Get the upload path
-    s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
+    # Not needed since we aren't yet removing files from S3
+    #s3_bucket, s3_path = db.sandbox_get_s3_info(user_info.name, upload_id)
 
     # Remove the upload from the DB
     completed_count = db.sandbox_upload_counts(user_info.name, upload_id)

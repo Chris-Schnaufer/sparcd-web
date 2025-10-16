@@ -236,6 +236,51 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
   });
 
   /**
+   * Shows the previous image for editing
+   * @function
+   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
+   */
+  const handlePrevImage = React.useCallback(() => {
+    finishImageEdits();
+
+    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
+    if (curImageIdx === -1) {
+      console.log("Error: unable to find current image before advancing to previous image");
+      return false;
+    }
+    if (curImageIdx > 0) {
+      const newImage = curUpload.images[curImageIdx-1];
+      const imageEl = document.getElementById(newImage.name);
+      setCurImageEdit(newImage);
+      if (imageEl) {
+        imageEl.scrollIntoView();
+      }
+      setNextImageEdit(curImageIdx > 1 ? curUpload.images[curImageIdx-2] : null);
+      setNavigationRedraw('redraw-image-'+newImage.name);
+
+      // Set the navigation indicator
+      const el = document.getElementById('image-edit-edit-wrapper');
+      if (el) {
+        el.style.borderLeft = '2px solid MediumSeaGreen';
+        el.style.borderRight = '2px solid white';
+        const prevTimeoutId = navigationIndicatorTimerId.current;
+        if (prevTimeoutId) {
+          navigationIndicatorTimerId.current = null;
+          window.clearTimeout(prevTimeoutId);
+        }
+        navigationIndicatorTimerId.current = window.setTimeout(() => {
+            navigationIndicatorTimerId.current = null;
+            el.style.borderLeft = '2px solid white';
+        }, 5000)
+      }
+
+      return true;
+    }
+
+    return false;
+  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
+
+  /**
    * Shows the next image for editing
    * @function
    * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
@@ -529,51 +574,6 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
 
     speciesItems[newKeySpeciesIdx].keyBinding = newKey;
   }
-
-  /**
-   * Shows the previous image for editing
-   * @function
-   * @return {bool} Returns true when there's a next image to navigate to, and false otherwise
-   */
-  const handlePrevImage = React.useCallback(() => {
-    finishImageEdits();
-
-    const curImageIdx =  curUpload.images.findIndex((item) => item.name === curImageEdit.name);
-    if (curImageIdx === -1) {
-      console.log("Error: unable to find current image before advancing to previous image");
-      return false;
-    }
-    if (curImageIdx > 0) {
-      const newImage = curUpload.images[curImageIdx-1];
-      const imageEl = document.getElementById(newImage.name);
-      setCurImageEdit(newImage);
-      if (imageEl) {
-        imageEl.scrollIntoView();
-      }
-      setNextImageEdit(curImageIdx > 1 ? curUpload.images[curImageIdx-2] : null);
-      setNavigationRedraw('redraw-image-'+newImage.name);
-
-      // Set the navigation indicator
-      const el = document.getElementById('image-edit-edit-wrapper');
-      if (el) {
-        el.style.borderLeft = '2px solid MediumSeaGreen';
-        el.style.borderRight = '2px solid white';
-        const prevTimeoutId = navigationIndicatorTimerId.current;
-        if (prevTimeoutId) {
-          navigationIndicatorTimerId.current = null;
-          window.clearTimeout(prevTimeoutId);
-        }
-        navigationIndicatorTimerId.current = window.setTimeout(() => {
-            navigationIndicatorTimerId.current = null;
-            el.style.borderLeft = '2px solid white';
-        }, 5000)
-      }
-
-      return true;
-    }
-
-    return false;
-  }, [curImageEdit, curUpload, finishImageEdits, setCurImageEdit, setNavigationRedraw]);
 
   /**
    * Updates the currently edited image with any changes made

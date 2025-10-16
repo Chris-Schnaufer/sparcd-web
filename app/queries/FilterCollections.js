@@ -132,7 +132,8 @@ export default function FilterCollections({data, parentId, onClose, onChange}) {
   function handleSearchChange(event) {
     if (event.target.value) {
       const ucSearch = event.target.value.toUpperCase();
-      setDisplayedCollections(collectionItems.filter((item) => item.bucket.toUpperCase().includes(ucSearch)));
+      setDisplayedCollections(collectionItems.filter((item) => item.bucket.toUpperCase().includes(ucSearch) ||
+                                                                item.name.toUpperCase().includes(ucSearch)));
     } else {
       setDisplayedCollections(collectionItems);
     }

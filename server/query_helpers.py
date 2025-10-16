@@ -5,6 +5,7 @@ import datetime
 import json
 import traceback
 from typing import Callable, Optional
+import dateutil.tz
 
 from sparcd_db import SPARCdDatabase
 from s3_access import S3Connection
@@ -17,6 +18,10 @@ from text_formatters.results import Results
 
 # Uploads table timeout length
 TIMEOUT_UPLOADS_SEC = 3 * 60 * 60
+
+# Default timezone offset in seconds
+# TODO: Set the default timezone elsewhere; perhaps as a environment variable?
+DEFAULT_TIMEZONE_OFFSET = -7.00*60*60
 
 
 def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
@@ -39,12 +44,8 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
             case 'elevation':
                 cur_uploads = filter_elevation(cur_uploads, json.loads(one_filter[1]))
 
-    # Determine if we'll need image datetime objects
-    need_gmt_dt = any(one_filter for one_filter in filters if one_filter[0] in \
-                        ['enddata','startdate'])
-
     # Filter at the image level
-    filtering_names = [one_filter[1] for one_filter in filters]
+    filtering_names = [one_filter[0] for one_filter in filters]
     years_filter = None
     try:
         start_date_ts = None if 'startDate' not in filtering_names else \
@@ -62,13 +63,15 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
         for one_image in one_upload['info']['images']:
             excluded = False
             image_dt = None
-            image_gmt_dt = None
             # pylint: disable=broad-exception-caught
             if 'timestamp' in one_image and one_image['timestamp']:
                 try:
                     image_dt = datetime.datetime.fromisoformat(one_image['timestamp'])
-                    if need_gmt_dt:
-                        image_gmt_dt = datetime.datetime.utcfromtimestamp(image_dt.timestamp())
+                    # Add a timezone if there isn't one
+                    if image_dt and (image_dt.tzinfo is None or \
+                                            image_dt.tzinfo.utcoffset(image_dt) is None):
+                        image_dt = image_dt.replace(tzinfo=\
+                                        dateutil.tz.tzoffset(None,DEFAULT_TIMEZONE_OFFSET))
                 except Exception as ex:
                     print(f'Error converting image timestamp: {one_image["name"]} ' \
                           f'{one_image["timestamp"]} from upload {one_upload["bucket"]} '\
@@ -104,10 +107,10 @@ def filter_uploads(uploads_info: tuple, filters: tuple) -> tuple:
                                                                             years_filter['yearEnd']:
                             excluded = True
                     case 'endDate': # Need to compare against GMT of filter
-                        if image_gmt_dt is None or image_gmt_dt > end_date_ts:
+                        if image_dt is None or image_dt > end_date_ts:
                             excluded = True
                     case 'startDate': # Need to compare against GMT of filter
-                        if image_gmt_dt is None or image_gmt_dt < start_date_ts:
+                        if image_dt is None or image_dt < start_date_ts:
                             excluded = True
 
                 # Break loop as soon as it's excluded
@@ -262,7 +265,7 @@ def get_filter_dt(filter_name: str, filters: tuple) -> Optional[datetime.datetim
     """
     found_filter = [one_filter for one_filter in filters if one_filter[0] == filter_name]
     if len(found_filter) > 0:
-        return datetime.datetime.fromisoformat(found_filter[0][1])
+        return found_filter[0][1]
 
     return None
 
