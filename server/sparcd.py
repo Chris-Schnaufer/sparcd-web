@@ -775,18 +775,15 @@ def query():
     have_error = False
     filters = []
     for key, value in request.form.items(multi=True):
-        print('HACK:FORMATITEM:', key, value, flush=True)
         match key:
             case 'collections' | 'dayofweek' | 'elevations' | 'hour' | 'locations' | \
                  'month' | 'species' | 'years':
                 try:
-                    print('HACK: ',key,value,flush=True)
                     filters.append((key, json.loads(value)))
                 except json.JSONDecodeError:
                     print(f'Error: bad query data for key: {key}')
                     have_error = True
             case 'endDate' | 'startDate':
-                print('HACK: ',key, value,datetime.datetime.fromisoformat(value),flush=True)
                 filters.append((key, datetime.datetime.fromisoformat(value)))
             case _:
                 print(f'Error: unknown query key detected: {key}')
@@ -824,7 +821,6 @@ def query():
                                     [coll for coll in coll_info if coll['name'] in one_filter[1]]
     if not filter_colls:
         filter_colls = coll_info
-    print('HACK: FILTERCOLLS:',len(filter_colls),flush=True)
 
     # Get uploads information to further filter images
     # TODO: resolve: this call needs both encrypted (for the DB) and plain text URL (for S3 access)
@@ -834,7 +830,6 @@ def query():
                                             user_info.name,
                                             lambda: get_password(token, db),
                                             filters)
-    print('HACK: ALLRESULTS:',all_results, flush=True)
 
     # Get the species and locations
     cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,

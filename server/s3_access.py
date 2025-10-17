@@ -282,7 +282,6 @@ def download_data_thread(minio: Minio, file_info: tuple, dest_root_path: str) ->
     """
     dest_file = make_s3_path((dest_root_path, file_info[2] if len(file_info) >= 3 else \
                                                                                     file_info[1]))
-
     # Make sure the destination folders exist
     base = os.path.dirname(dest_file)
     if not os.path.exists(base):
