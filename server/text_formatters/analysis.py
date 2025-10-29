@@ -172,7 +172,7 @@ class Analysis:
         while True:
             date = ephem.next_full_moon(date)
             if date.datetime().date() <= last.date():
-                full_moons.append(date.datetime())
+                full_moons.append(date.datetime().replace(tzinfo=datetime.timezone.utc))
             else:
                 break
 
@@ -193,7 +193,7 @@ class Analysis:
         while True:
             date = ephem.next_new_moon(date)
             if date.datetime().date() <= last.date():
-                new_moons.append(date.datetime())
+                new_moons.append(date.datetime().replace(tzinfo=datetime.timezone.utc))
             else:
                 break
 

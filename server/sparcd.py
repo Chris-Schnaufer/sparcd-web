@@ -132,6 +132,16 @@ def get_password(token: str, db: SPARCdDatabase) -> Optional[str]:
     return crypt.do_decrypt(WORKING_PASSCODE, db.get_password(token))
 
 
+def hash2str(text: str) -> str:
+    """ Returns the hash of the passed in string
+    Arguments:
+        text: the string to hash
+    Return:
+        The hash value as a string
+    """
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+
 @app.route('/', methods = ['GET'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def index():
@@ -325,8 +335,8 @@ def login_token():
         return "Not Found", 404
 
     # Log onto S3 to make sure the information is correct
+    s3_url = s3u.web_to_s3_url(url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     try:
-        s3_url = s3u.web_to_s3_url(url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
         minio = Minio(s3_url, access_key=user, secret_key=password)
         _ = minio.list_buckets()
     except MinioException as ex:
@@ -343,8 +353,9 @@ def login_token():
     user_info = db.get_user(user)
     if not user_info:
         # Get the species
-        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                                                            user, lambda: password)
+        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                                hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                                s3_url, user, lambda: password)
         user_info = db.auto_add_user(user, species=json.dumps(cur_species))
 
     # Add in the email if we have user settings
@@ -384,10 +395,14 @@ def collections():
     if not token_valid or not user_info:
         return "Unauthorized", 401
 
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+
     # Check if we have a stored temporary file containing the collections information
     # and return that
-    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
-    if return_colls:
+    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                                                hash2str(s3_url))
+
+    if return_colls is not None:
         # Clear all permissions unless we're an owner
         for one_coll in return_colls:
             if not one_coll['permissions'] or not one_coll['permissions']['ownerProperty'] is True:
@@ -395,7 +410,6 @@ def collections():
         return json.dumps(return_colls)
 
     # Get the collection information from the server
-    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     all_collections = S3Connection.get_collections(s3_url, user_info.name, get_password(token, db))
 
     return_colls = []
@@ -403,13 +417,14 @@ def collections():
         return_colls.append(sdu.normalize_collection(one_coll))
 
     # Save the collections temporarily
-    sdu.save_timed_temp_colls(return_colls)
+    sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     # Return the collections
-    if user_info.admin is True:
+    if user_info.admin is not True:
         # Filter out collections if not an admin
         return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
                                                                             one_coll['permissions']]
+
     return json.dumps([one_coll|{'allPermissions':None} for one_coll in return_colls])
 
 
@@ -443,7 +458,8 @@ def sandbox():
 
     # Get the collections to fill in the return data
     # TODO: combine this with a load from S3 if not found locally?
-    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                hash2str(s3_url))
 
     return_sandbox = sdu.get_sandbox_collections(s3_url, user_info.name,
                                                 get_password(token, db),
@@ -476,7 +492,8 @@ def locations():
 
     # Get the locations to return
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                        hash2str(s3_url))
 
     # Return the locations
     return json.dumps(cur_locations)
@@ -509,8 +526,9 @@ def species():
     user_species = user_info.species
 
     # Get the current species to see if we need to update the user's species
-    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url, \
-                                            user_info.name, lambda: get_password(token, db))
+    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                            s3_url, user_info.name, lambda: get_password(token, db))
 
     keyed_species = {one_species['scientificName']:one_species for one_species in cur_species}
     keyed_user = {one_species['scientificName']:one_species for one_species in user_species}
@@ -633,11 +651,10 @@ def upload():
                 check_species = user_info.species
                 if not check_species:
                     check_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
-                                                        TEMP_SPECIES_FILE_NAME,
+                                                        hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                                         s3_url,
                                                         user_info.name,
                                                         lambda: get_password(token, db))
-
 
                 found_species = [one_item for one_item in check_species if \
                                         one_item['scientificName'] == one_species[0]]
@@ -832,9 +849,11 @@ def query():
                                             filters)
 
     # Get the species and locations
-    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                            user_info.name, lambda: get_password(token, db))
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
+    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                            s3_url,user_info.name, lambda: get_password(token, db))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                            hash2str(s3_url))
 
     results = Results(all_results, cur_species, cur_locations,
                         s3_url, user_info.name, get_password(token, db),
@@ -889,7 +908,6 @@ def query_dl():
 
     # Get the query information
     query_info_path, _ = db.get_query(token)
-    print('           ',query_info_path, flush=True)
 
     # Try and load the query results
     query_results = sdfu.load_timed_info(query_info_path, QUERY_RESULTS_TIMEOUT_SEC)
@@ -1064,7 +1082,8 @@ def location_info():
         return "Not Found", 406
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                                                                hash2str(s3_url))
 
     for one_loc in cur_locations:
         if one_loc['idProperty'] == loc_id and one_loc['nameProperty'] == loc_name and \
@@ -1179,7 +1198,8 @@ def sandbox_new():
                                         comment, client_ts, len(all_files))
 
     # Upload the CAMTRAP files to S3 storage
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                        hash2str(s3_url))
     our_location = sdu.get_location_info(location_id, cur_locations)
     deployment_id = s3_bucket[len(SPARCD_PREFIX):] + ':' + location_id
     for one_file in CAMTRAP_FILE_NAMES:
@@ -1214,12 +1234,13 @@ def sandbox_new():
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                    hash2str(s3_url))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
             # Save the collections temporarily
-            sdu.save_timed_temp_colls(return_colls)
+            sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     # Return the new ID
     return json.dumps({'id': upload_id})
@@ -1525,17 +1546,18 @@ def sandbox_completed():
 
     # Update the collection to reflect the new upload metadata
     updated_collection = S3Connection.get_collection_info(s3_url, user_info.name, \
-                                                    get_password(token, db), s3_bucket)
+                                            get_password(token, db), s3_bucket)
     if updated_collection:
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                        hash2str(s3_url))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
             # Save the collections temporarily
-            sdu.save_timed_temp_colls(return_colls)
+            sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     # Mark the upload as completed
     db.sandbox_upload_complete(user_info.name, upload_id)
@@ -1587,7 +1609,7 @@ def image_location():
 
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     sdu.process_upload_changes(s3_url, user_info.name, lambda: get_password(token, db),
-                                coll_id, upload_id, TEMP_SPECIES_FILE_NAME,
+                                coll_id, upload_id, hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                 change_locations={
                                                     'loc_id': loc_id,
                                                     'loc_name': loc_name,
@@ -1646,12 +1668,13 @@ def image_location():
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                            hash2str(s3_url))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != bucket else updated_collection \
                                                                     for one_coll in return_colls ]
             # Save the collections temporarily
-            sdu.save_timed_temp_colls(return_colls)
+            sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     return json.dumps({'success': True})
 
@@ -1760,7 +1783,7 @@ def image_edit_complete():
                                                         lambda: get_password(token, db),
                                                         coll_id,
                                                         upload_id,
-                                                        TEMP_SPECIES_FILE_NAME,
+                                                        hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                                         files_info=upload_files_info)
 
     if success_files:
@@ -1896,7 +1919,8 @@ def species_keybind():
         cur_species = user_info.species
     else:
         s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, \
+        cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                             s3_url, user_info.name, lambda: get_password(token, db))
 
     # Update the species
@@ -2051,14 +2075,15 @@ def admin_collection_details():
 
     # Get the collection information
     collection = None
-    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                        hash2str(s3_url))
     if return_colls:
         found_colls = [one_coll for one_coll in return_colls if one_coll['bucket'] == bucket]
         if found_colls:
             collection = found_colls[0]
 
     if not collection:
-        s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
         collection = S3Connection.get_collection_info(s3_url, user_info.name, \
                                                         get_password(token, db),
                                                         bucket)
@@ -2104,7 +2129,8 @@ def admin_location_details():
     # Get the location information
     location = None
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),True)
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                                                            hash2str(s3_url), True)
 
     if cur_locations:
         found_locs = [one_loc for one_loc in cur_locations if one_loc['idProperty'] == loc_id]
@@ -2151,7 +2177,9 @@ def admin_users():
     # Organize the collection permissions by user
     # TODO: Combine load_timed_temp_colls with S3Connection.get_collections? See /collections
     #       here and elsewhere
-    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                            hash2str(s3_url))
     user_collections = {}
     if all_collections:
         for one_coll in all_collections:
@@ -2175,7 +2203,8 @@ def admin_users():
     for one_user in all_users:
         return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
                          'auto': one_user[3] == 1,
-                         'collections': user_collections[one_user[0]] if user_collections else []})
+                         'collections': user_collections[one_user[0]] if \
+                                    user_collections and one_user[0] in user_collections else []})
 
     return json.dumps(return_users)
 
@@ -2207,8 +2236,9 @@ def admin_species():
 
     # Get the species
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                            user_info.name, lambda: get_password(token, db))
+    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                            s3_url, user_info.name, lambda: get_password(token, db))
 
     return json.dumps(cur_species)
 
@@ -2291,8 +2321,9 @@ def admin_species_update():
 
     # Get the species
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME, s3_url,
-                                            user_info.name, lambda: get_password(token, db))
+    cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
+                                            s3_url, user_info.name, lambda: get_password(token, db))
 
     # Make sure this is OK to do
     find_scientific = old_scientific if old_scientific else new_scientific
@@ -2378,7 +2409,8 @@ def admin_location_update():
 
     # Get the location
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
-    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db))
+    cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
+                                                                                hash2str(s3_url))
 
     # Make sure this is OK to do
     if loc_old_lat and loc_old_lng:
@@ -2482,7 +2514,8 @@ def admin_collection_update():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     s3_bucket = SPARCD_PREFIX + col_id
 
-    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                            hash2str(s3_url))
 
     # Update the entry to what we need
     found_coll = None
@@ -2500,26 +2533,29 @@ def admin_collection_update():
 
     # Upload the changes
     S3Connection.save_collection_info(s3_url, user_info.name,
-                                get_password(token, db), found_coll['bucket'],
+                                get_password(token, db),
+                                found_coll['bucket'],
                                 found_coll)
 
     S3Connection.save_collection_permissions(s3_url, user_info.name,
-                                get_password(token, db), found_coll['bucket'],
+                                get_password(token, db),
+                                found_coll['bucket'],
                                 col_all_perms)
 
     # Update the collection to reflect the changes
     updated_collection = S3Connection.get_collection_info(s3_url, user_info.name,
-                                                    get_password(token, db), s3_bucket)
+                                            get_password(token, db), s3_bucket)
     if updated_collection:
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
-        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin))
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                                hash2str(s3_url))
         if return_colls:
             return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
                                                                     for one_coll in return_colls ]
             # Save the collections temporarily
-            sdu.save_timed_temp_colls(return_colls)
+            sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     return {'success':True, 'data': updated_collection, \
             'message': "Successfully updated the collection"}
@@ -2562,6 +2598,7 @@ def admin_complete_changes():
     if 'locations' in changes and changes['locations']:
         if not sdu.update_admin_locations(s3_url, user_info.name,
                                       get_password(token, db),
+                                      hash2str(s3_url),
                                       changes):
             return 'Unable to update the locations', 422
     # Mark the locations as done in the DB
@@ -2574,7 +2611,8 @@ def admin_complete_changes():
         if updated_species is None:
             return 'Unable to update the species. Any changed locations were updated', 422
 
-        s3u.save_sparcd_config(updated_species, SPECIES_JSON_FILE_NAME, TEMP_SPECIES_FILE_NAME,
+        s3u.save_sparcd_config(updated_species, SPECIES_JSON_FILE_NAME,
+                                            hash2str(s3_url)+'-'+TEMP_SPECIES_FILE_NAME,
                                             s3_url, user_info.name, lambda: get_password(token, db))
     # Mark the species as done in the DB
     db.clear_admin_species_changes(user_info.url, user_info.name)

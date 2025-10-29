@@ -39,9 +39,10 @@ const EditingStates = {
  * @function
  * @param {boolean} loadingCollections Flag indicating collections are being loaded
  * @param {boolean} loadingLocations Flag indicating locations are being loaded
- * @param {boolean} loadingSpecies Flag indicating species are being loaded
+ * @param {function} onConfirmPassword Function for confirming a password re-entry
+ * @param {function} onClose Function for when the user wants to close this
  */
-export default function SettingsAdmin({loadingCollections, loadingLocations, onClose}) {
+export default function SettingsAdmin({loadingCollections, loadingLocations, onConfirmPassword, onClose}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionInfo = React.useContext(CollectionsInfoContext);
@@ -1053,7 +1054,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       <Grid container id="settings-admin-edit-wrapper" alignItems="center" justifyContent="center"
             sx={{position:'absolute', top:0, right:0, bottom:0, left:0, backgroundColor:'rgb(0,0,0,0.5)'}}
       >
-      {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser}
+      {editingState.type === EditingStates.User && <EditUser data={editingState.data} onUpdate={updateUser} onConfirmPassword={onConfirmPassword}
                                                              onClose={() => setEditingState({type:EditingStates.None, data:null})} /> }
       {editingState.type === EditingStates.Collection && <EditCollection data={editingState.data} onUpdate={updateCollection}
                                                                           onClose={() => setEditingState({type:EditingStates.None, data:null})}/> }

@@ -448,7 +448,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               </FormGroup>
             </Grid>
             <Grid id="setting-email-wrapper" sx={{width:'100%'}} >
-              <TextField id='setting-email' disabled hiddenLabel value={curSettings.email} variant='outlined' type='email' placeholder='email address'
+              <TextField id='setting-email' disabled hiddenLabel value={curSettings.email || ''} variant='outlined' type='email' placeholder='email address'
                           sx={{width:'100%', '&:invalid':{backgroundColor:'rgba(255,0,0.1)'}}}
                           slotProps={{
                             input: {

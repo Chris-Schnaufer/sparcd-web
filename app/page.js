@@ -611,10 +611,12 @@ export default function Home() {
    * @function
    */
   function handleLogout() {
-    setUserSettings(defaultUserSettings);
-    setLastToken(null);
+    setCurAction(UserActions.None);
     setEditing(false);
+    setLastToken(null);
     setLoggedIn(false);
+    setLoginValid(DefaultLoginValid);
+    setUserSettings(defaultUserSettings);
     loginStore.clearLoginToken();
   }
 
@@ -727,6 +729,7 @@ export default function Home() {
     */
   }
 
+
   /**
    * Handles enabling administration editing
    * @function
@@ -736,8 +739,22 @@ export default function Home() {
    */
   function handleAdminSettings(pw, cbSuccess, cbFail) {
     // Check that the password is accurate and display the admin settings pages
-    const settingsCheckUrl = serverURL + '/settingsAdmin?t=' + encodeURIComponent(lastToken);
     console.log('HACK:ADMINSETTINGS');
+    cbSuccess ||= () => {};
+    confirmAdminPassword(pw, () => {cbSuccess();setDisplayAdminSettings(true);}, cbFail);
+  }
+
+  /**
+   * Handles enabling administration editing
+   * @function
+   * @param {string} pw The password to use to check for permission
+   * @param {function} {cbSuccess} The success callback
+   * @param {function} {cbFail} The failure callback
+   */
+  function confirmAdminPassword(pw, cbSuccess, cbFail) {
+    // Check that the password is accurate and belongs to an administrator
+    console.log('HACK: CONFIRMADMINPASSWORD');
+    const settingsCheckUrl = serverURL + '/settingsAdmin?t=' + encodeURIComponent(lastToken);
     cbSuccess ||= () => {};
     cbFail ||= () => {};
 
@@ -761,7 +778,6 @@ export default function Home() {
             // Check the return
             if (respData.success === true) {
               cbSuccess();
-              setDisplayAdminSettings(true);
             } else {
               cbFail();
             }
@@ -1030,7 +1046,8 @@ export default function Home() {
                   <LocationsInfoContext.Provider value={locationInfo}>
                   <SpeciesInfoContext.Provider value={speciesInfo}>
                   <AddMessageContext.Provider value={addMessage}>
-                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations} onClose={() => setDisplayAdminSettings(false)}/>
+                    <SettingsAdmin loadingCollections={loadingCollections} loadingLocations={loadingLocations}
+                                    onConfirmPassword={confirmAdminPassword} onClose={() => setDisplayAdminSettings(false)}/>
                   </AddMessageContext.Provider>
                   </SpeciesInfoContext.Provider>
                   </LocationsInfoContext.Provider>

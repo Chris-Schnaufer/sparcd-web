@@ -33,6 +33,7 @@ COLLECTION_JSON_FILE_NAME = 'collection.json'
 
 # Configuration file name for permissions
 PERMISSIONS_JSON_FILE_NAME = 'permissions.json'
+
 # Configuration file name for species
 SPECIES_JSON_FILE_NAME = 'species.json'
 
@@ -214,6 +215,14 @@ def update_user_collections(minio: Minio, collections: tuple) -> tuple:
                 print(f'Generated update user collections exception: {ex}', flush=True)
                 traceback.print_exception(ex)
 
+    # Add in any collection that doesn't have an upload yet
+    user_buckets = [one_coll['bucketProperty'] for one_coll in user_collections]
+    empty_upload_coll = {'uploads': []}
+    for one_coll in collections:
+        if not one_coll['bucketProperty'] in user_buckets:
+            user_collections.append(one_coll if 'uploads' in one_coll else \
+                                                                    one_coll | empty_upload_coll)
+
     return user_collections
 
 def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, collection: object \
@@ -268,6 +277,7 @@ def get_upload_data_thread(minio: Minio, bucket: str, upload_paths: tuple, colle
             print(f'Unable to get deployment information: {upload_info_path}')
 
     os.unlink(temp_file[1])
+
     return {'collection': collection, 'uploads': upload_info}
 
 
@@ -998,7 +1008,7 @@ class S3Connection:
 
 
     @staticmethod
-    def save_collection_permissions(url: str, user: str, password: str, bucket: str, \
+    def save_collection_permissions(url: str, user: str, password: str,  bucket: str, \
                                                                         perm_info: tuple) -> None:
         """ Saves the permissions information on the S3 server
         Arguments:

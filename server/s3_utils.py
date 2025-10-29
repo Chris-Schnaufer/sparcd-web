@@ -46,7 +46,7 @@ def web_to_s3_url(url: str, decrypt: Callable) -> str:
 
 
 def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, \
-                                                                        fetch_password: Callable):
+                                                            fetch_password: Callable):
     """ Attempts to load the configuration information from either the timed_file or download it
         from S3. If downloaded from S3, it's saved as a timed file
     Arguments:
@@ -81,7 +81,7 @@ def load_sparcd_config(sparcd_file: str, timed_file: str, url: str, user: str, \
 
 
 def save_sparcd_config(config_data, sparcd_file: str, timed_file: str, url: str, user: str, \
-                                                                        fetch_password: Callable):
+                                                            fetch_password: Callable):
     """ Saves the species on S3 and locally
     Arguments:
         config_data: the data to save

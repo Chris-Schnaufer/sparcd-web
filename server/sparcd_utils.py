@@ -27,7 +27,7 @@ TEMP_COLLECTION_FILE_NAME = SPARCD_PREFIX + 'coll.json'
 # Name of temporary species file
 TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
 # Configuration file name for locations
-CONF_LOCATIONS_FILE_NAME = 'locations.json'
+LOCATIONS_JSON_FILE_NAME = 'locations.json'
 
 
 def secure_user_settings(settings: dict) -> dict:
@@ -127,18 +127,21 @@ def cleanup_old_queries(db: SPARCdDatabase, token: str) -> None:
                     print(ex)
 
 
-def load_locations(s3_url: str, user_name: str, fetch_password: Callable, for_admin: bool=False) -> tuple:
+def load_locations(s3_url: str, user_name: str, fetch_password: Callable, s3_id: str, \
+                                                                    for_admin: bool=False) -> tuple:
     """ Loads locations and converts lat-lon to UTM
     Arguments:
         s3_url - the URL to the S3 instance
         user_name - the user's name for S3
         fetch_password: returns the user's password
+        s3_id: ID for the S3 endpoint
         for_admin: when set to True, location details are not obscured
     Return:
         Returns the locations along with the converted coordinates
     """
-    cur_locations = s3u.load_sparcd_config(CONF_LOCATIONS_FILE_NAME, TEMP_LOCATIONS_FILE_NAME, \
-                                                                s3_url, user_name, fetch_password)
+    cur_locations = s3u.load_sparcd_config(LOCATIONS_JSON_FILE_NAME,
+                                                    s3_id+'-'+TEMP_LOCATIONS_FILE_NAME,
+                                                    s3_url, user_name, fetch_password)
     if not cur_locations:
         return cur_locations
 
@@ -163,13 +166,14 @@ def load_locations(s3_url: str, user_name: str, fetch_password: Callable, for_ad
     return cur_locations
 
 
-def update_admin_locations(url: str, user: str, password: str, changes: dict) -> bool:
+def update_admin_locations(url: str, user: str, password: str, s3_id: str, changes: dict) -> bool:
     """ Updates the master list of locations with the changes under the
         'locations' key
     Arguments:
         url: the URL to the S3 instance
         user: the S3 user name
         password: the S3 password
+        s3_id: ID associated with the s3 endpoint
         changes: the list of changes for locations
     Return:
         Returns True unless a problem is found
@@ -179,7 +183,7 @@ def update_admin_locations(url: str, user: str, password: str, changes: dict) ->
         return True
 
     # Try to get the configuration information from S3
-    all_locs = S3Connection.get_configuration(CONF_LOCATIONS_FILE_NAME, url, user, password)
+    all_locs = S3Connection.get_configuration(LOCATIONS_JSON_FILE_NAME, url, user, password)
     if all_locs is None:
         return False
     all_locs = json.loads(all_locs)
@@ -219,25 +223,26 @@ def update_admin_locations(url: str, user: str, password: str, changes: dict) ->
     all_locs = tuple(all_locs.values())
 
     # Save to S3 and the local file system
-    S3Connection.put_configuration(CONF_LOCATIONS_FILE_NAME, json.dumps(all_locs, indent=4),
+    S3Connection.put_configuration(LOCATIONS_JSON_FILE_NAME, json.dumps(all_locs, indent=4),
                                     url, user, password)
 
 
-    config_file_path = os.path.join(tempfile.gettempdir(), TEMP_LOCATIONS_FILE_NAME)
+    config_file_path = os.path.join(tempfile.gettempdir(), s3_id + '-' + TEMP_LOCATIONS_FILE_NAME)
     sdfu.save_timed_info(config_file_path, all_locs)
 
     return True
 
 
-def load_timed_temp_colls(user: str, admin: bool) -> Optional[list]:
+def load_timed_temp_colls(user: str, admin: bool, s3_id: str) -> Optional[list]:
     """ Loads collection information from a temporary file
     Arguments:
         user: username to find permissions for and filter on
         admin: if set to True all the collections are returned
+        s3_id: ID associated with the S3 endpoint
     Return:
         Returns the loaded collection data if valid, otherwise None is returned
     """
-    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    coll_file_path = os.path.join(tempfile.gettempdir(), s3_id + '-' + TEMP_COLLECTION_FILE_NAME)
     loaded_colls = sdfu.load_timed_info(coll_file_path, TIMEOUT_COLLECTIONS_FILE_SEC)
     if loaded_colls is None:
         return None
@@ -271,13 +276,14 @@ def load_timed_temp_colls(user: str, admin: bool) -> Optional[list]:
     return user_coll
 
 
-def save_timed_temp_colls(colls: tuple) -> None:
+def save_timed_temp_colls(colls: tuple, s3_id: str) -> None:
     """ Attempts to save the collections to a temporary file on disk
     Arguments:
         colls: the collection information to save
+        s3_id: ID associated with the S3 endpoint
     """
     # pylint: disable=broad-exception-caught
-    coll_file_path = os.path.join(tempfile.gettempdir(), TEMP_COLLECTION_FILE_NAME)
+    coll_file_path = os.path.join(tempfile.gettempdir(), s3_id + '-' + TEMP_COLLECTION_FILE_NAME)
     sdfu.save_timed_info(coll_file_path, colls)
 
 
@@ -551,7 +557,7 @@ def update_admin_species(url: str, user: str, password: str, changes: dict) -> O
 
 
 def process_upload_changes(s3_url: str, username: str, fetch_password: Callable, \
-                            collection_id: str, upload_name: str, species_timed_file: str, \
+                            collection_id: str, upload_name: str,  species_timed_file: str, \
                             change_locations: tuple=None, files_info: tuple=None) -> tuple:
     """ Updates the image files with the information passed in
     Argument:
@@ -591,7 +597,7 @@ def process_upload_changes(s3_url: str, username: str, fetch_password: Callable,
     try: # We have this "try" for the "finally" clause to remove the temporary folder
         # All species and locations in case we have to look something up
         cur_species = s3u.load_sparcd_config(SPECIES_JSON_FILE_NAME, species_timed_file, \
-                                                                s3_url, username, fetch_password)
+                                                        s3_url, username, fetch_password)
 
         # Loop through the files
         for idx, one_file in enumerate(update_files):
