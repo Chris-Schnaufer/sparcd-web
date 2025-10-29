@@ -420,7 +420,7 @@ def collections():
     sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
 
     # Return the collections
-    if user_info.admin is not True:
+    if not user_info.admin:
         # Filter out collections if not an admin
         return_colls = [one_coll for one_coll in return_colls if 'permissions' in one_coll and \
                                                                             one_coll['permissions']]

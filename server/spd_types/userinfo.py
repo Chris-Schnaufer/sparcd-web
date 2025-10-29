@@ -16,10 +16,15 @@ class UserInfo:
     __user_agent = None
 
     def __init__(self, name: str, admin: int=0):
-        """Initialize an instance
+        """ Initialize an instance
         """
         self.__name = name
         self.__admin = admin
+
+    def __str__(self):
+        """ Return a string represenation
+        """
+        return f'name: {self.__name}, admin: {self.__admin}'
 
     @property
     def name(self):

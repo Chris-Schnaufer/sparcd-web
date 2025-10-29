@@ -611,11 +611,16 @@ export default function Home() {
    * @function
    */
   function handleLogout() {
+    setCollectionInfo(null);
     setCurAction(UserActions.None);
     setEditing(false);
     setLastToken(null);
+    setLocationInfo(null);
     setLoggedIn(false);
     setLoginValid(DefaultLoginValid);
+    setSandboxInfo(null);
+    setSpeciesInfo(null);
+    setLastToken(null);
     setUserSettings(defaultUserSettings);
     loginStore.clearLoginToken();
   }
