@@ -399,16 +399,30 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
    * Searches for images that meet the search criteria and scrolls it into view
    * @function
    * @param {string} searchTerm The term to search an image name for
+   * @param {number} {iterCount} The number of times we have tried to automatically find a term
    */
-  const handleImageSearch = React.useCallback((searchTerm) => {
+  const handleImageSearch = React.useCallback((searchTerm, iterCount) => {
     const lcSearchTerm = searchTerm.toLowerCase();
     const foundImage = curUpload.images.find((item) => item.name.toLowerCase().includes(lcSearchTerm));
     if (!foundImage) {
       return false;
     }
+
+    iterCount = iterCount === undefined ? 0 : iterCount;
+    if (iterCount > 4) {
+      // Something is wrong, we have failed
+      return false;
+    }
+
     const foundEl = document.getElementById(foundImage.name);
     if (!foundEl) {
-      return false;
+      const imageIndex = curUpload.images.findIndex((item) => item.name === foundImage.name);
+      while (workingTileCount < imageIndex && workingTileCount < curUpload.images.length - 1) {
+        onMoreImages();
+      }
+
+      window.setTimeout(() => handleImageSearch(searchTerm, iterCount + 1), 500);
+      return true;
     }
 
     foundEl.scrollIntoView();
@@ -420,7 +434,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
             window.setTimeout(() => foundEl.classList.remove(styles.blink), 1500);
         }, 200);
     return true;
-  }, [curUpload]);
+  }, [curUpload, workingTileCount, onMoreImages]);
 
   /**
    * Updates the server with a new location for the upload
