@@ -369,13 +369,19 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     function onKeypress(event) {
       if (curEditState === editingStates.editImage) {
         if (event.key !== 'Meta') {
-          const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
-          if (speciesKeyItem) {
-            handleSpeciesAdd(speciesKeyItem);
-            event.preventDefault();
+          if (event.key === 'ArrowLeft') {
+            handlePrevImage()
+          } else if (event.key === 'ArrowRight') {
+            handleNextImage()
+          } else {
+            const speciesKeyItem = speciesItems.find((item) => item.keyBinding == event.key.toUpperCase());
+            if (speciesKeyItem) {
+              handleSpeciesAdd(speciesKeyItem);
+              event.preventDefault();
 
-            if (userSettings.autonext) {
-              handleNextImage();
+              if (userSettings.autonext) {
+                handleNextImage();
+              }
             }
           }
         }
@@ -387,7 +393,7 @@ export default function UploadEdit({selectedUpload, onCancel, searchSetup}) {
     return () => {
       document.removeEventListener("keydown", onKeypress);
     }
-  }, [curEditState, editingStates, handleNextImage, handleSpeciesAdd, speciesItems, userSettings]);
+  }, [curEditState, editingStates, handleNextImage, handlePrevImage, handleSpeciesAdd, speciesItems, userSettings]);
 
   /**
    * Searches for images that meet the search criteria and scrolls it into view
