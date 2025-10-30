@@ -297,7 +297,7 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
                   },
                 }}
                 />
-            <TextField id='edit-user-email' disabled hiddenLabel value={userEmail} variant='outlined' type='email' placeholder='email address'
+            <TextField id='edit-user-email' disabled hiddenLabel value={userEmail || ''} variant='outlined' type='email' placeholder='email address'
                         sx={{padding:'0px 10px', '&:invalid':{backgroundColor:'rgba(255,0,0.1)'}}}
                         slotProps={{
                           input: {
@@ -334,7 +334,7 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
         </CardActions>
     </Card>
     { userPasswordNeeded && 
-        <Grid container id="settings-get-password-wrapper" justifyContent="center" alignItems="center" 
+        <Grid container id="admin-settings-get-password-wrapper" justifyContent="center" alignItems="center" 
               sx={{position:'absolute', top:0, right:0, bottom:'0px', left:0, background:"rgb(0, 0, 0, 0.7)", zIndex:500}} >
           <Grid container direction="column" justifyContent="space-around" alignItems="center"
                 sx={{minWidth:'30%', maxWidth:'50%', backgroundColor:'rgb(230,230,230)', padding:'15px 0'}} spacing={2}>
@@ -356,6 +356,7 @@ export default function EditUser({data, onUpdate, onConfirmPassword, onClose}) {
               </Typography>
             </div>
               <TextField required 
+                    autoFocus
                     id='password-entry'
                     label="Password"
                     type={showPassword ? 'text' : 'password'}

@@ -245,7 +245,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onSuccess The callable upon success
    * @param {function} onError The callable upon an issue ocurring
    */
-  function updateCollection(collectionNewInfo, onSuccess, onError) {
+  const updateCollection = React.useCallback((collectionNewInfo, onSuccess, onError) => {
     const userUpdateCollUrl = serverURL + '/adminCollectionUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
@@ -272,10 +272,16 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
             // Set the species data
             if (respData.success) {
               setEditingState({...editingState, data:{...editingState.data,...respData.data}});
-              let curColl = collectionInfo.filter((item) => item.id === editingState.data.id);
-              if (curColl && curColl.length > 0) {
-                curColl[0] = respData.data;
+              for (let idx = 0; idx < collectionInfo.length; idx++) {
+                if (collectionInfo[idx].bucket === respData.data.bucket) {
+                  collectionInfo[idx] = respData.data;
+                  break;
+                }
               }
+//              let curColl = collectionInfo.filter((item) => item.id === editingState.data.id);
+//              if (curColl && curColl.length > 0) {
+//                curColl[0] = respData.data;
+//              }
               if (typeof(onSuccess) === 'function') {
                 onSuccess();
               }
@@ -291,7 +297,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       console.log('Admin Update Collection Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to update collection information');
     }
-  }
+  }, [addMessage, collectionInfo, editingState, serverURL, setEditingState, settingsToken]);
 
   /**
    * Handles updating the user information
@@ -300,7 +306,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
    * @param {function} onSuccess The callable upon success
    * @param {function} onError The callable upon an issue ocurring
    */
-  function updateUser(userNewInfo, onSuccess, onError) {
+  const updateUser = React.useCallback((userNewInfo, onSuccess, onError) => {
     const userUpdateUrl = serverURL + '/adminUserUpdate?t=' + encodeURIComponent(settingsToken);
 
     const formData = new FormData();
@@ -323,10 +329,10 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         .then((respData) => {
             // Set the species data
             if (respData.success) {
-              setEditingState({...editingState, data:{...editingState.data,...{email: userNewInfo.email}}});
+              setEditingState({...editingState, data:{...editingState.data, email:respData.email}});
               let curUser = userInfo.filter((item) => item.name === editingState.data.name);
               if (curUser && curUser.length > 0) {
-                curUser[0]['email'] = userNewInfo.email;
+                curUser[0]['email'] = respData.email;
               }
               if (typeof(onSuccess) === 'function') {
                 onSuccess();
@@ -343,7 +349,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
       console.log('Admin Update User Unknown Error: ',err);
       addMessage(Level.Warning, 'An unknown error ocurred when attempting to update user information');
     }
-  }
+  }, [addMessage, editingState, serverURL, setEditingState, settingsToken, userInfo]);
 
   /**
    * Handles updating the species information
@@ -437,7 +443,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
 
     formData.append('name', newInfo.nameProperty);
     formData.append('id', editingState.data ? editingState.data.idProperty : newInfo.idProperty);
-    formData.append('active', newInfo.active);
+    formData.append('active', newInfo.activeProperty);
     formData.append('measure', newInfo.measure);
     formData.append('elevation', newInfo.elevationProperty);
     formData.append('coordinate', newInfo.coordinate);
@@ -468,7 +474,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               const newEditingState = {...editingState, data:{...editingState.data,...respData.data}};
               let curLocation = locationItems.filter((item) => item.idProperty === newEditingState.data.idProperty && 
                                                                   (!oldEditingState.data || 
-                                                                      (item.latProperty === oldEditingState.data.latProperty && item.lngProperty === oldEditingState.data.lngProperty)
+                                                                      (item.nameProperty === oldEditingState.data.nameProperty)
                                                                   ));
 
               if (curLocation && curLocation.length > 0) {
@@ -827,7 +833,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
               </Grid>
               <Grid size={1}>
                 <Typography nowrap="true" variant="body2" align="right">
-                  {item.auto ? 'Y' : 'N'}
+                  {item.autoAdded ? 'Y' : 'N'}
                 </Typography>
               </Grid>
             </Grid>
@@ -1013,7 +1019,7 @@ export default function SettingsAdmin({loadingCollections, loadingLocations, onC
         </Grid>
         <Grid id='admin-settings-details' sx={{overflowX:'scroll',width:'100%', maxHeight:detailsHeight+'px' }}>
         { selectedLocations.map((item, idx) => {
-            const extraAttribs = item.activeProperty || idx == 0 ? {} : {color:'grey'};
+            const extraAttribs = item.activeProperty ? {} : {color:'grey'};
             return (<Grid container direction="row" id={"admin-species-"+idx} key={item.name+'-'+idx} justifyContent="space-between" alignItems="start"
                     sx={{width:'100%', '&:hover':{backgroundColor:'rgba(0,0,0,0.05)'}, ...extraAttribs }} onDoubleClick={(event) => dblClickFunc(event,item)} >
                 <Grid size={5}>

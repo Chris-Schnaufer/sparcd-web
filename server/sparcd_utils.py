@@ -30,6 +30,38 @@ TEMP_LOCATIONS_FILE_NAME = SPARCD_PREFIX + 'locations.json'
 LOCATIONS_JSON_FILE_NAME = 'locations.json'
 
 
+def secure_email(email: str) -> Optional[str]:
+    """ Secures the email address by replacing characters with asterisks while
+        retaining legibility
+    Arguments:
+        email: the email to secure
+    Return:
+        Returns the secured email. None is returned if the email parameter is None
+    """
+    if email is None:
+        return None
+
+    if '@' in email:
+        first_part = email[:email.index('@')]
+        second_part = email[email.index('@'):]
+    else:
+        first_part = email[:max(1,math.floor(len(email) / 2))]
+        second_part = email[max(1,math.ceil(len(email) / 2)):]
+    match len(first_part):
+        case 1:
+            pass
+        case 2:
+            first_part = first_part[:1] + '*'
+        case 3:
+            first_part = first_part[:2] + '*'
+        case 4:
+            first_part = first_part[:3] + '*'
+        case _:
+            first_part = first_part[:3] + '*'*(min(7, len(first_part)-3))
+
+    return first_part + second_part
+
+
 def secure_user_settings(settings: dict) -> dict:
     """ Secures the user settings information
     Arguments:
@@ -43,25 +75,7 @@ def secure_user_settings(settings: dict) -> dict:
         cur_settings = settings
 
     if 'email' in cur_settings and cur_settings['email'] and len(cur_settings['email']) > 2:
-        if '@' in cur_settings['email']:
-            first_part = cur_settings['email'][:cur_settings['email'].index('@')]
-            second_part = cur_settings['email'][cur_settings['email'].index('@'):]
-        else:
-            first_part = cur_settings['email'][:max(1,math.floor(len(cur_settings['email']) / 2))]
-            second_part = cur_settings['email'][max(1,math.ceil(len(cur_settings['email']) / 2)):]
-        match len(first_part):
-            case 1:
-                pass
-            case 2:
-                first_part = first_part[:1] + '*'
-            case 3:
-                first_part = first_part[:2] + '*'
-            case 4:
-                first_part = first_part[:3] + '*'
-            case _:
-                first_part = first_part[:3] + '*'*(min(7, len(first_part)-3))
-
-        cur_settings['email'] = first_part + second_part
+        cur_settings['email'] = secure_email(cur_settings['email'])
 
     return cur_settings
 
@@ -151,11 +165,14 @@ def load_locations(s3_url: str, user_name: str, fetch_password: Callable, s3_id:
             if 'latProperty' in one_loc and 'lngProperty' in one_loc:
                 # Clip the lat-lon location values for non-admin purposes
                 if not for_admin:
-                    one_loc['latProperty'] = str(round(float(one_loc['latProperty']), 3))
-                    one_loc['lngProperty'] = str(round(float(one_loc['lngProperty']), 3))
+                    one_loc['latProperty'] = round(float(one_loc['latProperty']), 3)
+                    one_loc['lngProperty'] = round(float(one_loc['lngProperty']), 3)
+                else:
+                    one_loc['latProperty'] = float(one_loc['latProperty'])
+                    one_loc['lngProperty'] = float(one_loc['lngProperty'])
 
                 # Calculate the UTM information
-                utm_x, utm_y = deg2utm(float(one_loc['latProperty']), float(one_loc['lngProperty']))
+                utm_x, utm_y = deg2utm(one_loc['latProperty'], one_loc['lngProperty'])
                 one_loc['utm_code'] = ''.join([str(one_res) for one_res in \
                                                     deg2utm_code(float(one_loc['latProperty']), \
                                                                  float(one_loc['lngProperty']))

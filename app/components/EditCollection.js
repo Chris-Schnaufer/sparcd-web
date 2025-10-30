@@ -194,7 +194,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
     });
 
     setNewPermissions(keepUsers);
-
+    setIsModified(keepUsers.length < newPermissions.length);
     setRemoveUsers(false);
   }, [data, newPermissions, setNewPermissions, setRemoveUsers]);
 
@@ -269,7 +269,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
               />
             </Grid>
           </CardContent>
-          <CardActions id='edit-collection-actions'>
+          <CardActions id='edit-collection-add-user-actions'>
             <Button sx={{flex:'1', disabled:isModified === false }} onClick={handleAddNewUser}>Save</Button>
             <Button sx={{flex:'1'}} onClick={() => setAddUserPermissions(false)} >Cancel</Button>
           </CardActions>
@@ -319,7 +319,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
                         }
                     style={{paddingTop:'0px', paddingBottom:'0px'}}
           />
-          <CardContent id='edit-collection-add-user-details' sx={{paddingRight:'0px', paddingLeft:'0px'}}>
+          <CardContent id='edit-collection-remove-user-details' sx={{paddingRight:'0px', paddingLeft:'0px'}}>
             <Grid container direction="column" justifyContent="start" alignItems="stretch"
                   sx={{minWidth:'300px', backgroundColor:'rgb(255,255,255,0.3)' }}>
               { newPermissions.map((item) => item.ownerProperty !== true &&
@@ -334,7 +334,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
               )}
             </Grid>
           </CardContent>
-          <CardActions id='edit-collection-actions'>
+          <CardActions id='edit-collection-remove-user-actions'>
             <Button sx={{flex:'1', disabled:isModified === false }} onClick={handleRemoveUsers}>Remove Users</Button>
             <Button sx={{flex:'1'}} onClick={() => setRemoveUsers(false)} >Cancel</Button>
           </CardActions>
@@ -350,7 +350,6 @@ export default function EditCollection({data, onUpdate, onClose}) {
    */
   function generatePermissions() {
     let allPermissions = newPermissions ? newPermissions : [data.permissions];
-    const isOwner = data.permissions ? data.permissions.ownerProperty : false;
 
     if (!allPermissions || (allPermissions.length === 1 && allPermissions[0] === null)) {
       return (
@@ -402,12 +401,12 @@ export default function EditCollection({data, onUpdate, onClose}) {
             </Grid>
             <Grid size={{sm:1}}  >
               <Typography variant="body2" align="center">
-              <Checkbox disabled={!isOwner} size="small" checked={!!item.readProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'read')}/>
+              <Checkbox size="small" checked={!!item.readProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'read')}/>
               </Typography>
             </Grid>
             <Grid size={{sm:1}}  >
               <Typography variant="body2" align="center">
-              <Checkbox disabled={!isOwner} size="small" checked={!!item.uploadProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'update')}/>
+              <Checkbox size="small" checked={!!item.uploadProperty} onChange={(event) => handleCheckboxUpdate(event, item.usernameProperty, 'update')}/>
               </Typography>
             </Grid>
             <Grid size={{sm:1}}  >
@@ -545,7 +544,7 @@ export default function EditCollection({data, onUpdate, onClose}) {
           { generatePermissions() }
         </Grid>          
       </CardContent>
-      <CardActions id='edit-collection-actions'>
+      <CardActions id='edit-collection-permissions-actions'>
         <Button sx={{flex:'1', disabled:isModified === false }} onClick={onSaveChanges}>Save</Button>
         <Button sx={{flex:'1'}} onClick={onClose} >Cancel</Button>
       </CardActions>

@@ -22,7 +22,8 @@ import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
-import { CollectionsInfoContext, geographicCoordinates, TokenContext } from '../serverInfo';
+import { Level } from './Messages';
+import { AddMessageContext, CollectionsInfoContext, geographicCoordinates, TokenContext } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
@@ -68,6 +69,7 @@ function ensure_settings(settings) {
  */
 export default function Settings({curSettings, onChange, onClose, onLogout, onAdminSettings}) {
   const theme = useTheme();
+  const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
   const passwordRef = React.useRef();
@@ -198,11 +200,13 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
         })
         .catch(function(err) {
           console.log('Check For Admin Error: ', err);
+          addMssage(Level.Warning, "An error ocurred while logging in for administration purposes");
       });
     } catch (error) {
       console.log('Check For Admin Unknown Error: ',err);
+      addMssage(Level.Warning, "An unknown error ocurred while logging in for administration purposes");
     }
-  }, [settingsToken, setIsAdmin])
+  }, [addMessage, settingsToken, setIsAdmin])
 
   /**
    * Determines if the user has owner permissions on any collections
@@ -504,6 +508,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
               </Typography>
             </div>
               <TextField required 
+                    autoFocus
                     id='password-entry'
                     label="Password"
                     type={showPassword ? 'text' : 'password'}

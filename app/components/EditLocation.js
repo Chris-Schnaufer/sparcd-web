@@ -71,8 +71,8 @@ export default function EditLocation({data, onUpdate, onClose}) {
     let el = document.getElementById('edit-location-name');
     if (el) {
       updatedData.nameProperty = el.value;
-      if (updatedData.nameProperty.length <= 0) {
-        addMessage(Level.Warning, "Please enter a name for the location");
+      if (updatedData.nameProperty.length <= 10) {
+        addMessage(Level.Warning, "Please enter a longer name for the location");
         el.focus();
         return;
       }
@@ -121,7 +121,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
       el = document.getElementById('edit-location-lat');
       if (el) {
         updatedData.latProperty = el.value;
-        if (updatedData.latProperty.length <= 0) {
+        if (updatedData.latProperty.length <= 1) {
           addMessage(Level.Warning, "Please enter a latitude");
           el.focus();
           return;
@@ -135,7 +135,7 @@ export default function EditLocation({data, onUpdate, onClose}) {
       el = document.getElementById('edit-location-lon');
       if (el) {
         updatedData.lngProperty = el.value;
-        if (updatedData.lngProperty.length <= 0) {
+        if (updatedData.lngProperty.length <= 1) {
           addMessage(Level.Warning, "Please enter a valid longitude");
           el.focus();
           return;
@@ -408,9 +408,10 @@ export default function EditLocation({data, onUpdate, onClose}) {
             </React.Fragment>
           }
           <FormControlLabel key={'edit-location-active'} sx={{paddingLeft:'10px'}}
-                            control={<Checkbox 
+                            control={<Checkbox id="edit-location-active"
                                                size="small" 
                                                checked={data ? data.activeProperty : false}
+                                               onChange={() => setIsModified(true)}
                                       />} 
                             label={<Typography variant="body2">Active location entry</Typography>} />
         </Grid>          

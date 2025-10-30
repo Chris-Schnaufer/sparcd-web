@@ -2201,8 +2201,8 @@ def admin_users():
     # Put it all together
     return_users = []
     for one_user in all_users:
-        return_users.append({'name': one_user[0], 'email': one_user[1], 'admin': one_user[2] == 1, \
-                         'auto': one_user[3] == 1,
+        return_users.append({'name': one_user[0], 'email': sdu.secure_email(one_user[1]), \
+                         'admin': one_user[2] == 1, 'autoAdded': one_user[3] == 1,
                          'collections': user_collections[one_user[0]] if \
                                     user_collections and one_user[0] in user_collections else []})
 
@@ -2280,7 +2280,8 @@ def admin_user_update():
         return {'success': False, 'message': f'User "{old_name}" not found'}
 
     db.update_user(old_name, new_email)
-    return {'success': True, 'message': f'Successfully updated user "{old_name}"'}
+    return {'success': True, 'message': f'Successfully updated user "{old_name}"', \
+            'email': sdu.secure_email(new_email)}
 
 @app.route('/adminSpeciesUpdate', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
@@ -2393,7 +2394,11 @@ def admin_location_update():
         return "Not Found", 406
     if not all(item for item in [loc_new_lat, loc_new_lng]):
         return "Not Found", 406
+    if loc_ele is None:
+        return "Not Found", 406
 
+    # Change data to a format we can use (also used to check what we've received)
+    loc_ele = float(loc_ele)
     if loc_new_lat:
         loc_new_lat = float(loc_new_lat)
     if loc_new_lng:
@@ -2402,6 +2407,14 @@ def admin_location_update():
         loc_old_lat = float(loc_old_lat)
     if loc_old_lng:
         loc_old_lng = float(loc_old_lng)
+    if loc_active is not None:
+        if isinstance(loc_active, str):
+            loc_active = loc_active.upper() == 'TRUE'
+        else:
+            loc_active = bool(loc_active)
+    else:
+        loc_active = False
+
 
     # Make sure this user is an admin
     if user_info.admin != 1:
@@ -2410,14 +2423,14 @@ def admin_location_update():
     # Get the location
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     cur_locations = sdu.load_locations(s3_url, user_info.name, lambda: get_password(token, db),
-                                                                                hash2str(s3_url))
+                                                                            hash2str(s3_url), True)
 
     # Make sure this is OK to do
     if loc_old_lat and loc_old_lng:
         found_match = [one_location for one_location in cur_locations if \
-                                                one_location['idProperty'] == loc_id and
-                                                one_location['latProperty'] == loc_old_lat and
-                                                one_location['lngProperty'] == loc_old_lng]
+                                            one_location['idProperty'] == loc_id and
+                                            float(one_location['latProperty']) == loc_old_lat and
+                                            float(one_location['lngProperty']) == loc_old_lng]
 
         # If we're replacing, we should have found the entry
         if not found_match or len(found_match) <= 0:
@@ -2425,9 +2438,9 @@ def admin_location_update():
                         f'{loc_old_lat}, {loc_old_lng}'}
     else:
         found_match = [one_location for one_location in cur_locations if \
-                                                one_location['idProperty'] == loc_id and
-                                                one_location['latProperty'] == loc_new_lat and
-                                                one_location['lngProperty'] == loc_new_lng]
+                                            one_location['idProperty'] == loc_id and
+                                            float(one_location['latProperty']) == loc_new_lat and
+                                            float(one_location['lngProperty']) == loc_new_lng]
 
         # If we're not replacing, we should NOT find the entry
         if found_match and len(found_match) > 0:
@@ -2451,11 +2464,14 @@ def admin_location_update():
     # Put the change in the DB
     if db.update_location(user_info.url, user_info.name, loc_name, loc_id, loc_active,
                                         loc_ele,loc_old_lat,loc_old_lng, loc_new_lat, loc_new_lng):
+        return_lat = round(loc_new_lat, 3)
+        return_lng = round(loc_new_lng, 3)
+        return_utm_x, return_utm_y = deg2utm(return_lat, return_lng)
         return {'success': True, 'message': f'Successfully updated location {loc_name}',
                 'data':{'nameProperty': loc_name, 'idProperty': loc_id, \
                         'elevationProperty': loc_ele, 'activeProperty': loc_active, \
-                        'latProperty': loc_new_lat, 'lngProperty': loc_new_lng, \
-                        'utm_code': utm_code, 'utm_x': utm_x, 'utm_y': utm_y
+                        'latProperty': return_lat, 'lngProperty': return_lng, \
+                        'utm_code': utm_code, 'utm_x': int(return_utm_x), 'utm_y': int(return_utm_y)
                         }
                 }
 
@@ -2514,6 +2530,7 @@ def admin_collection_update():
     s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
     s3_bucket = SPARCD_PREFIX + col_id
 
+    # TODO: Get from S3 if not loaded here (and save again) See get_collection_info below
     all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
                                                             hash2str(s3_url))
 
@@ -2549,6 +2566,7 @@ def admin_collection_update():
         updated_collection = sdu.normalize_collection(updated_collection)
 
         # Check if we have a stored temporary file containing the collections information
+        # TODO: why not just save what we got from S3 to file instead of updating?
         return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
                                                                 hash2str(s3_url))
         if return_colls:

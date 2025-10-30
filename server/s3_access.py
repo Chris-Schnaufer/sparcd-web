@@ -1026,11 +1026,14 @@ class S3Connection:
         # Upload the data making sure to only update what's expected
         S3Connection.upload_file_data(url, user, password, bucket, perms_info_path,
                                             json.dumps(
-                                                [{'usernameProperty': one_perm['usernameProperty'],
+                                                [
+                                                 {'usernameProperty': one_perm['usernameProperty'],
                                                   'readProperty': one_perm['readProperty'],
                                                   'uploadProperty': one_perm['uploadProperty'],
                                                   'ownerProperty': one_perm['ownerProperty'],
-                                                 } for one_perm in perm_info]
+                                                 } for one_perm in perm_info
+                                                ],
+                                                indent=4
                                                 ),
                                             content_type='application/json')
 
