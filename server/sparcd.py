@@ -2043,6 +2043,52 @@ def settings_admin():
     return json.dumps({'success': pw_ok})
 
 
+
+@app.route('/settingsOwner', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def settings_owner():
+    """ Confirms the password is correct for collection editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the user is possibly an admin
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('ADMIN CHECK', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    pw = request.form.get('value', None)
+    if not pw:
+        return "Not Found", 406
+
+    # Make sure this user is NOT an admin
+    if user_info.admin == 1:
+        return "Not Found", 404
+
+    # Log onto S3 to make sure the information is correct
+    pw_ok = False
+    try:
+        s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+        minio = Minio(s3_url, access_key=user_info.name, secret_key=pw)
+        _ = minio.list_buckets()
+        pw_ok = True
+    except MinioException as ex:
+        print(f'Owner password check failed for {user_info.name}:', ex)
+        return "Not Found", 401
+
+    return json.dumps({'success': pw_ok})
+
+
 @app.route('/adminCollectionDetails', methods = ['POST'])
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def admin_collection_details():
@@ -2056,7 +2102,7 @@ def admin_collection_details():
    """
     db = SPARCdDatabase(DEFAULT_DB_PATH)
     token = request.args.get('t')
-    print('ADMIN USERS', flush=True)
+    print('ADMIN COLLECTION DETAILS', flush=True)
 
     # Check the credentials
     token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
@@ -2091,6 +2137,63 @@ def admin_collection_details():
             collection = sdu.normalize_collection(collection)
 
     if not collection:
+        return "Not Found", 404
+
+    return json.dumps(collection)
+
+
+@app.route('/ownerCollectionDetails', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def owner_collection_details():
+    """ Returns detailed collection information for owner editing
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns the collection details for editing purposes
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('OWNER COLLECTION DETAILS', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Make sure this user is NOT an admin
+    if user_info.admin == 1:
+        return "Not Found", 404
+
+    bucket = request.form.get('bucket', None)
+    if bucket is None:
+        return "Not Found", 404
+
+    # Get the collection information
+    collection = None
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                        hash2str(s3_url))
+    if return_colls:
+        found_colls = [one_coll for one_coll in return_colls if one_coll['bucket'] == bucket]
+        if found_colls:
+            collection = found_colls[0]
+
+    if not collection:
+        collection = S3Connection.get_collection_info(s3_url, user_info.name, \
+                                                        get_password(token, db),
+                                                        bucket)
+        if collection:
+            collection = sdu.normalize_collection(collection)
+
+    if not collection:
+        return "Not Found", 404
+
+    if not collection['permissions']['usernameProperty'] == user_info.name or not \
+                                                collection['permissions']['ownerProperty'] == True:
         return "Not Found", 404
 
     return json.dumps(collection)
@@ -2547,6 +2650,109 @@ def admin_collection_update():
 
     if found_coll is None:
         return {'success': False, 'message': "Unable to find collection in list to update"}
+
+    # Upload the changes
+    S3Connection.save_collection_info(s3_url, user_info.name,
+                                get_password(token, db),
+                                found_coll['bucket'],
+                                found_coll)
+
+    S3Connection.save_collection_permissions(s3_url, user_info.name,
+                                get_password(token, db),
+                                found_coll['bucket'],
+                                col_all_perms)
+
+    # Update the collection to reflect the changes
+    updated_collection = S3Connection.get_collection_info(s3_url, user_info.name,
+                                            get_password(token, db), s3_bucket)
+    if updated_collection:
+        updated_collection = sdu.normalize_collection(updated_collection)
+
+        # Check if we have a stored temporary file containing the collections information
+        # TODO: why not just save what we got from S3 to file instead of updating?
+        return_colls = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                                hash2str(s3_url))
+        if return_colls:
+            return_colls = [one_coll if one_coll['bucket'] != s3_bucket else updated_collection \
+                                                                    for one_coll in return_colls ]
+            # Save the collections temporarily
+            sdu.save_timed_temp_colls(return_colls, hash2str(s3_url))
+
+    return {'success':True, 'data': updated_collection, \
+            'message': "Successfully updated the collection"}
+
+
+@app.route('/ownerCollectionUpdate', methods = ['POST'])
+@cross_origin(origins="http://localhost:3000", supports_credentials=True)
+def ownercollection_update():
+    """ Adds/updates a collection information
+    Arguments: (GET)
+        t - the session token
+    Return:
+        Returns True if the collection was updated
+    Notes:
+         If the token is invalid, or a problem occurs, a 404 error is returned
+   """
+    db = SPARCdDatabase(DEFAULT_DB_PATH)
+    token = request.args.get('t')
+    print('OWNER COLLECTION UDPATE', flush=True)
+
+    # Check the credentials
+    token_valid, user_info = sdu.token_user_valid(db, request, token, SESSION_EXPIRE_SECONDS)
+    if token_valid is None or user_info is None:
+        return "Not Found", 404
+    if not token_valid or not user_info:
+        return "Unauthorized", 401
+
+    # Get the rest of the request parameters
+    col_id = request.form.get('id', None)
+    col_name = request.form.get('name', None)
+    col_desc = request.form.get('description', None)
+    col_email = request.form.get('email', None)
+    col_org = request.form.get('organization', None)
+    col_all_perms = request.form.get('allPermissions', None)
+
+    # Check what we have from the requestor
+    if not all(item for item in [col_id, col_name, col_all_perms]):
+        return "Not Found", 406
+
+    if col_desc is None:
+        col_desc = ''
+    if col_email is None:
+        col_email = ''
+    if col_org is None:
+        col_org = ''
+
+    col_all_perms = json.loads(col_all_perms)
+
+    # Make sure this user is an admin
+    if user_info.admin == 1:
+        return "Not Found", 404
+
+    # Get existing collection information and permissions
+    s3_url = s3u.web_to_s3_url(user_info.url, lambda x: crypt.do_decrypt(WORKING_PASSCODE, x))
+    s3_bucket = SPARCD_PREFIX + col_id
+
+    # TODO: Get from S3 if not loaded here (and save again) See get_collection_info below
+    all_collections = sdu.load_timed_temp_colls(user_info.name, bool(user_info.admin),
+                                                            hash2str(s3_url))
+
+    # Update the entry to what we need
+    found_coll = None
+    for one_coll in all_collections:
+        if one_coll['id'] == col_id:
+            one_coll['name'] = col_name
+            one_coll['description'] = col_desc
+            one_coll['email'] = col_email
+            one_coll['organization'] = col_org
+            found_coll = one_coll
+            break
+
+    if found_coll is None:
+        return {'success': False, 'message': "Unable to find collection in list to update"}
+    if not found_coll['permissions']['usernameProperty'] == user_info.name or not \
+                                                found_coll['permissions']['ownerProperty'] == True:
+        return "Not Found", 404
 
     # Upload the changes
     S3Connection.save_collection_info(s3_url, user_info.name,

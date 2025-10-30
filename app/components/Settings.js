@@ -65,9 +65,10 @@ function ensure_settings(settings) {
  * @param {function} onClose Handler for when the settings are to be closed
  * @param {function} onLogout Handler for the user wants to log out
  * @param {function} onAdminSettings Handler for an admin user wanting to make changes
+ * @param {function} onOwnerSettings Handler for an user wanting to make collection changes
  * @returns {object} Returns the UI to render
  */
-export default function Settings({curSettings, onChange, onClose, onLogout, onAdminSettings}) {
+export default function Settings({curSettings, onChange, onClose, onLogout, onAdminSettings, onOwnerSettings}) {
   const theme = useTheme();
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionsItems = React.useContext(CollectionsInfoContext);
@@ -283,14 +284,14 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
    * Handles the user logging in for admin
    * @function
    */
-  function handleLogin() {
+  function handleLoginConfirmation() {
     const el = document.getElementById('password-entry');
     if (el && typeof(onAdminSettings) === 'function') {
       const newPw = el.value;
       if (isAdmin) {
         onAdminSettings(newPw);
       } else if (isOwner) {
-        // TODO:
+        onOwnerSettings(newPw);
       }
       setGetPassword(false);
     }
@@ -540,7 +541,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
                     />
                <Button size='small' color='login_button'
                       sx={{bgcolor: 'background.default', '&:hover':{backgroundColor:'#AEAEAE'}}} endIcon={<LoginIcon />} 
-                      onClick={handleLogin}
+                      onClick={handleLoginConfirmation}
               >
                 Login
               </Button>

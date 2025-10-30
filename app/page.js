@@ -15,6 +15,7 @@ import { Level, makeMessage, Messages } from './components/Messages';
 import Maps from './Maps';
 import Queries from './Queries';
 import SettingsAdmin from './components/SettingsAdmin';
+import SettingsOwner from './components/SettingsOwner';
 import theme from './Theme';
 import TitleBar from './components/TitleBar';
 import UploadManage from './UploadManage';
@@ -127,6 +128,7 @@ export default function Home() {
   const [dbUser, setDbUser] = React.useState('');
   const [dbURL, setDbURL] = React.useState('');
   const [displayAdminSettings, setDisplayAdminSettings] =  React.useState(false); // Admin settings editing
+  const [displayOwnerSettings, setDisplayOwnerSettings] =  React.useState(false); // Collection owner settings editing
   const [editing, setEditing] = React.useState(false);
   const [isNarrow, setIsNarrow] = React.useState(null);
   const [lastToken, setLastToken] = React.useState(null);
@@ -654,7 +656,6 @@ export default function Home() {
             if (curUpload) {
               // Add our token in
               const curImages = respData.map((img) => {img['url'] = img['url'] + '&t=' + lastToken; return img;})
-              console.log('HACK:CURIMAGES:',respData, curUpload);
               setCurrentAction(UserActions.UploadEdit, 
                                {collectionId, name:curUpload.name, upload:curUpload.key, location:curUpload.location, images:curImages},
                                true,
@@ -734,7 +735,6 @@ export default function Home() {
     */
   }
 
-
   /**
    * Handles enabling administration editing
    * @function
@@ -744,9 +744,21 @@ export default function Home() {
    */
   function handleAdminSettings(pw, cbSuccess, cbFail) {
     // Check that the password is accurate and display the admin settings pages
-    console.log('HACK:ADMINSETTINGS');
     cbSuccess ||= () => {};
     confirmAdminPassword(pw, () => {cbSuccess();setDisplayAdminSettings(true);}, cbFail);
+  }
+
+  /**
+   * Handles enabling collection owner editing
+   * @function
+   * @param {string} pw The password to use to check for permission
+   * @param {function} {cbSuccess} The success callback
+   * @param {function} {cbFail} The failure callback
+   */
+  function handleOwnerSettings(pw, cbSuccess, cbFail) {
+    // Check that the password is accurate and display the admin settings pages
+    cbSuccess ||= () => {};
+    confirmOwnerPassword(pw, () => {cbSuccess();setDisplayOwnerSettings(true);}, cbFail);
   }
 
   /**
@@ -758,7 +770,6 @@ export default function Home() {
    */
   function confirmAdminPassword(pw, cbSuccess, cbFail) {
     // Check that the password is accurate and belongs to an administrator
-    console.log('HACK: CONFIRMADMINPASSWORD');
     const settingsCheckUrl = serverURL + '/settingsAdmin?t=' + encodeURIComponent(lastToken);
     cbSuccess ||= () => {};
     cbFail ||= () => {};
@@ -798,13 +809,59 @@ export default function Home() {
   }
 
   /**
+   * Handles enabling administration editing
+   * @function
+   * @param {string} pw The password to use to check for permission
+   * @param {function} {cbSuccess} The success callback
+   * @param {function} {cbFail} The failure callback
+   */
+  function confirmOwnerPassword(pw, cbSuccess, cbFail) {
+    // Check that the password is accurate and belongs to an administrator
+    const settingsCheckUrl = serverURL + '/settingsOwner?t=' + encodeURIComponent(lastToken);
+    cbSuccess ||= () => {};
+    cbFail ||= () => {};
+
+    const formData = new FormData();
+
+    formData.append('value', pw);
+
+    try {
+      const resp = fetch(settingsCheckUrl, {
+        credentials: 'include',
+        method: 'POST',
+        body: formData
+      }).then(async (resp) => {
+            if (resp.ok) {
+              return resp.json();
+            } else {
+              throw new Error(`Failed to check owner permissions: ${resp.status}`, {cause:resp});
+            }
+          })
+        .then((respData) => {
+            // Check the return
+            if (respData.success === true) {
+              cbSuccess();
+            } else {
+              cbFail();
+            }
+        })
+        .catch(function(err) {
+          console.log('Owner Settings Error: ',err);
+          cbFail();
+      });
+    } catch (error) {
+      console.log('Owner Settings Unknown Error: ',err);
+      cbFail();
+    }
+  }
+
+  /**
    * Updates the user's settings on the server
    * @function
    * @param {object} newSettings The settings to save on the server for the user
    */
   const updateUserSettings = React.useCallback((newSettings) => {
     const setSettingsUrl = serverURL + '/settings?t=' + encodeURIComponent(lastToken);
-    console.log('HACK:USERSETTINGS',newSettings);
 
     const formData = new FormData();
 
@@ -1017,7 +1074,7 @@ export default function Home() {
             <CollectionsInfoContext.Provider value={collectionInfo}>
               <TitleBar searchTitle={curSearchTitle} onSearch={handleSearch} onSettings={loggedIn ? handleSettings : null}
                         onLogout={handleLogout} size={narrowWindow?"small":"normal"} 
-                        breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings}/>
+                        breadcrumbs={breadcrumbs} onBreadcrumb={restoreBreadcrumb} onAdminSettings={handleAdminSettings} onOwnerSettings={handleOwnerSettings}/>
             </CollectionsInfoContext.Provider>
             </AddMessageContext.Provider>
             </TokenContext.Provider>
@@ -1056,6 +1113,16 @@ export default function Home() {
                   </AddMessageContext.Provider>
                   </SpeciesInfoContext.Provider>
                   </LocationsInfoContext.Provider>
+                  </CollectionsInfoContext.Provider>
+                  </TokenContext.Provider>
+            }
+            { displayOwnerSettings &&
+                  <TokenContext.Provider value={lastToken}>
+                  <CollectionsInfoContext.Provider value={collectionInfo}>
+                  <AddMessageContext.Provider value={addMessage}>
+                    <SettingsOwner loadingCollections={loadingCollections}
+                                    onConfirmPassword={confirmOwnerPassword} onClose={() => setDisplayOwnerSettings(false)}/>
+                  </AddMessageContext.Provider>
                   </CollectionsInfoContext.Provider>
                   </TokenContext.Provider>
             }

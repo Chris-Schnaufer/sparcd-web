@@ -27,9 +27,11 @@ import { AddMessageContext, UserSettingsContext } from '../serverInfo';
  * @param {function} [onBreadcrumb] The breadcrumb click handler
  * @param {function} onSettings The settings click handler
  * @param {function} onLogout The handler for the user wanting to logout
+ * @param {function} onAdminSettings The handler for when an admin users wants to edit system-wide settings
+ * @param {function} onOwnerSettings The handler for when an admin users wants to edit collection settings
  * @returns {object} The rendered UI
  */
-export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings}) {
+export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings, onOwnerSettings}) {
   const searchId = React.useMemo(() => "search-" + (searchTitle ? searchTitle.toLowerCase().replaceAll(' ', '-') : "sparcd"), [searchTitle]);
   const [showSettings, setShowSettings] = React.useState(false);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
@@ -83,6 +85,15 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
   const handleAdminSettings = React.useCallback((pw) => {
     onAdminSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
   }, [onAdminSettings, handleSettingsClose, addMessage, Level]);
+
+  /**
+   * Handles the user wanting to make collection changes
+   * @function
+   * @param {string} pw The password for administration editing
+   */
+  const handleOwnerSettings = React.useCallback((pw) => {
+    onOwnerSettings(pw, handleSettingsClose, () => {addMessage(Level.Warning, 'Login check failed');});
+  }, [onOwnerSettings, handleSettingsClose, addMessage, Level]);
 
   const extraInputSX = size === "small" ? {maxWidth:'10em'} : {};
 
@@ -146,7 +157,8 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
         </Grid>
       </Box>
       {showSettings && onSettings != null && <Settings curSettings={userSettings} onChange={onSettings} onClose={handleSettingsClose} 
-                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={(pw) => handleAdminSettings(pw)} />
+                                                       onLogout={() => {handleSettingsClose();onLogout();}} onAdminSettings={(pw) => handleAdminSettings(pw)} 
+                                                       onOwnerSettings={(pw) => handleOwnerSettings(pw)} />
       }
     </header>
     );
