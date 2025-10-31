@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 import { Level } from './Messages';
 import Settings from './Settings';
 import styles from './components.module.css';
-import { AddMessageContext, UserSettingsContext } from '../serverInfo';
+import { AddMessageContext, UserNameContext, UserSettingsContext } from '../serverInfo';
 
 /**
  * Renders the title bar
@@ -33,9 +33,25 @@ import { AddMessageContext, UserSettingsContext } from '../serverInfo';
  */
 export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBreadcrumb, onSettings, onLogout, onAdminSettings, onOwnerSettings}) {
   const searchId = React.useMemo(() => "search-" + (searchTitle ? searchTitle.toLowerCase().replaceAll(' ', '-') : "sparcd"), [searchTitle]);
-  const [showSettings, setShowSettings] = React.useState(false);
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
+  const userName = React.useContext(UserNameContext);  // User display name
   const userSettings = React.useContext(UserSettingsContext);  // User display settings
+  const [showSettings, setShowSettings] = React.useState(false);
+  const [welcomeShown, setWelcomeShown] = React.useState(false); // Flag used to show users a welcome message
+  const [welcomeTimeoutId, setWelcomeTimeoutId] = React.useState(null); // Stores the timer ID for removing welcome message
+
+  const WELCOME_TIMEOUT_SEC = 1.5 * 60 * 1000;
+
+  // Used to setup the welcome message
+  React.useLayoutEffect(() => {
+    if (!welcomeShown) {
+      setWelcomeShown(true);
+      if (!welcomeTimeoutId) {
+        setWelcomeTimeoutId(window.setTimeout(() => setWelcomeTimeoutId(null), WELCOME_TIMEOUT_SEC));
+      }
+    }
+  }, [setWelcomeShown, setWelcomeTimeoutId, welcomeShown, welcomeTimeoutId]);
+
   /**
    * Handles the clicking of the search icon
    * @function
@@ -112,6 +128,19 @@ export default function TitleBar({searchTitle, breadcrumbs, size, onSearch, onBr
             </Grid>
             <Grid id='sparcd-header-search-wrapper' sx={{marginLeft:'auto'}} style={{paddingLeft:'0px'}}>
               <Grid id='sparcd-header-search' container direction="row">
+                { welcomeTimeoutId !== null && 
+                  <Grid container alignItems="center" justifyContent="center" sx={{paddingRight:'10px', color:'dimgrey'}}>
+                    <Typography style={{fontSize:'larger'}}>
+                      Welcome back
+                    </Typography>
+                    <Typography style={{fontSize:'larger', fontFamily:'cursive', fontWeight:'bold'}}>
+                      &nbsp;{userName}&nbsp;
+                    </Typography>
+                    <Typography style={{fontSize:'larger'}}>
+                      !
+                    </Typography>
+                  </Grid>
+                }
                 { searchTitle &&
                   <TextField id={searchId} label={searchTitle} placehoder={searchTitle} size="small" variant="outlined" style={extraInputSX}
                             onKeyPress={handleSearchChange}
