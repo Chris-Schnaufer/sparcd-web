@@ -23,7 +23,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 
 import { Level } from './Messages';
-import { AddMessageContext, CollectionsInfoContext, geographicCoordinates, TokenContext } from '../serverInfo';
+import { AddMessageContext, CollectionsInfoContext, geographicCoordinates, TokenContext, UserNameContext } from '../serverInfo';
 import * as utils from '../utils';
 
 // Default settings if we never received them
@@ -73,6 +73,7 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
   const addMessage = React.useContext(AddMessageContext); // Function adds messages for display
   const collectionsItems = React.useContext(CollectionsInfoContext);
   const settingsToken = React.useContext(TokenContext);  // Login token
+  const userName = React.useContext(UserNameContext);
   const passwordRef = React.useRef();
   const email1Ref = React.useRef();
   const email2Ref = React.useRef();
@@ -374,7 +375,8 @@ export default function Settings({curSettings, onChange, onClose, onLogout, onAd
              border:'1px solid grey', backgroundColor:'silver', boxShadow:'2px 3px 3px #bbbbbb'}}
     >
       <Card id="settings-content">
-        <CardHeader title="Settings" />
+        <CardHeader title="Settings"
+                    subheader={<span style={{fontSize:"smaller"}}><span>Customize settings for </span><span style={{fontWeight:'bold'}}>{userName}</span></span>} />
         <CardContent sx={{paddingTop:'0px', paddingBottom:'0px'}}>
           <Grid container direction="column" alignItems="start" justifyContent="start" wrap="nowrap"
                   spacing={1}

@@ -24,7 +24,7 @@ import UserActions from './components/userActions';
 import { LoginCheck, LoginValidContext, DefaultLoginValid } from './checkLogin';
 import { AddMessageContext, BaseURLContext, CollectionsInfoContext, LocationsInfoContext, MobileDeviceContext, 
          NarrowWindowContext, SandboxInfoContext, SizeContext, SpeciesInfoContext, TokenContext,
-         UploadEditContext, UserSettingsContext } from './serverInfo';
+         UploadEditContext, UserNameContext, UserSettingsContext } from './serverInfo';
 import * as utils from './utils';
 
 // This is declared here so that it doesn't raise an error on server-side compile
@@ -500,7 +500,6 @@ export default function Home() {
           })
         .then((respData) => {
             // Save token and set status
-            console.log('HACK:LOGIN:',respData);
             const loginToken = respData['value'];
             loginStore.saveLoginToken(loginToken);
 
@@ -518,7 +517,7 @@ export default function Home() {
             curSettings['sandersonOutput'] = !curSettings['sandersonOutput'] ? false : 
                                                       typeof(curSettings['sandersonOutput']) === 'boolean' ? curSettings['sandersonOutput'] :
                                                                               curSettings['sandersonOutput'].toLowerCase() === 'true';
-            setUserSettings({name:resp['name'], settings:curSettings, admin:resp['admin']});
+            setUserSettings({name:respData['name'], settings:curSettings});
 
             setLoggedIn(true);
             setLastToken(loginToken);
@@ -1066,9 +1065,10 @@ export default function Home() {
     <main className={styles.main} style={{position:'relative'}}>
       <ThemeProvider theme={theme}>
         <MobileDeviceContext.Provider value={mobileDevice}>
-        <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
-        <UserSettingsContext.Provider value={userSettings.settings}>
         <NarrowWindowContext.Provider value={narrowWindow}>
+        <SizeContext.Provider value={{footer:sizeFooter, title:sizeTitle, window:sizeWindow, workspace:sizeWorkspace}}>
+        <UserNameContext.Provider value={userSettings.name}>
+        <UserSettingsContext.Provider value={userSettings.settings}>
             <TokenContext.Provider value={lastToken}>
             <AddMessageContext.Provider value={addMessage}>
             <CollectionsInfoContext.Provider value={collectionInfo}>
@@ -1133,9 +1133,10 @@ export default function Home() {
                   <Messages messages={messages} close_cb={handleCloseMessage}/>
                 </Grid>
             }
-        </NarrowWindowContext.Provider>
         </UserSettingsContext.Provider>
+        </UserNameContext.Provider>
         </SizeContext.Provider>
+        </NarrowWindowContext.Provider>
         </MobileDeviceContext.Provider>
       </ThemeProvider>
     </main>

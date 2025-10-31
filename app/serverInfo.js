@@ -32,6 +32,8 @@ export const SpeciesInfoContext = createContext(null);
 export const TokenContext = createContext(null);
 /** React context for the current upload edit */
 export const UploadEditContext = createContext(null);
+/** React context for user name */
+export const UserNameContext = createContext(null);
 /** React context for user settings */
 export const UserSettingsContext = createContext(null);
 
